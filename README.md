@@ -13,9 +13,20 @@
 - `archive/v5/`：V5 归档区（只读参考，避免干扰 V6 开发）
 
 ## 3. 启动建议
-1. 先完成 V6 后端工程初始化与 PostgreSQL 连接验证。
+1. 先启动 V6 后端并完成 PostgreSQL 迁移验证。
 2. 再初始化 V6 管理后台并对接 `/api/v1`。
 3. 最后迁移小程序关键链路并做联调回归。
 
 ## 4. 说明
-- 本次调整只完成“目录隔离 + 基线文档落地”，尚未开始 V6 功能开发。
+- 已完成 V6 后端基座初始化（FastAPI + Alembic + PostgreSQL）。
+- 当前已验证 `alembic upgrade head`、`pytest`、`/api/v1/healthz` 可用。
+
+## 5. V6 后端快速启动
+```bash
+cd backend
+conda activate jgport
+cp .env.example .env
+python -m pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
