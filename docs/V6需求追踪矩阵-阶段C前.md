@@ -20,10 +20,10 @@
 | 7 | 数量单据中台化 | M5 | ADM-INBOUND-01/ADM-OUTBOUND-01 | `/inbound-docs/*` `/outbound-docs/*` | `inbound_docs`,`outbound_docs` | INV-001 |
 | 8 | 采购合同生效触发付款单+入库草稿 | M2+M4+M5 | 合同审批页 | `/contracts/{id}/approve` 触发事件 | 合同/付款单/入库单 | TRG-001 |
 | 9 | 销售合同生效触发收款单保证金 | M2+M4 | 合同审批页 | `/contracts/{id}/approve` 触发事件 | 合同/收款单 | TRG-002 |
-| 10 | 销售订单财务通过自动三单 | M3+M4 | ADM-ORDER-S-01 | `/sales-orders/{id}/finance-approve` | 订单/采购单/收付款单 | TRG-003 |
+| 10 | 销售订单财务通过自动三单 + 细粒度状态机唯一标准 | M3+M4 | ADM-ORDER-S-01/ADM-ORDER-P-01 | `/sales-orders/{id}/finance-approve` | 销售/采购订单状态枚举 + 收付款单 | TRG-003 |
 | 11 | 销售衍生采购订单付款=0无条件放行 | M3+M4 | ADM-ORDER-P-01 | `po_zero_pay_exception`触发 | `purchase_orders.zero_pay_exception_flag` | EXC-001 |
 | 12 | 出库双通道（系统+手工） | M5 | ADM-OUTBOUND-01 | `/outbound-docs/manual` + 仓库出库事件 | `outbound_docs.source_type` | INV-002 |
-| 13 | 双阈值模型与约束 | M2+M6 | ADM-CONFIG-01 | 合同创建/配置保存校验 | `contracts.threshold_*` | CFG-001 |
+| 13 | 双阈值模型与约束（系统级统一下发） | M1+M2+M6 | ADM-CONFIG-01 | `/system-configs/thresholds` + 合同生效写快照 | `system_configs` + `contracts.threshold_*_snapshot` | CFG-001 |
 | 14 | 零金额免凭证（规则14场景） | M4 | ADM-RECEIPT-01 | `/receipt-docs/{id}/confirm` | 收付款单免凭证字段 | EXC-002 |
 | 15 | 单价来自合同，实收实付来自单据，附件按单据分层归属 | M3+M4 | ADM-ORDER-S-01 | 订单创建/财务确认/附件上传 | `sales_orders.unit_price` + 收付款单 + `doc_attachments` | FIN-002 |
 | 16 | 数量履约完成状态 | M6 | 合同详情状态流 | 履约计算任务 | `contract_items.qty_in_acc/qty_out_acc` | CLS-001 |
@@ -35,7 +35,7 @@
 | 22 | 当前版本低并发策略 | NFR | - | 幂等+事务，不用分布式锁 | `source_event_id`,`幂等键` | NFR-001 |
 | 23 | 全新库初始化清单 | M1 | ADM-CONFIG-01 | 初始化脚本与校验 | 主数据/字典/参数 | OPS-002 |
 | 24 | 后台全量、小程序轻量 | M8 | 端能力矩阵 | 菜单与权限路由 | 角色权限表 | UXR-001 |
-| 25 | 小程序功能边界 | M8 | MINI-* | 小程序接口白名单 | 小程序菜单权限 | UXR-002 |
+| 25 | 小程序功能边界（客户/供应商/仓库仅小程序） | M8 | MINI-* | 小程序接口白名单 + 后台登录禁用策略 | 小程序菜单权限 + 后台登录策略 | UXR-002 |
 | 26 | 后台必须有仪表盘+看板 | M7 | ADM-DASH-01/ADM-BOARD-01 | `/dashboard/summary` `/boards/tasks` | 指标快照 | RPT-001 |
 | 27 | 报表分层（小程序轻量/后台多维） | M7 | MINI-REPORT-01 + 后台报表页 | 轻量/多维报表接口 | 报表口径字典 | RPT-002 |
 | 28 | 报表SLA与口径冻结 | M7 | 仪表盘口径提示 | SLA监控+口径版本参数 | `report_snapshots.version` | RPT-003 |

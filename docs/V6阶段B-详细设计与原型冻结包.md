@@ -26,6 +26,7 @@
 - 业务角色：客户、运营、财务、供应商、仓库；系统管理员归属运营商公司。
 - 公司绑定：客户->客户公司，供应商->供应商公司，仓库->仓库公司，运营/财务/管理员->运营商公司。
 - 权限实现：所有接口按“角色+公司范围”双维校验，防止跨公司越权读取或写入。
+- 端登录边界：客户、供应商、仓库角色不开放管理后台登录，仅通过小程序端处理业务。
 
 ## 3. 数据模型详细设计（逻辑模型）
 
@@ -33,7 +34,7 @@
 
 | 实体 | 关键字段 | 关键约束 | 说明 |
 |---|---|---|---|
-| `contracts` | `id`,`contract_no`,`direction`,`status`,`threshold_release`,`threshold_over_exec`,`close_type`,`manual_close_reason` | `contract_no`唯一；`direction`审批后不可变；`threshold_release <= threshold_over_exec` | 合同主表，区分采购/销售方向 |
+| `contracts` | `id`,`contract_no`,`direction`,`status`,`threshold_release_snapshot`,`threshold_over_exec_snapshot`,`close_type`,`manual_close_reason` | `contract_no`唯一；`direction`审批后不可变；阈值快照来自系统参数且`release <= over_exec` | 合同主表，区分采购/销售方向 |
 | `contract_items` | `id`,`contract_id`,`oil_product_id`,`qty_signed`,`unit_price`,`qty_in_acc`,`qty_out_acc` | `contract_id+oil_product_id`唯一 | 合同按油品明细，金额与数量计算基准 |
 | `sales_orders` | `id`,`order_no`,`sales_contract_id`,`status`,`unit_price`,`qty_ordered` | `unit_price`来自销售合同，不允许脱离合同重写 | 销售订单主表 |
 | `purchase_orders` | `id`,`order_no`,`purchase_contract_id`,`source_sales_order_id`,`payable_amount`,`zero_pay_exception_flag` | `source_sales_order_id`必填（销售衍生场景）；`zero_pay_exception_flag`仅在规则11场景为真 | 采购订单主表 |
@@ -58,10 +59,13 @@
 - 金额闭环（销售）：`Σ(累计实际出库量 × 合同单价) = 累计收款单净额（含保证金类型）`。
 - 金额闭环（采购）：`Σ(累计实际入库量 × 合同单价) = 累计付款单净额（含保证金类型）`。
 - 保证金口径：保证金是收付款单业务类型，不另行加总，避免重复计入。
+- 金额闭环容差：`abs(金额差额) <= 0.01` 视为闭环成立。
+- 数量精度：数量计算、阈值校验、履约累计统一按 `0.001` 精度处理。
 
 ## 3.4 状态枚举冻结
 - 合同：`草稿` -> `待审批` -> `生效中` -> `数量履约完成` -> (`已关闭` 或 `手工关闭`) -> `已归档`。
-- 订单：`草稿` -> `审批中` -> `已审批` -> `执行中` -> `已完成`。
+- 销售订单：`草稿` -> `待运营审批` -> `待财务审批` -> (`驳回` 或 `已审批`) -> `已衍生采购订单` -> `执行中` -> `已完成`。
+- 采购订单：`已创建` -> `待供应商确认` -> `供应商已确认` -> `待付款校验` -> `可继续执行` -> `执行中` -> `已完成`。
 - 收付款单：`草稿` -> `待审核` -> `已确认` -> `已核销`；异常分支 `待补录金额`、`已终止`。
 - 出入库单：`草稿` -> `待提交` -> `已生效` -> `已过账`；异常分支 `校验失败`、`已终止`。
 
@@ -99,8 +103,8 @@
 
 | 接口 | 方法 | 关键请求字段 | 关键校验 | 关键响应 |
 |---|---|---|---|---|
-| `/contracts/purchase` | `POST` | `contract_no`,`supplier_id`,`items[]`,`threshold_over_exec` | 油品明细必填；阈值合法 | `contract_id`,`status` |
-| `/contracts/sales` | `POST` | `contract_no`,`customer_id`,`items[]`,`threshold_release` | `threshold_release <= threshold_over_exec` | `contract_id`,`status` |
+| `/contracts/purchase` | `POST` | `contract_no`,`supplier_id`,`items[]` | 油品明细必填；系统阈值参数已生效 | `contract_id`,`status` |
+| `/contracts/sales` | `POST` | `contract_no`,`customer_id`,`items[]` | 油品明细必填；系统阈值参数已生效 | `contract_id`,`status` |
 | `/contracts/{id}/approve` | `POST` | `approval_result`,`comment` | 状态必须是`待审批` | `status=生效中` |
 | `/contracts/{id}/manual-close` | `POST` | `reason`,`confirm_token` | 原因必填；权限校验；二次确认 | `status=手工关闭` |
 | `/contracts/{id}/graph` | `GET` | 无 | 仅授权角色可读 | 上下游单据图谱 |
@@ -140,14 +144,21 @@
 | `/reports/light/overview` | `GET` | 小程序轻量汇总报表 | `T+0` |
 | `/reports/admin/multi-dim` | `GET` | 后台多维管理报表 | `T+0~T+1` |
 
-## 5.6 错误码冻结
+## 5.6 参数中心接口（系统级阈值）
+
+| 接口 | 方法 | 关键请求字段 | 关键校验 | 关键响应 |
+|---|---|---|---|---|
+| `/system-configs/thresholds` | `GET` | 无 | 权限校验（管理员） | `threshold_release`,`threshold_over_exec`,`version` |
+| `/system-configs/thresholds` | `PUT` | `threshold_release`,`threshold_over_exec`,`reason` | `threshold_release <= threshold_over_exec`；版本化留痕 | `status=生效`,`version` |
+
+## 5.7 错误码冻结
 
 | 错误码 | 触发场景 | 说明 |
 |---|---|---|
 | `BIZ-CONTRACT-THRESHOLD-001` | 出入库超量履约阈值 | 阻断单据生效 |
 | `BIZ-RECEIPT-ZERO-001` | 收款0金额不满足规则14阈值 | 转`待补录金额` |
 | `BIZ-LINK-001` | 上下游ID缺失或关系不完整 | 阻断审核/生效 |
-| `BIZ-CLOSE-001` | 合同方向金额闭环不满足 | 不允许自动关闭 |
+| `BIZ-CLOSE-001` | 合同方向金额闭环不满足（超出0.01容差） | 不允许自动关闭 |
 | `BIZ-PAY-SUPPLEMENT-001` | 手工补录付款单缺合同或采购订单 | 阻断提交 |
 | `BIZ-ORDER-PRICE-001` | 订单单价与合同单价不一致 | 阻断提交 |
 
@@ -158,7 +169,7 @@
 - 小程序：`MINI-TODO-01`、`MINI-ORDER-01`、`MINI-EXEC-01`、`MINI-INOUT-01`、`MINI-REPORT-01`、`MINI-MSG-01`。
 
 ## 6.2 关键字段字典冻结
-- 合同：编号、方向、油品、签约数量、单价、阈值参数、状态。
+- 合同：编号、方向、油品、签约数量、单价、系统阈值快照、状态。
 - 订单：来源合同、油品、数量、合同单价、实收实付、状态。
 - 收付款单：业务类型、金额、凭证要求、免凭证原因、核销状态。
 - 出入库单：来源类型（系统/手工）、实际数量、仓库、阈值校验结果、过账状态。
