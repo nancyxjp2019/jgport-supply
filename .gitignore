@@ -6,6 +6,7 @@ $RECYCLE.BIN/
 .Spotlight-V100/
 .Trashes/
 ._*
+tmp/
 
 # Python
 __pycache__/
