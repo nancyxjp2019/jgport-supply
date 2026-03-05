@@ -60,10 +60,12 @@
 - `docs/需求方案.md` 中的业务规则必须标注当前状态，统一使用：`生效`、`弃用`、`规划中`。
 - 未写入 `docs/需求方案.md` 且未标注状态的业务口径，一律不得作为开发、测试、验收和交付依据。
 
-## 当前技术栈（维护基线）
+## V5归档技术栈（只读基线）
+
+- 归档路径：`archive/v5/`
 
 - 后端框架与运行：
-  - `Python` + `FastAPI`（`backend/requirements.txt` 当前版本：`0.128.4`）
+  - `Python` + `FastAPI`（`archive/v5/backend/requirements.txt` 当前版本：`0.128.4`）
   - `Uvicorn`（`uvicorn[standard]`，当前版本：`0.40.0`）
   - API 组织方式：RESTful 风格，统一前缀 `/api/v1`
 - 数据层：
@@ -82,27 +84,27 @@
   - Excel 导出：`openpyxl 3.1.5`
   - 对象存储：本地文件系统（默认）+ 阿里云 OSS（`oss2`）
 - 终端与前端：
-  - 微信小程序：原生 `WXML + WXSS + JavaScript`（`miniprogram/project.config.json` 当前 `libVersion=3.7.8`）
+  - 微信小程序：原生 `WXML + WXSS + JavaScript`（`archive/v5/miniprogram/project.config.json` 当前 `libVersion=3.7.8`）
   - 小程序网络层：基于 `wx.request` / `wx.uploadFile` 封装
   - 后台管理端：`HTML + CSS + 原生 JavaScript` 单页管理台（无 React/Vue 依赖）
 - 测试与质量保障：
   - 后端测试：`pytest 9.0.2`
-  - UAT 自动化：`Playwright`（Node.js，当前版本 `^1.54.2`，位于 `tests/uat`）
+  - UAT 自动化：`Playwright`（Node.js，当前版本 `^1.54.2`，位于 `archive/v5/tests/uat`）
 - 部署与运维：
   - 部署方式：以 Linux Shell 脚本为主（`deploy/`）
   - Web 网关：`Nginx`（仓库提供限流与防护脚本）
   - 运行日志：文件日志 + 数据库业务审计日志（`business_logs`）
 
-## 项目基座技术栈（`jgport`）
+## V6项目基座技术栈（`jgport`）
 
-- 目录：`jgport/`
+- 目录：仓库根目录（`backend/`、`admin-web/`、`miniprogram/`、`docs/`）
 - 后台前端：`Vue 3 + Element Plus + Vben Admin`
 - 后端：`Python + FastAPI`（沿用 V5 业务域与 API）
 - 数据库：`PostgreSQL 18`（截至 2026-03-05 的最新主版本，作为新项目默认基线）
 - Python 开发环境：Conda 环境 `jgport`
 - 小程序：保留原生小程序执行链基座，默认不迁入 UAT 自动化代码
 
-## jgport 文档维护要求（强制）
+## V6文档维护要求（强制）
 
 - 新项目技术栈、部署基线发生变化时，需同步更新：
   - `README.md`
