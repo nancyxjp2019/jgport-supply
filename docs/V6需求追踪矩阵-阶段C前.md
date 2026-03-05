@@ -25,7 +25,7 @@
 | 12 | 出库双通道（系统+手工） | M5 | ADM-OUTBOUND-01 | `/outbound-docs/manual` + 仓库出库事件 | `outbound_docs.source_type` | INV-002 |
 | 13 | 双阈值模型与约束 | M2+M6 | ADM-CONFIG-01 | 合同创建/配置保存校验 | `contracts.threshold_*` | CFG-001 |
 | 14 | 零金额免凭证（规则14场景） | M4 | ADM-RECEIPT-01 | `/receipt-docs/{id}/confirm` | 收付款单免凭证字段 | EXC-002 |
-| 15 | 单价来自合同，实收实付来自单据 | M3+M4 | ADM-ORDER-S-01 | 订单创建/财务确认 | `sales_orders.unit_price` + 收付款单 | FIN-002 |
+| 15 | 单价来自合同，实收实付来自单据，附件按单据分层归属 | M3+M4 | ADM-ORDER-S-01 | 订单创建/财务确认/附件上传 | `sales_orders.unit_price` + 收付款单 + `doc_attachments` | FIN-002 |
 | 16 | 数量履约完成状态 | M6 | 合同详情状态流 | 履约计算任务 | `contract_items.qty_in_acc/qty_out_acc` | CLS-001 |
 | 17 | 金额闭环采购/销售分开 | M6 | 合同详情闭环面板 | 自动关闭校验任务 | 合同方向闭环字段 | CLS-002 |
 | 18 | 自动关闭与手工关闭边界 | M6 | 合同详情手工关闭 | `/contracts/{id}/manual-close` | 合同状态+关闭字段 | CLS-003 |
