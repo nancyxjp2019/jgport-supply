@@ -1,0 +1,56 @@
+# V6 需求追踪矩阵（阶段C前）
+
+## 1. 目的与门槛
+- 目的：验证需求是否被完整理解并可直接进入模块开发。
+- 门槛：
+  - 规则覆盖率 `100%`（规则1~33全部映射）。
+  - 规则冲突数 `0`。
+  - 阻断级未决问题 `0`。
+
+## 2. 追踪矩阵（规则 -> 设计 -> 实现 -> 验证）
+
+| 规则ID | 规则摘要 | 模块 | 页面/交互 | API/触发 | 数据对象 | 验证用例 |
+|---|---|---|---|---|---|---|
+| 1 | V6独立工程重建 | 治理 | - | - | 目录`jgport/` | GOV-001 |
+| 2 | V5归档到`archive/v5` | 治理 | - | - | 归档目录 | GOV-002 |
+| 3 | 生产全新库部署 | 运维 | - | 部署流程 | 全新DB实例 | OPS-001 |
+| 4 | 分阶段迁移顺序 | 项目管理 | - | 里程碑门禁 | M1~M8计划 | PM-001 |
+| 5 | 合规审计连续性 | M1/审计 | ADM-AUDIT-01 | 全关键动作写审计 | `business_audit_logs` | AUD-001 |
+| 6 | 金额单据中台化 | M4 | ADM-PAYMENT-01/ADM-RECEIPT-01 | `/payment-docs/*` `/receipt-docs/*` | `payment_docs`,`receipt_docs` | FIN-001 |
+| 7 | 数量单据中台化 | M5 | ADM-INBOUND-01/ADM-OUTBOUND-01 | `/inbound-docs/*` `/outbound-docs/*` | `inbound_docs`,`outbound_docs` | INV-001 |
+| 8 | 采购合同生效触发付款单+入库草稿 | M2+M4+M5 | 合同审批页 | `/contracts/{id}/approve` 触发事件 | 合同/付款单/入库单 | TRG-001 |
+| 9 | 销售合同生效触发收款单保证金 | M2+M4 | 合同审批页 | `/contracts/{id}/approve` 触发事件 | 合同/收款单 | TRG-002 |
+| 10 | 销售订单财务通过自动三单 | M3+M4 | ADM-ORDER-S-01 | `/sales-orders/{id}/finance-approve` | 订单/采购单/收付款单 | TRG-003 |
+| 11 | 销售衍生采购订单付款=0无条件放行 | M3+M4 | ADM-ORDER-P-01 | `po_zero_pay_exception`触发 | `purchase_orders.zero_pay_exception_flag` | EXC-001 |
+| 12 | 出库双通道（系统+手工） | M5 | ADM-OUTBOUND-01 | `/outbound-docs/manual` + 仓库出库事件 | `outbound_docs.source_type` | INV-002 |
+| 13 | 双阈值模型与约束 | M2+M6 | ADM-CONFIG-01 | 合同创建/配置保存校验 | `contracts.threshold_*` | CFG-001 |
+| 14 | 零金额免凭证（规则14场景） | M4 | ADM-RECEIPT-01 | `/receipt-docs/{id}/confirm` | 收付款单免凭证字段 | EXC-002 |
+| 15 | 单价来自合同，实收实付来自单据 | M3+M4 | ADM-ORDER-S-01 | 订单创建/财务确认 | `sales_orders.unit_price` + 收付款单 | FIN-002 |
+| 16 | 数量履约完成状态 | M6 | 合同详情状态流 | 履约计算任务 | `contract_items.qty_in_acc/qty_out_acc` | CLS-001 |
+| 17 | 金额闭环采购/销售分开 | M6 | 合同详情闭环面板 | 自动关闭校验任务 | 合同方向闭环字段 | CLS-002 |
+| 18 | 自动关闭与手工关闭边界 | M6 | 合同详情手工关闭 | `/contracts/{id}/manual-close` | 合同状态+关闭字段 | CLS-003 |
+| 19 | 手工关闭五步处理顺序 | M6 | 手工关闭确认弹窗 | 关闭事务编排 | 差异记录/终止记录 | CLS-004 |
+| 20 | 合同履约数量上限 | M5+M6 | 入库/出库提交页 | `/inbound-docs/{id}/submit` `/outbound-docs/{id}/submit` | 阈值校验结果 | INV-003 |
+| 21 | 单据上下游可追溯 | M1+M6 | ADM-TRACE-01 | 图谱查询API | `doc_relations` | AUD-002 |
+| 22 | 当前版本低并发策略 | NFR | - | 幂等+事务，不用分布式锁 | `source_event_id`,`幂等键` | NFR-001 |
+| 23 | 全新库初始化清单 | M1 | ADM-CONFIG-01 | 初始化脚本与校验 | 主数据/字典/参数 | OPS-002 |
+| 24 | 后台全量、小程序轻量 | M8 | 端能力矩阵 | 菜单与权限路由 | 角色权限表 | UXR-001 |
+| 25 | 小程序功能边界 | M8 | MINI-* | 小程序接口白名单 | 小程序菜单权限 | UXR-002 |
+| 26 | 后台必须有仪表盘+看板 | M7 | ADM-DASH-01/ADM-BOARD-01 | `/dashboard/summary` `/boards/tasks` | 指标快照 | RPT-001 |
+| 27 | 报表分层（小程序轻量/后台多维） | M7 | MINI-REPORT-01 + 后台报表页 | 轻量/多维报表接口 | 报表口径字典 | RPT-002 |
+| 28 | 报表SLA与口径冻结 | M7 | 仪表盘口径提示 | SLA监控+口径版本参数 | `report_snapshots.version` | RPT-003 |
+| 29 | 报表混合生成机制 | M7 | 报表任务监控 | 事件增量+定时校准任务 | 报表任务与快照 | RPT-004 |
+| 30 | 小程序仅看驳回结果 | M8 | MINI-ORDER-01 | 小程序禁用驳回动作 | 端权限配置 | UXR-003 |
+| 31 | 仪表盘首版四指标冻结 | M7 | ADM-DASH-01 | `/dashboard/summary` | 指标定义版本 | RPT-005 |
+| 32 | 非目标：多活/跨地域容灾 | NFR范围 | - | - | 架构范围声明 | SCOPE-001 |
+| 33 | 非目标：完整财务核算体系 | 业务范围 | - | - | 产品边界声明 | SCOPE-002 |
+
+## 3. 验收方式
+- 抽检方式：随机抽取任意10条规则，要求能在“模块/页面/API/数据/测试”5列中完整追溯。
+- 通过标准：
+  - 任意抽检规则追溯成功率 `100%`。
+  - 不允许出现“只在聊天里存在、文档未落地”的规则。
+
+## 4. 使用说明
+- 阶段C每个子模块开发前，先勾选本矩阵涉及规则，再开始编码。
+- 若新增规则，必须先补充 `docs/需求方案.md`，再补本矩阵后才可开发。
