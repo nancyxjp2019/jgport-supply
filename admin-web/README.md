@@ -1,23 +1,46 @@
 # 管理后台前端（Vue 3 + Element Plus + Vben Admin）
 
-## 1. 目标
-- 承接原 `backend/app/web/admin_console` 的后台管理能力。
-- 使用 Vben Admin 工程体系重建菜单、权限、页面与 API 调用。
+## 1. 当前状态
+- 已基于 `Vben Admin v5.6.0` 初始化。
+- 默认使用 `Element Plus` 方案（应用：`@vben/web-ele`）。
+- 本工程目录为 Monorepo 结构，按 Vben 官方工作区组织。
 
-## 2. 初始化建议
-1. 使用官方 Vben Admin 最新稳定模板初始化工程。
-2. UI 框架统一选择 Element Plus。
-3. 全量启用 TypeScript、ESLint、Prettier、路由权限守卫。
+## 2. 环境要求
+- Node.js：建议 `22.22.0`（模板内 `.node-version`）
+- 包管理器：`pnpm`（通过 `corepack` 使用）
 
-## 3. 必接后端配置
-- API 基础地址：`/api/v1`
-- 认证方式：Bearer Token（JWT）
-- 关键模块：
-  - 用户与公司主体
-  - 模板中心
-  - 合同、订单、采购入库、库存
-  - 报表中心与审计日志
+## 3. 安装依赖
+```bash
+cd admin-web
+corepack enable
+corepack pnpm install
+```
 
-## 4. 安全要求
-- 前端权限仅用于界面控制，最终权限以后端校验为准。
-- 终止类动作必须二次确认并要求填写原因。
+## 4. 启动开发服务（Element Plus）
+```bash
+cd admin-web
+corepack pnpm run dev:ele --host 0.0.0.0 --port 5666
+```
+
+访问地址：`http://127.0.0.1:5666`
+
+## 5. 常用命令
+```bash
+# 构建 Element Plus 版本
+corepack pnpm run build:ele
+
+# 启动 Ant Design Vue 版本（可选）
+corepack pnpm run dev:antd
+
+# 启动 Naive UI 版本（可选）
+corepack pnpm run dev:naive
+```
+
+## 6. 对接后端要求
+- API 前缀：`/api/v1`
+- 鉴权：Bearer Token（JWT）
+- 权限策略：前端仅做界面控制，最终以后端鉴权为准
+
+## 7. 参考资料
+- Vben 官方文档：`https://doc.vben.pro`
+- Vben 官方仓库：`https://github.com/vbenjs/vue-vben-admin`

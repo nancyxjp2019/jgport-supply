@@ -36,13 +36,23 @@
   - 清理 UAT 运行器与测试桥接逻辑；
   - 后续按新 API 契约逐页重构（建单、详情、报表、合同中心）。
 
-## 3. 新项目基座目录（本次已生成）
-- 新目录：`jgport/`
+## 3. 新项目基座目录（当前状态）
+- 根目录：`jgport`（当前仓库）
 - 结构：
   - `docs/`：核心业务、接口、状态机、安全、部署文档（保留少量历史 UAT 章节用于追溯）
   - `backend/`：后端业务内核代码、迁移脚本、核心初始化脚本
-  - `admin-web/`：后台前端新栈占位目录与初始化说明
+  - `admin-web/`：后台前端工程，已基于 `Vben Admin v5.6.0` 初始化（包含 `web-ele` 方案）
   - `miniprogram/`：小程序执行链代码基座（已排除 UAT 运行器）
+
+### 3.1 admin-web 安装与启动
+```bash
+cd admin-web
+corepack enable
+corepack pnpm install
+corepack pnpm run dev:ele --host 0.0.0.0 --port 5666
+```
+
+默认访问：`http://127.0.0.1:5666`
 
 ## 4. 执行优先级建议
 1. 创建并激活 Conda 环境 `jgport`，固化 PostgreSQL 18 环境并跑通后端迁移。
