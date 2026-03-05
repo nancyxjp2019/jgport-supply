@@ -1,0 +1,3 @@
+.meta-strong {
+  color: var(--brand-deep);
+}

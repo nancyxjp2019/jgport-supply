@@ -1,0 +1,57 @@
+<view class="page-shell">
+  <view class="hero-card">
+    <view class="hero-title">报表中心</view>
+    <view class="hero-subtitle">{{heroSubtitle}}</view>
+  </view>
+
+  <view class="panel-card" wx:if="{{tabs.length}}">
+    <view class="section-title">报表类型</view>
+    <view class="section-row">
+      <view
+        class="pill {{currentTab === item.code ? 'pill-active' : ''}}"
+        wx:for="{{tabItems}}"
+        wx:key="code"
+        data-tab="{{item.code}}"
+        bindtap="onSwitchTab"
+      >
+        {{item.label}}
+      </view>
+    </view>
+    <view class="section-title" style="margin-top: 18rpx;">时间范围</view>
+    <view class="section-row">
+      <view
+        class="pill {{currentTimeFilter === item.value ? 'pill-active' : ''}}"
+        wx:for="{{timeFilterOptions}}"
+        wx:key="value"
+        data-value="{{item.value}}"
+        bindtap="onPickTimeFilter"
+      >
+        {{item.label}}
+      </view>
+    </view>
+    <view class="button-row" style="margin-top: 18rpx;">
+      <button class="primary-btn" loading="{{generating}}" bindtap="onGenerate">生成所选报表</button>
+    </view>
+    <view class="muted-text" style="margin-top: 18rpx;">当前按 {{currentTimeFilterLabel}} 条件生成，结果会展示在下方报表列表。</view>
+  </view>
+
+  <view class="list-card" wx:if="{{items.length}}">
+    <view class="section-title">报表列表</view>
+    <view class="list-item" wx:for="{{items}}" wx:key="id">
+      <view class="item-head">
+        <view class="item-title">{{item.report_name}}</view>
+        <view class="item-tag">{{item.row_count}} 行</view>
+      </view>
+      <view class="meta-line">生成时间 <text class="meta-strong">{{item.created_at_text}}</text></view>
+      <view class="meta-line">生成人 <text class="meta-strong">{{item.generated_by_name}}</text></view>
+      <view class="button-row" style="margin-top: 16rpx;">
+        <button class="secondary-btn" data-url="{{item.download_url}}" data-name="{{item.report_name}}" bindtap="onOpenReport">打开报表</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="panel-card empty-card" wx:else>
+    <view class="section-title">报表列表</view>
+    <view class="empty-text">{{loading ? '加载中...' : '当前暂无报表记录'}}</view>
+  </view>
+</view>

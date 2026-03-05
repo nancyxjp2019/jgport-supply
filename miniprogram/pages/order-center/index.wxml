@@ -1,0 +1,21 @@
+<view class="page-shell">
+  <view class="hero-card">
+    <view class="hero-title">订单中心</view>
+    <view class="hero-subtitle">{{heroSubtitle}}</view>
+  </view>
+
+  <view class="panel-card">
+    <view class="section-title">查询入口</view>
+    <view class="grid-actions">
+      <view class="action-tile" wx:for="{{entries}}" wx:key="title" data-url="{{item.url}}" bindtap="onOpenEntry">
+        <view class="action-tile-title">{{item.title}}</view>
+        <view class="action-tile-desc">{{item.desc}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="action-card">
+    <view class="section-title">列表说明</view>
+    <view class="section-desc">销售订单承接客户下单、运营审核和财务收款确认；采购订单承接向供应商付款、供应商确认和仓库出库执行。</view>
+  </view>
+</view>

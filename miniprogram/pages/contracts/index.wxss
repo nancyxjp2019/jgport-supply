@@ -1,0 +1,9 @@
+.meta-strong {
+  color: var(--brand-deep);
+}
+
+.rule-text {
+  color: var(--text-secondary);
+  font-size: 26rpx;
+  line-height: 1.7;
+}

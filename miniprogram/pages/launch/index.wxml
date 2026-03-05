@@ -1,0 +1,8 @@
+<view class="page-shell launch-shell">
+  <view class="hero-card launch-card">
+    <view class="launch-badge">V5</view>
+    <view class="hero-title">隽港顺达供应链</view>
+    <view class="hero-subtitle">双订单、合同、库存、报表一体化工作台</view>
+    <view class="launch-desc">{{countdownText}}</view>
+  </view>
+</view>

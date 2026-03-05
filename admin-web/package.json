@@ -1,0 +1,9 @@
+{
+  "name": "jgsd-admin-web",
+  "private": true,
+  "version": "0.0.1",
+  "description": "后台前端占位工程，请按 README 使用 Vben Admin 模板初始化并替换本配置",
+  "scripts": {
+    "bootstrap:vben": "echo '请参考 admin-web/README.md 初始化 Vben Admin 工程'"
+  }
+}

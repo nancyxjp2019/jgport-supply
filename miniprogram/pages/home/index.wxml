@@ -1,0 +1,52 @@
+<view class="page-shell">
+  <view class="hero-card">
+    <view class="hero-title">{{roleLabel}}工作台</view>
+    <view class="hero-subtitle">{{user.display_name || user.username || '未命名账号'}}</view>
+    <view class="section-row">
+      <view class="pill">待处理 {{pendingCount}}</view>
+      <view class="pill">{{user.company_name_snapshot || '未绑定主体'}}</view>
+    </view>
+  </view>
+
+  <view class="panel-card">
+    <view class="section-title">当前入口</view>
+    <view class="grid-actions">
+      <view
+        class="action-tile {{item.tone === 'warm' ? 'action-tile-warm' : ''}}"
+        wx:for="{{entries}}"
+        wx:key="title"
+        data-url="{{item.url}}"
+        bindtap="onOpenEntry"
+      >
+        <view class="action-tile-title">{{item.title}}</view>
+        <view class="action-tile-desc">{{item.desc}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="panel-card" wx:if="{{inventorySummary}}">
+    <view class="section-title">库存概览</view>
+    <view class="list-card" wx:if="{{inventorySummary.warehouse_items.length}}">
+      <view class="list-item" wx:for="{{inventorySummary.warehouse_items}}" wx:key="warehouse_id">
+        <view class="item-head">
+          <view class="item-title">{{item.warehouse_name}}</view>
+          <view class="item-tag">低库存 {{item.low_stock_item_count}} / 油品 {{item.product_item_count}}</view>
+        </view>
+        <view class="item-meta" wx:if="{{item.product_items.length}}">
+          <view class="meta-line" wx:for="{{item.product_items}}" wx:for-item="productItem" wx:key="product_id">
+            {{productItem.product_name}}
+            <text class="meta-strong">库存 {{productItem.on_hand_qty_text}} 吨 / 预占 {{productItem.reserved_qty_text}} 吨 / 可用 {{productItem.available_qty_text}} 吨</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="action-card">
+    <view class="section-title">当前说明</view>
+    <view class="section-desc">V5 小程序定位为订单执行前台，仅承接建单、审批、附件上传、进度查看、合同摘要与轻量报表下载；模板、主数据、合同维护、采购入库、库存调整统一放在后台。</view>
+    <view class="button-row" style="margin-top: 18rpx;">
+      <button class="secondary-btn" bindtap="onLogout">退出登录</button>
+    </view>
+  </view>
+</view>

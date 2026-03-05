@@ -1,0 +1,129 @@
+<view class="page-shell">
+  <view class="hero-card">
+    <view class="hero-title">新建订单</view>
+    <view class="hero-subtitle">V5 建单必须绑定合同，并在提交时锁定运输信息和付款凭证。</view>
+  </view>
+
+  <view class="form-card">
+    <view class="section-title">订单信息</view>
+    <view class="field-block">
+      <text class="field-label"><text class="field-required">*</text>订单日期</text>
+      <picker mode="date" value="{{form.order_date}}" bindchange="onOrderDateChange">
+        <view class="field-picker">{{form.order_date}}</view>
+      </picker>
+    </view>
+    <view class="field-block">
+      <text class="field-label"><text class="field-required">*</text>合同</text>
+      <picker mode="selector" range="{{salesContracts}}" range-key="contract_no" value="{{selectedContractIndex}}" bindchange="onContractChange">
+        <view class="field-picker">{{salesContracts.length ? salesContracts[selectedContractIndex].contract_no : '当前无可选合同'}}</view>
+      </picker>
+      <view class="muted-text" style="margin-top: 10rpx;">{{selectedContractTip}}</view>
+    </view>
+    <view class="field-block">
+      <text class="field-label"><text class="field-required">*</text>油品</text>
+      <picker mode="selector" range="{{productOptions}}" range-key="name" value="{{selectedProductIndex}}" bindchange="onProductChange">
+        <view class="field-picker">{{productOptions.length ? productOptions[selectedProductIndex].name : '暂无油品'}}</view>
+      </picker>
+      <view class="muted-text" style="margin-top: 10rpx;">油品按所选合同自动过滤</view>
+    </view>
+    <view class="field-block">
+      <text class="field-label"><text class="field-required">*</text>仓库</text>
+      <picker mode="selector" range="{{warehouseOptions}}" range-key="name" value="{{selectedWarehouseIndex}}" bindchange="onWarehouseChange">
+        <view class="field-picker">{{warehouseOptions.length ? warehouseOptions[selectedWarehouseIndex].name : '暂无仓库'}}</view>
+      </picker>
+      <view class="muted-text" style="margin-top: 10rpx;">{{selectedWarehouseTip}}</view>
+    </view>
+    <view class="field-block">
+      <text class="field-label"><text class="field-required">*</text>数量(吨)</text>
+      <input class="field-input" type="digit" placeholder="最多保留4位小数" value="{{form.qty_ton}}" bindinput="onQtyInput" />
+    </view>
+  </view>
+
+  <view class="panel-card" wx:if="{{transportHistory.length}}">
+    <view class="section-title">历史运输信息</view>
+    <view class="history-list">
+      <view class="history-item" wx:for="{{transportHistory}}" wx:key="id">
+        <view class="history-main">
+          <view class="history-title">{{item.display_text}}</view>
+          <view class="muted-text" wx:if="{{item.summary_text}}">{{item.summary_text}}</view>
+        </view>
+        <view class="button-row history-actions">
+          <button class="secondary-btn history-btn" size="mini" data-index="{{index}}" bindtap="onUseHistory">带入</button>
+          <button class="danger-btn history-btn" size="mini" data-index="{{index}}" bindtap="onDeleteHistory">删除</button>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="form-card">
+    <view class="section-title">运输信息</view>
+    <view class="field-block">
+      <text class="field-label"><text class="field-required">*</text>运输单位</text>
+      <input class="field-input" data-field="carrier_company" value="{{form.carrier_company}}" bindinput="onFieldInput" />
+    </view>
+    <view class="field-block">
+      <text class="field-label"><text class="field-required">*</text>司机姓名</text>
+      <input class="field-input" data-field="driver_name" value="{{form.driver_name}}" bindinput="onFieldInput" />
+    </view>
+    <view class="field-block">
+      <text class="field-label"><text class="field-required">*</text>手机号</text>
+      <input class="field-input" data-field="driver_phone" value="{{form.driver_phone}}" bindinput="onFieldInput" />
+    </view>
+    <view class="field-block">
+      <text class="field-label"><text class="field-required">*</text>身份证号</text>
+      <input class="field-input" data-field="driver_id_no" value="{{form.driver_id_no}}" bindinput="onFieldInput" />
+    </view>
+    <view class="field-block">
+      <text class="field-label"><text class="field-required">*</text>车牌号</text>
+      <input class="field-input" data-field="vehicle_no" value="{{form.vehicle_no}}" bindinput="onFieldInput" />
+    </view>
+    <view class="field-block">
+      <text class="field-label">单双枪</text>
+      <view class="section-row">
+        <view
+          class="pill {{form.tank_type === item ? 'pill-active' : ''}}"
+          wx:for="{{tankTypeOptions}}"
+          wx:key="*this"
+          data-value="{{item}}"
+          bindtap="onTankTypeSelect"
+        >
+          {{item}}
+        </view>
+      </view>
+    </view>
+    <view class="field-block">
+      <text class="field-label">核定载重(吨)</text>
+      <input class="field-input" type="digit" data-field="rated_load_ton" value="{{form.rated_load_ton}}" bindinput="onFieldInput" />
+    </view>
+    <view class="field-block">
+      <text class="field-label">是否带泵</text>
+      <view class="section-row">
+        <view class="pill {{form.with_pump ? 'pill-active' : ''}}" data-value="1" bindtap="onPumpOptionSelect">带泵</view>
+        <view class="pill {{!form.with_pump ? 'pill-active' : ''}}" data-value="0" bindtap="onPumpOptionSelect">不带泵</view>
+      </view>
+    </view>
+    <view class="field-block">
+      <text class="field-label">备注<text class="field-optional">（选填）</text></text>
+      <textarea class="field-textarea" data-field="remark" value="{{form.remark}}" bindinput="onFieldInput" />
+    </view>
+  </view>
+
+  <view class="panel-card">
+    <view class="section-title">付款凭证</view>
+    <view class="muted-text"><text class="field-required">*</text>至少上传1个付款凭证后才可提交</view>
+    <view class="field-static" wx:if="{{!attachments.length}}">请先上传付款凭证</view>
+    <view class="section-row" wx:if="{{attachments.length}}">
+      <view class="pill" wx:for="{{attachments}}" wx:key="file_key">
+        {{item.file_name}}
+      </view>
+    </view>
+    <view class="button-row" style="margin-top: 16rpx;">
+      <button class="secondary-btn" bindtap="onAddAttachment">上传付款凭证</button>
+      <button class="danger-btn" wx:if="{{attachments.length}}" data-index="{{attachments.length - 1}}" bindtap="onRemoveAttachment">删除最后一个</button>
+    </view>
+  </view>
+
+  <view class="action-card">
+    <button class="primary-btn" loading="{{loading}}" bindtap="onSubmit">提交订单</button>
+  </view>
+</view>

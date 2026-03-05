@@ -1,0 +1,35 @@
+.muted-text {
+  line-height: 1.6;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.history-item {
+  padding: 20rpx;
+  border: 1rpx solid rgba(24, 50, 74, 0.1);
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.history-main {
+  margin-bottom: 14rpx;
+}
+
+.history-title {
+  color: #0d3b66;
+  font-size: 28rpx;
+  font-weight: 700;
+  margin-bottom: 6rpx;
+}
+
+.history-actions {
+  justify-content: flex-end;
+}
+
+.history-btn {
+  min-width: 132rpx;
+}

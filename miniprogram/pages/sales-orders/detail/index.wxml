@@ -1,0 +1,119 @@
+<view class="page-shell" wx:if="{{detail}}">
+  <view class="hero-card">
+    <view class="hero-title">{{detail.sales_order_no}}</view>
+    <view class="hero-subtitle">{{detail.status_text}}</view>
+    <view class="section-row">
+      <view class="pill">{{detail.product_name}}</view>
+      <view class="pill">{{detail.qty_text}} 吨</view>
+      <view class="pill">{{detail.warehouse_name}}</view>
+    </view>
+  </view>
+
+  <view class="list-card">
+    <view class="section-title">订单信息</view>
+    <view class="meta-line">订单日期 <text class="meta-strong">{{detail.order_date_text}}</text></view>
+    <view class="meta-line">{{contractLabel}} <text class="meta-strong">{{detail.sales_contract_no}}</text></view>
+    <view class="meta-line">买方（客户） <text class="meta-strong">{{detail.buyer_company_name || '-'}}</text></view>
+    <view class="meta-line">卖方（运营方） <text class="meta-strong">{{detail.seller_company_name || '待运营审核后确认'}}</text></view>
+    <view class="meta-line">油品 <text class="meta-strong">{{detail.product_name}}</text></view>
+    <view class="meta-line">仓库 <text class="meta-strong">{{detail.warehouse_name}}</text></view>
+    <view class="meta-line">数量 <text class="meta-strong">{{detail.qty_text}} 吨</text></view>
+    <view class="meta-line">含税单价 <text class="meta-strong">{{detail.unit_price_tax_included_text}}</text></view>
+    <view class="meta-line">含税金额 <text class="meta-strong">{{detail.amount_tax_included_text}}</text></view>
+    <view class="meta-line">不含税金额 <text class="meta-strong">{{detail.amount_tax_excluded_text}}</text></view>
+    <view class="meta-line">税额 <text class="meta-strong">{{detail.tax_amount_text}}</text></view>
+    <view class="meta-line">收款金额 <text class="meta-strong">{{detail.received_amount_text || '-'}}</text></view>
+    <view class="meta-line">创建时间 <text class="meta-strong">{{detail.created_at_text}}</text></view>
+    <view class="meta-line" wx:if="{{detail.purchase_order_id && role !== 'CUSTOMER'}}">
+      关联采购单
+      <text class="meta-strong" bindtap="onOpenPurchaseOrder">{{detail.purchase_order_id}}</text>
+    </view>
+  </view>
+
+  <view class="list-card">
+    <view class="section-title">运输信息</view>
+    <view class="meta-line">运输单位 <text class="meta-strong">{{detail.transport_snapshot.carrier_company || '-'}}</text></view>
+    <view class="meta-line">司机 <text class="meta-strong">{{detail.transport_snapshot.driver_name || '-'}}</text></view>
+    <view class="meta-line">手机 <text class="meta-strong">{{detail.transport_snapshot.driver_phone || '-'}}</text></view>
+    <view class="meta-line">身份证 <text class="meta-strong">{{detail.transport_snapshot.driver_id_no || '-'}}</text></view>
+    <view class="meta-line">车牌 <text class="meta-strong">{{detail.transport_snapshot.vehicle_no || '-'}}</text></view>
+    <view class="meta-line">单双枪 <text class="meta-strong">{{detail.transport_snapshot.tank_type || '-'}}</text></view>
+    <view class="meta-line">是否带泵 <text class="meta-strong">{{detail.transport_snapshot.with_pump_text || '-'}}</text></view>
+    <view class="meta-line">核定载重 <text class="meta-strong">{{detail.transport_snapshot.rated_load_ton || '-'}}</text></view>
+    <view class="meta-line">备注 <text class="meta-strong">{{detail.transport_snapshot.remark || '-'}}</text></view>
+  </view>
+
+  <view class="list-card" wx:if="{{paymentVouchers.length}}">
+    <view class="section-title">付款凭证</view>
+    <view class="list-item" wx:for="{{paymentVouchers}}" wx:key="url">
+      <view class="item-head">
+        <view class="item-title">{{item.name}}</view>
+      </view>
+      <button class="secondary-btn" data-url="{{item.url}}" data-name="{{item.name}}" bindtap="onOpenRemoteFile">打开付款凭证</button>
+    </view>
+  </view>
+
+  <view class="list-card">
+    <view class="section-title">流程进度</view>
+    <view class="list-item" wx:for="{{progressNodes}}" wx:key="node_code">
+      <view class="item-head">
+        <view class="item-title">{{item.node_name}}</view>
+        <view class="item-tag">{{item.status_text}}</view>
+      </view>
+      <view class="meta-line">处理人 <text class="meta-strong">{{item.operator || '-'}}</text></view>
+      <view class="meta-line">处理时间 <text class="meta-strong">{{item.finished_at || '-'}}</text></view>
+    </view>
+  </view>
+
+  <view class="list-card" wx:if="{{logs.length}}">
+    <view class="section-title">操作日志</view>
+    <view class="list-item" wx:for="{{logs}}" wx:key="id">
+      <view class="meta-line"><text class="meta-strong">{{item.action}}</text></view>
+      <view class="meta-line">状态 <text class="meta-strong">{{item.after_status_text || '-'}}</text></view>
+      <view class="meta-line">时间 <text class="meta-strong">{{item.created_at}}</text></view>
+      <view class="meta-line" wx:if="{{item.remark}}">备注 <text class="meta-strong">{{item.remark}}</text></view>
+    </view>
+  </view>
+
+  <view class="form-card" wx:if="{{role === 'FINANCE' && detail.status === 'OPERATOR_APPROVED'}}">
+    <view class="section-title">财务审核</view>
+    <view class="field-block">
+      <text class="field-label">实际收款金额</text>
+      <input class="field-input" type="digit" value="{{financeReceivedAmount}}" bindinput="onFinanceAmountInput" />
+    </view>
+    <view class="field-block">
+      <text class="field-label">客户收款凭证</text>
+      <view class="field-static">{{financeReceiptFileName || '请先上传凭证'}}</view>
+    </view>
+    <view class="button-row">
+      <button class="secondary-btn" bindtap="onUploadFinanceReceipt">上传凭证</button>
+      <button class="primary-btn" bindtap="onFinanceApprove">确认收款</button>
+    </view>
+  </view>
+
+  <view class="action-card" wx:if="{{role === 'OPERATOR' && detail.status === 'SUBMITTED'}}">
+    <button class="primary-btn" bindtap="onOperatorApprove">运营审核通过</button>
+  </view>
+
+  <view class="form-card" wx:if="{{role === 'ADMIN' && detail.status !== 'COMPLETED' && detail.status !== 'ABNORMAL_CLOSED' && detail.status !== 'REJECTED'}}">
+    <view class="section-title">管理员终止动作</view>
+    <view class="field-block">
+      <text class="field-label"><text class="field-required">*</text>原因</text>
+      <textarea class="field-textarea" value="{{adminReason}}" bindinput="onAdminReasonInput" placeholder="请填写终止原因（必填）" />
+    </view>
+    <view class="button-row">
+      <button class="secondary-btn" wx:if="{{detail.status === 'SUBMITTED' || detail.status === 'OPERATOR_APPROVED'}}" bindtap="onReject">驳回订单</button>
+      <button class="danger-btn" bindtap="onAbnormalClose">异常关闭</button>
+    </view>
+  </view>
+
+  <view class="action-card" wx:if="{{detail.customer_payment_receipt_file_url}}">
+    <button class="secondary-btn" bindtap="onOpenReceipt">打开收款凭证</button>
+  </view>
+</view>
+
+<view class="page-shell" wx:else>
+  <view class="panel-card empty-card">
+    <view class="empty-text">{{loading ? '加载中...' : '暂无订单详情'}}</view>
+  </view>
+</view>

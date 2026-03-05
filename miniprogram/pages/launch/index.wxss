@@ -1,0 +1,30 @@
+.launch-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.launch-card {
+  width: 100%;
+  padding: 48rpx 36rpx;
+  text-align: center;
+}
+
+.launch-badge {
+  width: 94rpx;
+  height: 94rpx;
+  margin: 0 auto 24rpx;
+  border-radius: 28rpx;
+  background: linear-gradient(160deg, #0d3b66, #c1662b);
+  color: #fff;
+  font-size: 34rpx;
+  font-weight: 700;
+  line-height: 94rpx;
+}
+
+.launch-desc {
+  margin-top: 24rpx;
+  color: var(--muted);
+  font-size: 24rpx;
+}

@@ -1,0 +1,175 @@
+<view class="page-shell" wx:if="{{detail}}">
+  <view class="hero-card">
+    <view class="hero-title">{{detail.purchase_order_no}}</view>
+    <view class="hero-subtitle">{{detail.status_text}}</view>
+    <view class="section-row">
+      <view class="pill">{{detail.product_name}}</view>
+      <view class="pill">{{detail.qty_text}} 吨</view>
+      <view class="pill">{{detail.warehouse_name}}</view>
+    </view>
+  </view>
+
+  <!-- 非仓库角色：显示完整订单信息 -->
+  <view class="list-card" wx:if="{{role !== 'WAREHOUSE'}}">
+    <view class="section-title">订单信息</view>
+    <view class="meta-line">订单日期 <text class="meta-strong">{{detail.order_date_text}}</text></view>
+    <view class="meta-line">采购合同 <text class="meta-strong">{{detail.purchase_contract_no || '-'}}</text></view>
+    <view class="meta-line">买方（运营方） <text class="meta-strong">{{detail.buyer_company_name || '待运营审核后确认'}}</text></view>
+    <view class="meta-line">卖方（供应商） <text class="meta-strong">{{detail.seller_company_name || '-'}}</text></view>
+    <view class="meta-line">油品 <text class="meta-strong">{{detail.product_name}}</text></view>
+    <view class="meta-line">仓库 <text class="meta-strong">{{detail.warehouse_name}}</text></view>
+    <view class="meta-line">数量 <text class="meta-strong">{{detail.qty_text}} 吨</text></view>
+    <view class="meta-line">销售订单 <text class="meta-strong">{{detail.sales_order_no}}</text></view>
+    <view class="meta-line">供应商 <text class="meta-strong">{{detail.supplier_company_name || '-'}}</text></view>
+    <!-- 仅财务、运营、管理员可见金额字段 -->
+    <view wx:if="{{role === 'FINANCE' || role === 'OPERATOR' || role === 'ADMIN'}}">
+      <view class="meta-line">含税单价 <text class="meta-strong">{{detail.unit_price_tax_included_text}}</text></view>
+      <view class="meta-line">含税金额 <text class="meta-strong">{{detail.amount_tax_included_text}}</text></view>
+      <view class="meta-line">不含税金额 <text class="meta-strong">{{detail.amount_tax_excluded_text}}</text></view>
+      <view class="meta-line">税额 <text class="meta-strong">{{detail.tax_amount_text}}</text></view>
+    </view>
+    <view class="meta-line">创建时间 <text class="meta-strong">{{detail.created_at_text}}</text></view>
+  </view>
+
+  <!-- 仓库角色：仅显示买卖双方公司名称与数量 -->
+  <view class="list-card" wx:if="{{role === 'WAREHOUSE'}}">
+    <view class="section-title">核心信息</view>
+    <view class="meta-line">买方（运营方） <text class="meta-strong">{{detail.buyer_company_name || '待运营审核后确认'}}</text></view>
+    <view class="meta-line">卖方（供应商） <text class="meta-strong">{{detail.seller_company_name || '-'}}</text></view>
+    <view class="meta-line">数量 <text class="meta-strong">{{detail.qty_text}} 吨</text></view>
+  </view>
+
+  <!-- 仓库角色：运输信息（由关联销售订单带入，后端需返回 transport_snapshot） -->
+  <view class="list-card" wx:if="{{role === 'WAREHOUSE' && detail.transport_snapshot}}">
+    <view class="section-title">运输信息</view>
+    <view class="meta-line">运输单位 <text class="meta-strong">{{detail.transport_snapshot.carrier_company || '-'}}</text></view>
+    <view class="meta-line">司机 <text class="meta-strong">{{detail.transport_snapshot.driver_name || '-'}}</text></view>
+    <view class="meta-line">手机 <text class="meta-strong">{{detail.transport_snapshot.driver_phone || '-'}}</text></view>
+    <view class="meta-line">车牌 <text class="meta-strong">{{detail.transport_snapshot.vehicle_no || '-'}}</text></view>
+    <view class="meta-line">单双枪 <text class="meta-strong">{{detail.transport_snapshot.tank_type || '-'}}</text></view>
+    <view class="meta-line">是否带泵 <text class="meta-strong">{{detail.transport_snapshot.with_pump_text || '-'}}</text></view>
+    <view class="meta-line" wx:if="{{detail.transport_snapshot.rated_load_ton}}">
+      核定载重 <text class="meta-strong">{{detail.transport_snapshot.rated_load_ton}} 吨</text>
+    </view>
+  </view>
+
+  <!-- 发货指令单 PDF：仅非仓库角色可查看 -->
+  <view class="action-card" wx:if="{{role !== 'WAREHOUSE' && detail.delivery_instruction_pdf_file_url}}">
+    <button class="secondary-btn" data-url="{{detail.delivery_instruction_pdf_file_url}}" data-name="{{detail.delivery_instruction_pdf_file_name}}" bindtap="onOpenRemoteFile">打开发货指令单</button>
+  </view>
+
+  <!-- 盖章发货指令单：仅非仓库角色可查看 -->
+  <view class="action-card" wx:if="{{role !== 'WAREHOUSE' && detail.supplier_delivery_doc_file_url}}">
+    <button class="secondary-btn" data-url="{{detail.supplier_delivery_doc_file_url}}" data-name="{{detail.supplier_delivery_doc_file_name}}" bindtap="onOpenRemoteFile">打开盖章发货指令单</button>
+  </view>
+
+  <!-- 出库单：所有角色均可查看（仓库自行上传，其他角色查阅） -->
+  <view class="action-card" wx:if="{{detail.outbound_doc_file_url}}">
+    <button class="secondary-btn" data-url="{{detail.outbound_doc_file_url}}" data-name="{{detail.outbound_doc_file_name}}" bindtap="onOpenRemoteFile">打开出库单</button>
+  </view>
+
+  <!-- 财务：提交采购订单 -->
+  <view class="form-card" wx:if="{{role === 'FINANCE' && detail.status === 'PENDING_SUBMIT'}}">
+    <view class="section-title">提交采购订单</view>
+    <view class="field-block">
+      <text class="field-label">采购合同</text>
+      <picker mode="selector" range="{{purchaseContractOptions}}" range-key="contract_no" value="{{selectedPurchaseContractIndex}}" bindchange="onPickPurchaseContract">
+        <view class="field-picker">{{purchaseContractOptions.length ? purchaseContractOptions[selectedPurchaseContractIndex].contract_no : '暂无可选采购合同'}}</view>
+      </picker>
+    </view>
+    <view class="panel-card" wx:if="{{selectedPurchaseContract}}">
+      <view class="section-title">合同确认摘要</view>
+      <view class="meta-line">合同号 <text class="meta-strong">{{selectedPurchaseContract.contract_no}}</text></view>
+      <view class="meta-line">供应商 <text class="meta-strong">{{selectedPurchaseContract.supplier_company_name}}</text></view>
+      <view class="meta-line">待执行 <text class="meta-strong">{{selectedPurchaseContract.pending_execution_qty_ton}} 吨</text></view>
+      <view class="meta-line">提交后待执行 <text class="meta-strong">{{selectedPurchaseContract.projected_pending_execution_qty_ton}} 吨</text></view>
+      <view class="meta-line" wx:if="{{selectedPurchaseContract.projected_over_execution_qty_ton > 0}}">
+        预计超执行 <text class="meta-strong" style="color: var(--danger);">{{selectedPurchaseContract.projected_over_execution_qty_ton}} 吨</text>
+      </view>
+    </view>
+    <view class="field-block">
+      <text class="field-label">发货指令模板</text>
+      <picker mode="selector" range="{{deliveryTemplates}}" range-key="template_name" value="{{selectedDeliveryTemplateIndex}}" bindchange="onPickTemplate">
+        <view class="field-picker">{{deliveryTemplates.length ? deliveryTemplates[selectedDeliveryTemplateIndex].template_name : '暂无可选模板'}}</view>
+      </picker>
+    </view>
+    <view class="field-static" wx:if="{{selectedDeliveryTemplate}}">当前模板：{{selectedDeliveryTemplate.template_name}} / 版本 {{selectedDeliveryTemplate.current_version_no}}</view>
+    <view class="field-block">
+      <text class="field-label"><text class="field-required">*</text>向供应商付款凭证（可多传）</text>
+      <view wx:if="{{supplierPaymentVouchers.length}}">
+        <view class="field-static" wx:for="{{supplierPaymentVouchers}}" wx:key="file_key" style="display:flex;align-items:center;justify-content:space-between;">
+          <text>{{index + 1}}. {{item.original_filename}}</text>
+          <text style="color:var(--danger);padding-left:12rpx;" data-index="{{index}}" bindtap="onRemoveSupplierPaymentVoucher">删除</text>
+        </view>
+      </view>
+      <view wx:else class="field-static">请先上传付款凭证</view>
+    </view>
+    <view class="button-row">
+      <button class="secondary-btn" bindtap="onUploadSupplierPayment">{{supplierPaymentVouchers.length ? '再上传一个' : '上传付款凭证'}}</button>
+    </view>
+    <view class="field-block">
+      <checkbox-group bindchange="onConfirmAckChange">
+        <label class="pill">
+          <checkbox value="1" checked="{{confirmAcknowledged}}" />
+          已核对合同关键信息并确认提交
+        </label>
+      </checkbox-group>
+    </view>
+    <button class="primary-btn" bindtap="onSubmitPurchaseOrder">提交采购订单（含付款凭证 {{supplierPaymentVouchers.length}} 份）</button>
+  </view>
+
+  <!-- 供应商：确认审核 -->
+  <view class="form-card" wx:if="{{role === 'SUPPLIER' && detail.status === 'SUPPLIER_REVIEW_PENDING'}}">
+    <view class="section-title">供应商确认</view>
+    <view class="field-static">{{supplierDeliveryDoc ? supplierDeliveryDoc.original_filename : '请先上传盖章发货指令单'}}</view>
+    <view class="button-row">
+      <button class="secondary-btn" bindtap="onUploadSupplierDoc">上传盖章单</button>
+      <button class="primary-btn" bindtap="onSupplierReview">确认通过</button>
+    </view>
+  </view>
+
+  <!-- 仓库：出库操作 -->
+  <view class="form-card" wx:if="{{role === 'WAREHOUSE' && detail.status === 'WAREHOUSE_PENDING'}}">
+    <view class="section-title">仓库出库</view>
+    <view class="field-block">
+      <text class="field-label"><text class="field-required">*</text>实际出库数量（吨）</text>
+      <input class="field-input" type="digit" value="{{outboundQty}}" bindinput="onOutboundQtyInput" />
+      <text class="field-tip">{{outboundRuleText}}</text>
+    </view>
+    <view class="field-block">
+      <text class="field-label"><text class="field-required">*</text>出库单</text>
+      <view class="field-static">{{outboundDoc ? outboundDoc.original_filename : '请先上传出库单'}}</view>
+    </view>
+    <view class="button-row">
+      <button class="secondary-btn" bindtap="onUploadOutboundDoc">上传出库单</button>
+      <button class="primary-btn" bindtap="onWarehouseOutbound">确认出库</button>
+    </view>
+  </view>
+
+  <!-- 管理员：异常关闭 -->
+  <view class="form-card" wx:if="{{role === 'ADMIN' && detail.status !== 'COMPLETED' && detail.status !== 'ABNORMAL_CLOSED'}}">
+    <view class="section-title">管理员异常关闭</view>
+    <view class="field-block">
+      <text class="field-label"><text class="field-required">*</text>关闭原因</text>
+      <textarea class="field-textarea" value="{{adminReason}}" bindinput="onAdminReasonInput" placeholder="请填写异常关闭原因" />
+    </view>
+    <button class="danger-btn" bindtap="onAbnormalClose">异常关闭采购订单</button>
+  </view>
+
+  <!-- 操作日志：仅财务和管理员可见 -->
+  <view class="list-card" wx:if="{{logs.length}}">
+    <view class="section-title">操作日志</view>
+    <view class="list-item" wx:for="{{logs}}" wx:key="id">
+      <view class="meta-line"><text class="meta-strong">{{item.action}}</text></view>
+      <view class="meta-line">状态 <text class="meta-strong">{{item.after_status_text || '-'}}</text></view>
+      <view class="meta-line">时间 <text class="meta-strong">{{item.created_at}}</text></view>
+      <view class="meta-line" wx:if="{{item.remark}}">备注 <text class="meta-strong">{{item.remark}}</text></view>
+    </view>
+  </view>
+</view>
+
+<view class="page-shell" wx:else>
+  <view class="panel-card empty-card">
+    <view class="empty-text">暂无采购订单详情</view>
+  </view>
+</view>

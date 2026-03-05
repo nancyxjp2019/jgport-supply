@@ -1,0 +1,27 @@
+<view class="page-shell">
+  <view class="hero-card">
+    <view class="hero-title">V5 小程序登录</view>
+    <view class="hero-subtitle">当前小程序仅承载 V5 双订单、合同、库存和报表流程，不兼容旧版单订单页面。</view>
+  </view>
+
+  <view class="form-card">
+    <view class="section-title">微信授权登录</view>
+    <view class="section-desc">使用当前微信身份登录；若账号未激活，系统会提示输入激活码。</view>
+    <view class="button-row login-actions">
+      <button class="primary-btn" loading="{{loading}}" bindtap="onLogin">微信登录</button>
+    </view>
+  </view>
+
+  <view class="form-card" wx:if="{{needActivation}}">
+    <view class="section-title">账号激活</view>
+    <view class="field-block">
+      <text class="field-label">激活码</text>
+      <input class="field-input" placeholder="请输入激活码" value="{{activationCode}}" bindinput="onActivationCodeInput" />
+    </view>
+    <button class="secondary-btn" loading="{{loading}}" bindtap="onBind">激活并登录</button>
+  </view>
+
+  <view class="panel-card" wx:if="{{message}}">
+    <view class="section-desc">{{message}}</view>
+  </view>
+</view>

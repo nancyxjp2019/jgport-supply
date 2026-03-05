@@ -1,0 +1,63 @@
+<view class="page-shell">
+  <view class="hero-card">
+    <view class="hero-title">合同中心</view>
+    <view class="hero-subtitle">{{heroSubtitle}}</view>
+  </view>
+
+  <view class="panel-card" wx:if="{{tabs.length > 1}}">
+    <view class="section-row">
+      <view
+        class="pill {{currentTab === item.code ? 'pill-active' : ''}}"
+        wx:for="{{tabs}}"
+        wx:key="code"
+        data-tab="{{item.code}}"
+        bindtap="onSwitchTab"
+      >
+        {{item.label}}
+      </view>
+    </view>
+  </view>
+
+  <view class="panel-card">
+    <view class="section-title">时间筛选</view>
+    <view class="section-row">
+      <view
+        class="pill {{currentTimeFilter === item.value ? 'pill-active' : ''}}"
+        wx:for="{{timeFilterOptions}}"
+        wx:key="value"
+        data-value="{{item.value}}"
+        bindtap="onPickTimeFilter"
+      >
+        {{item.label}}
+      </view>
+    </view>
+  </view>
+
+  <view class="panel-card">
+    <view class="section-title">列表说明</view>
+    <view class="rule-text">{{displayRuleText}}</view>
+  </view>
+
+  <view class="list-card" wx:if="{{items.length}}">
+    <view class="list-item" wx:for="{{items}}" wx:key="id">
+      <view class="item-head">
+        <view class="item-title">{{item.contract_no}}</view>
+        <view class="item-tag">{{item.status_text}}</view>
+      </view>
+      <view class="item-meta">
+        <view class="meta-line">合同日期 <text class="meta-strong">{{item.contract_date_text}}</text></view>
+        <view class="meta-line" wx:if="{{currentTab === 'sales'}}">客户 <text class="meta-strong">{{item.customer_company_name}}</text></view>
+        <view class="meta-line" wx:if="{{currentTab === 'purchase'}}">供应商 <text class="meta-strong">{{item.supplier_company_name}}</text></view>
+        <view class="meta-line" wx:if="{{currentTab === 'purchase'}}">仓库 <text class="meta-strong">{{item.warehouse_name}}</text></view>
+        <view class="meta-line">合同数量 <text class="meta-strong">{{item.qty_text}} 吨</text></view>
+        <view class="meta-line">已执行 <text class="meta-strong">{{item.executed_text}} 吨</text></view>
+        <view class="meta-line">待执行 <text class="meta-strong">{{item.pending_text}} 吨</text></view>
+        <view class="meta-line">保证金 <text class="meta-strong">{{item.amount_text}} 元</text></view>
+      </view>
+    </view>
+  </view>
+
+  <view class="panel-card empty-card" wx:else>
+    <view class="empty-text">{{emptyText}}</view>
+  </view>
+</view>
