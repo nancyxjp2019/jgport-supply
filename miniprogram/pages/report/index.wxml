@@ -33,6 +33,12 @@
     </view>
   </view>
 
+  <view wx:if="{{sourceText}}" class="panel-card">
+    <view class="section-title">来源回看</view>
+    <view class="section-desc">{{sourceText}}</view>
+    <view wx:if="{{sourceDetailText}}" class="status-tip">{{sourceDetailText}}</view>
+  </view>
+
   <block wx:if="{{loading}}">
     <view class="metric-grid">
       <view wx:for="{{skeletonItems}}" wx:key="*this" class="skeleton-card"></view>
@@ -74,7 +80,7 @@
       </view>
       <view class="pill-row abnormal-pill-row">
         <view wx:for="{{abnormalItems}}" wx:key="key" class="abnormal-pill {{item.className}}">
-          {{item.label}} {{item.value}}
+          {{item.label}} {{item.value}}{{item.focused ? '（当前关注）' : ''}}
         </view>
       </view>
     </view>
@@ -86,7 +92,7 @@
           <view class="detail-row__label">{{item.label}}</view>
           <view class="detail-row__value">{{item.value}} 项</view>
         </view>
-        <view class="status-tip">{{item.tip}}</view>
+        <view class="status-tip">{{item.tip}}{{item.focused ? '，当前已按消息提醒定位到该异常类型。' : ''}}</view>
       </view>
       <view class="footer-text">完整业务看板请在管理后台查看。</view>
     </view>

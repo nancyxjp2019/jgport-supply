@@ -1,6 +1,7 @@
 const { getRuntimeMode, getRuntimeModeLabel } = require('../../config/env');
 const { getAccessProfile, getLightReportOverview } = require('../../utils/api');
 const { formatDateTime, formatMoney, formatQty } = require('../../utils/format');
+const { resolveEntrySourceMeta, resolveReportFocusKey } = require('../../utils/navigation');
 const { getAccessToken, initializeSession, logoutSession, updateAccessProfile } = require('../../utils/session');
 const {
   buildAbnormalItems,
@@ -28,12 +29,32 @@ Page({
     metricCards: [],
     abnormalItems: [],
     abnormalExpanded: false,
+    focusedAbnormalKey: '',
     isEmpty: false,
     skeletonItems: [1, 2, 3, 4],
+    sourceText: '',
+    sourceDetailText: '',
+  },
+
+  onLoad(options) {
+    const sourceMeta = resolveEntrySourceMeta(options);
+    this.setData({
+      focusedAbnormalKey: resolveReportFocusKey(options && options.focusAbnormal),
+      sourceText: sourceMeta.sourceText,
+      sourceDetailText: sourceMeta.sourceDetailText,
+    });
   },
 
   onShow() {
     this.loadOverview();
+  },
+
+  _decorateAbnormalItems(items) {
+    const focusKey = this.data.focusedAbnormalKey;
+    return (items || []).map((item) => ({
+      ...item,
+      focused: Boolean(focusKey) && item.key === focusKey,
+    }));
   },
 
   onPullDownRefresh() {
@@ -73,7 +94,7 @@ Page({
           overview: null,
           metricCards: [],
           abnormalItems: [],
-          abnormalExpanded: false,
+          abnormalExpanded: Boolean(this.data.focusedAbnormalKey),
           isEmpty: false,
         });
         wx.stopPullDownRefresh();
@@ -113,16 +134,18 @@ Page({
       const response = await getLightReportOverview();
       const overview = response.data;
       const metricCards = buildMetricCards(overview, { formatMoney, formatQty });
+      const abnormalItems = this._decorateAbnormalItems(buildAbnormalItems(overview));
       this.setData({
         loading: false,
         overview,
         metricCards,
-        abnormalItems: buildAbnormalItems(overview),
+        abnormalItems,
         metricVersionText: `口径版本 ${overview.metric_version}`,
         snapshotTimeText: formatDateTime(overview.snapshot_time),
         slaStatusText: overview.sla_status || '正常',
         statusClass: resolveStatusClass(overview.sla_status),
         statusText: resolveOverviewStatusText(overview.sla_status),
+        abnormalExpanded: Boolean(this.data.focusedAbnormalKey),
         isEmpty: isOverviewEmpty(overview),
       });
     } catch (error) {

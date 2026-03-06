@@ -1,4 +1,5 @@
 const STORAGE_MESSAGE_READ_KEY = 'mini_message_read_keys';
+const { buildExecPageUrl, buildOrderPageUrl, buildReportPageUrl } = require('./navigation');
 
 function normalizeRoleCode(roleCode) {
   return String(roleCode || '').trim().toLowerCase();
@@ -39,7 +40,12 @@ function buildCustomerMessage(order) {
       summary: order.finance_comment || order.ops_comment || '请根据驳回意见补充后重新提交。',
       time,
       actionLabel: '去修改',
-      actionUrl: `/pages/order/index?tab=query&editOrderId=${order.id}`,
+      actionUrl: buildOrderPageUrl({
+        tab: 'query',
+        editOrderId: order.id,
+        source: 'message',
+        sourceDetail: `已从消息定位到订单 ${order.order_no} 的编辑入口。`,
+      }),
     };
   }
   if (status === '草稿') {
@@ -50,7 +56,12 @@ function buildCustomerMessage(order) {
       summary: '当前订单尚未提交审批，可继续补充后提交。',
       time,
       actionLabel: '继续处理',
-      actionUrl: `/pages/order/index?tab=query&editOrderId=${order.id}`,
+      actionUrl: buildOrderPageUrl({
+        tab: 'query',
+        editOrderId: order.id,
+        source: 'message',
+        sourceDetail: `已从消息定位到订单 ${order.order_no} 的草稿编辑入口。`,
+      }),
     };
   }
   if (status === '待运营审批') {
@@ -61,7 +72,12 @@ function buildCustomerMessage(order) {
       summary: '订单已提交，正在等待运营处理。',
       time,
       actionLabel: '查看订单',
-      actionUrl: '/pages/order/index?tab=query',
+      actionUrl: buildOrderPageUrl({
+        tab: 'query',
+        status,
+        source: 'message',
+        sourceDetail: `已从消息定位到订单 ${order.order_no} 的审批进度。`,
+      }),
     };
   }
   if (status === '待财务审批') {
@@ -72,7 +88,12 @@ function buildCustomerMessage(order) {
       summary: '运营已通过，当前等待财务继续处理。',
       time,
       actionLabel: '查看订单',
-      actionUrl: '/pages/order/index?tab=query',
+      actionUrl: buildOrderPageUrl({
+        tab: 'query',
+        status,
+        source: 'message',
+        sourceDetail: `已从消息定位到订单 ${order.order_no} 的审批进度。`,
+      }),
     };
   }
   if (status === '已衍生采购订单') {
@@ -83,7 +104,12 @@ function buildCustomerMessage(order) {
       summary: '订单已衍生采购订单，可继续跟踪执行进度。',
       time,
       actionLabel: '查看订单',
-      actionUrl: '/pages/order/index?tab=query',
+      actionUrl: buildOrderPageUrl({
+        tab: 'query',
+        status,
+        source: 'message',
+        sourceDetail: `已从消息定位到订单 ${order.order_no} 的执行进度。`,
+      }),
     };
   }
   return null;
@@ -97,6 +123,7 @@ function buildOperatorMessages(overview) {
       key: `operator-pending-${source.pending_supplement_count || 0}-${snapshotTime}`,
       level: 'warning',
       value: Number(source.pending_supplement_count || 0),
+      focusKey: 'pending',
       title: '存在待补录金额单据',
       summary: '请优先补录金额或凭证，避免后续闭环受阻。',
     },
@@ -104,6 +131,7 @@ function buildOperatorMessages(overview) {
       key: `operator-failed-${source.validation_failed_count || 0}-${snapshotTime}`,
       level: 'danger',
       value: Number(source.validation_failed_count || 0),
+      focusKey: 'failed',
       title: '存在校验失败阻断',
       summary: '当前有单据因阈值或流程校验失败，需尽快处理。',
     },
@@ -111,6 +139,7 @@ function buildOperatorMessages(overview) {
       key: `operator-qtydone-${source.qty_done_not_closed_count || 0}-${snapshotTime}`,
       level: 'info',
       value: Number(source.qty_done_not_closed_count || 0),
+      focusKey: 'qtydone',
       title: '存在数量履约完成未关闭合同',
       summary: '请核对金额闭环并完成合同关闭。',
     },
@@ -123,7 +152,11 @@ function buildOperatorMessages(overview) {
       summary: `${item.summary} 当前 ${item.value} 项。`,
       time: source.snapshot_time || '',
       actionLabel: '查看快报',
-      actionUrl: '/pages/report/index',
+      actionUrl: buildReportPageUrl({
+        focusAbnormal: item.focusKey,
+        source: 'message',
+        sourceDetail: `已从消息定位到${item.title}。`,
+      }),
     }));
   if (items.length) {
     return items;
@@ -136,7 +169,10 @@ function buildOperatorMessages(overview) {
       summary: '待补录金额、校验失败和未关闭合同当前均为 0。',
       time: source.snapshot_time || '',
       actionLabel: '查看快报',
-      actionUrl: '/pages/report/index',
+      actionUrl: buildReportPageUrl({
+        source: 'message',
+        sourceDetail: '已从消息进入经营快报总览。',
+      }),
     },
   ];
 }
@@ -150,7 +186,11 @@ function buildWarehouseMessages() {
       summary: '可通过正常回执路径提交仓库回执并直接生效。',
       time: '',
       actionLabel: '去处理',
-      actionUrl: '/pages/exec/index?mode=system',
+      actionUrl: buildExecPageUrl({
+        mode: 'system',
+        source: 'message',
+        sourceDetail: '已从消息定位到正常回执入口。',
+      }),
     },
     {
       key: 'warehouse-manual-entry',
@@ -159,7 +199,11 @@ function buildWarehouseMessages() {
       summary: '异常场景下可使用手工补录，但仍需绑定订单、合同与油品。',
       time: '',
       actionLabel: '去处理',
-      actionUrl: '/pages/exec/index?mode=manual',
+      actionUrl: buildExecPageUrl({
+        mode: 'manual',
+        source: 'message',
+        sourceDetail: '已从消息定位到手工补录入口。',
+      }),
     },
   ];
 }

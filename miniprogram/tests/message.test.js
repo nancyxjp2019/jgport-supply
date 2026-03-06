@@ -48,6 +48,8 @@ test('客户消息会按时间倒序聚合草稿与驳回提醒', () => {
   assert.equal(messages.length, 2);
   assert.equal(messages[0].title, '订单 SO-002 已驳回');
   assert.equal(messages[0].actionLabel, '去修改');
+  assert.match(messages[0].actionUrl, /source=message/);
+  assert.match(messages[0].actionUrl, /editOrderId=2/);
   assert.equal(messages[1].title, '订单 SO-001 仍为草稿');
 });
 
@@ -62,9 +64,18 @@ test('运营侧消息会根据异常计数生成重点提醒', () => {
     },
   });
   assert.equal(messages.length, 2);
-  assert.equal(messages[0].actionUrl, '/pages/report/index');
+  assert.match(messages[0].actionUrl, /^\/pages\/report\/index\?/);
+  assert.match(messages[0].actionUrl, /source=message/);
   assert.equal(messages[0].time, '2026-03-06T10:00:00Z');
   assert.match(messages[0].key, /2026-03-06T10:00:00Z/);
+});
+
+test('仓库消息会携带统一深链参数', () => {
+  const messages = buildMessages({ roleCode: 'warehouse' });
+  assert.equal(messages.length, 2);
+  assert.match(messages[0].actionUrl, /\/pages\/exec\/index\?/);
+  assert.match(messages[0].actionUrl, /source=message/);
+  assert.match(messages[1].actionUrl, /mode=manual/);
 });
 
 test('运营侧无异常时会返回清空提示消息', () => {

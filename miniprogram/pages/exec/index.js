@@ -2,7 +2,7 @@ const { getRuntimeMode, getRuntimeModeLabel } = require('../../config/env');
 const { completeManualOutbound, completeWarehouseOutbound, getAccessProfile } = require('../../utils/api');
 const { formatDateTime } = require('../../utils/format');
 const { getRoleLabel } = require('../../utils/light-report');
-const { resolveHomePath } = require('../../utils/navigation');
+const { resolveEntrySourceMeta, resolveHomePath } = require('../../utils/navigation');
 const { getAccessToken, initializeSession, logoutSession, updateAccessProfile } = require('../../utils/session');
 const {
   buildExecSummary,
@@ -48,12 +48,21 @@ Page({
     latestResult: null,
     latestSummary: [],
     latestSubmittedAtText: '',
+    sourceText: '',
+    sourceDetailText: '',
   },
 
   onLoad(options) {
     const mode = String((options && options.mode) || '').trim();
+    const sourceMeta = resolveEntrySourceMeta(options);
     if (mode === 'system' || mode === 'manual') {
       this.setData({ activeMode: mode });
+    }
+    if (sourceMeta.sourceText || sourceMeta.sourceDetailText) {
+      this.setData({
+        sourceText: sourceMeta.sourceText,
+        sourceDetailText: sourceMeta.sourceDetailText,
+      });
     }
   },
 

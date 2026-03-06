@@ -9,7 +9,7 @@ const {
 } = require('../../utils/api');
 const { formatDateTime, formatMoney, formatQty } = require('../../utils/format');
 const { getRoleLabel } = require('../../utils/light-report');
-const { resolveHomePath } = require('../../utils/navigation');
+const { resolveEntrySourceMeta, resolveHomePath } = require('../../utils/navigation');
 const { getAccessToken, initializeSession, logoutSession, updateAccessProfile } = require('../../utils/session');
 const {
   adaptContractOptions,
@@ -46,6 +46,12 @@ function resolveContractSelection(contractOptions, selectedContractIndex) {
   };
 }
 
+function resolveStatusFilter(value, statusOptions) {
+  const normalized = String(value || '').trim();
+  const options = Array.isArray(statusOptions) ? statusOptions : [];
+  return options.some((item) => item.key === normalized) ? normalized : '';
+}
+
 Page({
   data: {
     loading: true,
@@ -71,16 +77,29 @@ Page({
     editingOrderId: null,
     editingOrderNo: '',
     pendingEditOrderId: null,
+    sourceText: '',
+    sourceDetailText: '',
   },
 
   onLoad(options) {
     const tab = String((options && options.tab) || '').trim();
     const editOrderId = Number((options && options.editOrderId) || 0);
+    const sourceMeta = resolveEntrySourceMeta(options);
     if (tab === 'create' || tab === 'query') {
       this.setData({ activeTab: tab });
     }
+    const statusFilter = resolveStatusFilter(options && options.status, getOrderStatusOptions());
+    if (statusFilter) {
+      this.setData({ statusFilter, activeTab: 'query' });
+    }
     if (editOrderId > 0) {
       this.setData({ pendingEditOrderId: editOrderId });
+    }
+    if (sourceMeta.sourceText || sourceMeta.sourceDetailText) {
+      this.setData({
+        sourceText: sourceMeta.sourceText,
+        sourceDetailText: sourceMeta.sourceDetailText,
+      });
     }
   },
 

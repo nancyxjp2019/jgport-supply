@@ -17,6 +17,12 @@
     </view>
   </view>
 
+  <view wx:if="{{sourceText}}" class="panel-card">
+    <view class="section-title">来源回看</view>
+    <view class="section-desc">{{sourceText}}</view>
+    <view wx:if="{{sourceDetailText}}" class="status-tip">{{sourceDetailText}}</view>
+  </view>
+
   <view wx:if="{{loading}}" class="status-card">
     <view class="status-card__title">页面加载中</view>
     <view class="status-tip">正在校验当前身份与执行权限，请稍候。</view>
