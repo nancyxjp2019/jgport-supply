@@ -88,3 +88,4 @@ backend/uploads/
 backend/deploy/test_root_totp_qr.png
 backend/fixtures/test_env_baseline.json
 backend/fixtures/test_env_baseline.json
+.gitnexus
