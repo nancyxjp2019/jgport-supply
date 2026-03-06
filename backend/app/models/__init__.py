@@ -3,6 +3,7 @@ from app.models.business_log import BusinessLog
 from app.models.contract import Contract
 from app.models.contract_effective_task import ContractEffectiveTask
 from app.models.contract_item import ContractItem
+from app.models.doc_attachment import DocAttachment
 from app.models.doc_relation import DocRelation
 from app.models.payment_doc import PaymentDoc
 from app.models.purchase_order import PurchaseOrder
@@ -18,6 +19,7 @@ __all__ = [
     "Contract",
     "ContractEffectiveTask",
     "ContractItem",
+    "DocAttachment",
     "DocRelation",
     "PaymentDoc",
     "PurchaseOrder",

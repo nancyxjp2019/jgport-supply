@@ -24,7 +24,7 @@
 | 11 | 销售衍生采购订单付款=0无条件放行 | M3+M4 | ADM-ORDER-P-01 | `po_zero_pay_exception`触发 | `purchase_orders.zero_pay_exception_flag` + `sales_order_derivative_tasks` | EXC-001 |
 | 12 | 出库双通道（系统+手工）+ 履约累计幂等防重 | M5+M6 | ADM-OUTBOUND-01 | `/outbound-docs/manual` + 仓库出库事件 + 生效累计任务 | `outbound_docs` + `contract_qty_effects` + `doc_relations` | INV-002 |
 | 13 | 双阈值模型与约束（系统级统一下发） | M1+M2+M6 | ADM-CONFIG-01 | `/system-configs/thresholds` + 合同生效写快照 | `system_configs` + `contracts.threshold_*_snapshot` | CFG-001 |
-| 14 | 零金额免凭证（规则14场景） | M4 | ADM-RECEIPT-01 | `/receipt-docs/{id}/confirm` | 收付款单免凭证字段 | EXC-002 |
+| 14 | 零金额免凭证（规则14场景） | M4 | ADM-RECEIPT-01/ADM-PAYMENT-01 | `/receipt-docs/{id}/confirm` `/payment-docs/{id}/confirm` | 收付款单免凭证字段 + 阈值校验结果 | EXC-002 |
 | 15 | 单价来自合同，实收实付来自单据，附件按单据分层归属 | M3+M4 | ADM-ORDER-S-01 | 订单创建/财务确认/附件上传 | `sales_orders.unit_price` + 收付款单 + `doc_attachments` | FIN-002 |
 | 16 | 数量履约完成状态 + 完成后禁止新增出入库生效 | M5+M6 | 合同详情状态流 | 履约计算任务 + 出入库生效阻断 | `contract_items.qty_in_acc/qty_out_acc` + 合同状态 | CLS-001 |
 | 17 | 金额闭环采购/销售分开 + 保证金净额伪代码口径 | M4+M6 | 合同详情闭环面板 | 自动关闭校验任务 | 收付款单净额字段 + 退款字段 | CLS-002 |

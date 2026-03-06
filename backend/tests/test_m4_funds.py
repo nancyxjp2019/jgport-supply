@@ -9,6 +9,7 @@ from sqlalchemy import select
 from app.db.session import SessionLocal
 from app.main import app
 from app.models.contract_effective_task import ContractEffectiveTask
+from app.models.doc_attachment import DocAttachment
 from app.models.doc_relation import DocRelation
 from app.models.payment_doc import PaymentDoc
 from app.models.receipt_doc import ReceiptDoc
@@ -235,6 +236,314 @@ def test_receipt_doc_supplement_requires_matching_contract_and_sales_order(auth_
     assert _relation_exists("sales_order", sales_order_id, "receipt_doc", supplement_doc_id, "BINDS")
 
 
+def test_non_zero_receipt_confirm_requires_voucher_files(auth_headers) -> None:
+    contract_id = _create_effective_sales_contract(auth_headers, customer_id=CUSTOMER_COMPANY_ID)
+    receipt_doc = _query_receipt_docs(contract_id=contract_id, doc_type="DEPOSIT")[0]
+
+    confirm_response = client.post(
+        f"/api/v1/receipt-docs/{receipt_doc.id}/confirm",
+        json={"amount_actual": 1200.00, "voucher_files": []},
+        headers=auth_headers(
+            user_id="CODEX-TEST-FINANCE-RECEIPT-CONFIRM-BLOCK",
+            role_code="finance",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+
+    assert confirm_response.status_code == 422
+    assert confirm_response.json()["detail"] == "非0金额收款单必须上传收款凭证"
+    refreshed_doc = _query_receipt_docs(contract_id=contract_id, doc_type="DEPOSIT")[0]
+    assert refreshed_doc.status == "草稿"
+
+
+def test_non_zero_payment_confirm_persists_voucher_attachment(auth_headers) -> None:
+    contract_id = _create_effective_purchase_contract(auth_headers, supplier_id=SUPPLIER_COMPANY_ID)
+    payment_doc = _query_payment_docs(contract_id=contract_id, doc_type="DEPOSIT")[0]
+
+    confirm_response = client.post(
+        f"/api/v1/payment-docs/{payment_doc.id}/confirm",
+        json={
+            "amount_actual": 3200.55,
+            "voucher_files": ["CODEX-TEST-/payment-voucher-001.png", "CODEX-TEST-/payment-voucher-001.png"],
+        },
+        headers=auth_headers(
+            user_id="CODEX-TEST-FINANCE-PAYMENT-CONFIRM",
+            role_code="finance",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+
+    assert confirm_response.status_code == 200
+    body = confirm_response.json()
+    assert body["status"] == "已确认"
+    assert body["voucher_file_paths"] == ["CODEX-TEST-/payment-voucher-001.png"]
+    refreshed_doc = _query_payment_docs(contract_id=contract_id, doc_type="DEPOSIT")[0]
+    assert refreshed_doc.amount_actual == Decimal("3200.55")
+    assert refreshed_doc.status == "已确认"
+    assert _query_doc_attachments("payment_doc", payment_doc.id, "PAYMENT_VOUCHER") == [
+        "CODEX-TEST-/payment-voucher-001.png"
+    ]
+
+
+def test_confirm_blocks_overlong_voucher_path(auth_headers) -> None:
+    contract_id = _create_effective_purchase_contract(auth_headers, supplier_id=SUPPLIER_COMPANY_ID)
+    payment_doc = _query_payment_docs(contract_id=contract_id, doc_type="DEPOSIT")[0]
+    overlong_path = "CODEX-TEST-/" + ("a" * 600) + ".png"
+
+    confirm_response = client.post(
+        f"/api/v1/payment-docs/{payment_doc.id}/confirm",
+        json={"amount_actual": 1000.00, "voucher_files": [overlong_path]},
+        headers=auth_headers(
+            user_id="CODEX-TEST-FINANCE-PAYMENT-PATH-LIMIT",
+            role_code="finance",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+
+    assert confirm_response.status_code == 422
+    assert confirm_response.json()["detail"] == "凭证路径长度不能超过512个字符"
+
+
+def test_zero_amount_receipt_confirm_passes_rule14_when_deposit_cover_is_enough(auth_headers) -> None:
+    sales_contract_id = _create_effective_sales_contract(
+        auth_headers,
+        customer_id=CUSTOMER_COMPANY_ID,
+        qty_signed=Decimal("100.000"),
+    )
+    deposit_receipt_doc = _query_receipt_docs(contract_id=sales_contract_id, doc_type="DEPOSIT")[0]
+    deposit_confirm_response = client.post(
+        f"/api/v1/receipt-docs/{deposit_receipt_doc.id}/confirm",
+        json={
+            "amount_actual": 650025.00,
+            "voucher_files": ["CODEX-TEST-/deposit-receipt-pass.png"],
+        },
+        headers=auth_headers(
+            user_id="CODEX-TEST-FINANCE-DEPOSIT-RECEIPT-PASS",
+            role_code="finance",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+    assert deposit_confirm_response.status_code == 200
+
+    purchase_contract_id = _create_effective_purchase_contract(auth_headers, supplier_id=SUPPLIER_COMPANY_ID)
+    sales_order_id = _create_sales_order_in_pending_finance(auth_headers, sales_contract_id=sales_contract_id)
+    approve_response = client.post(
+        f"/api/v1/sales-orders/{sales_order_id}/finance-approve",
+        json={
+            "result": True,
+            "purchase_contract_id": purchase_contract_id,
+            "actual_receipt_amount": 0,
+            "actual_pay_amount": 5000,
+            "comment": "规则14收款0金额放行",
+        },
+        headers=auth_headers(
+            user_id="CODEX-TEST-FINANCE-RULE14-RECEIPT-PASS",
+            role_code="finance",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+    assert approve_response.status_code == 200
+
+    receipt_doc = _query_receipt_docs(sales_order_id=sales_order_id, doc_type="NORMAL")[0]
+    confirm_response = client.post(
+        f"/api/v1/receipt-docs/{receipt_doc.id}/confirm",
+        json={"amount_actual": 0, "voucher_files": []},
+        headers=auth_headers(
+            user_id="CODEX-TEST-FINANCE-RULE14-RECEIPT-PASS-CONFIRM",
+            role_code="finance",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+
+    assert confirm_response.status_code == 200
+    body = confirm_response.json()
+    assert body["status"] == "已确认"
+    assert body["voucher_required"] is False
+    assert body["voucher_exempt_reason"] == "保证金覆盖放行（规则14）"
+
+
+def test_zero_amount_receipt_confirm_moves_to_pending_supplement_when_rule14_fails(auth_headers) -> None:
+    sales_contract_id = _create_effective_sales_contract(auth_headers, customer_id=CUSTOMER_COMPANY_ID)
+    purchase_contract_id = _create_effective_purchase_contract(auth_headers, supplier_id=SUPPLIER_COMPANY_ID)
+    sales_order_id = _create_sales_order_in_pending_finance(auth_headers, sales_contract_id=sales_contract_id)
+    approve_response = client.post(
+        f"/api/v1/sales-orders/{sales_order_id}/finance-approve",
+        json={
+            "result": True,
+            "purchase_contract_id": purchase_contract_id,
+            "actual_receipt_amount": 0,
+            "actual_pay_amount": 5000,
+            "comment": "规则14收款0金额阻断",
+        },
+        headers=auth_headers(
+            user_id="CODEX-TEST-FINANCE-RULE14-RECEIPT-BLOCK",
+            role_code="finance",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+    assert approve_response.status_code == 200
+
+    receipt_doc = _query_receipt_docs(sales_order_id=sales_order_id, doc_type="NORMAL")[0]
+    blocked_response = client.post(
+        f"/api/v1/receipt-docs/{receipt_doc.id}/confirm",
+        json={"amount_actual": 0, "voucher_files": []},
+        headers=auth_headers(
+            user_id="CODEX-TEST-FINANCE-RULE14-RECEIPT-BLOCK-CONFIRM",
+            role_code="finance",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+
+    assert blocked_response.status_code == 200
+    assert blocked_response.json()["status"] == "待补录金额"
+    refreshed_doc = _query_receipt_docs(sales_order_id=sales_order_id, doc_type="NORMAL")[0]
+    assert refreshed_doc.status == "待补录金额"
+
+
+def test_zero_pay_exception_confirm_passes_rule11(auth_headers) -> None:
+    sales_contract_id = _create_effective_sales_contract(auth_headers, customer_id=CUSTOMER_COMPANY_ID)
+    purchase_contract_id = _create_effective_purchase_contract(auth_headers, supplier_id=SUPPLIER_COMPANY_ID)
+    sales_order_id = _create_sales_order_in_pending_finance(auth_headers, sales_contract_id=sales_contract_id)
+    approve_response = client.post(
+        f"/api/v1/sales-orders/{sales_order_id}/finance-approve",
+        json={
+            "result": True,
+            "purchase_contract_id": purchase_contract_id,
+            "actual_receipt_amount": 5000,
+            "actual_pay_amount": 0,
+            "comment": "规则11付款0金额放行",
+        },
+        headers=auth_headers(
+            user_id="CODEX-TEST-FINANCE-RULE11-PAY",
+            role_code="finance",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+    assert approve_response.status_code == 200
+    purchase_order_id = approve_response.json()["purchase_order_id"]
+
+    payment_doc = _query_payment_docs(purchase_order_id=purchase_order_id, doc_type="NORMAL")[0]
+    confirm_response = client.post(
+        f"/api/v1/payment-docs/{payment_doc.id}/confirm",
+        json={"amount_actual": 0, "voucher_files": []},
+        headers=auth_headers(
+            user_id="CODEX-TEST-FINANCE-RULE11-PAY-CONFIRM",
+            role_code="finance",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+
+    assert confirm_response.status_code == 200
+    body = confirm_response.json()
+    assert body["status"] == "已确认"
+    assert body["voucher_required"] is False
+    assert body["voucher_exempt_reason"] == "例外放行（需后补付款单）"
+
+
+def test_zero_amount_deposit_payment_confirm_moves_to_pending_supplement(auth_headers) -> None:
+    contract_id = _create_effective_purchase_contract(auth_headers, supplier_id=SUPPLIER_COMPANY_ID)
+    payment_doc = _query_payment_docs(contract_id=contract_id, doc_type="DEPOSIT")[0]
+
+    confirm_response = client.post(
+        f"/api/v1/payment-docs/{payment_doc.id}/confirm",
+        json={"amount_actual": 0, "voucher_files": []},
+        headers=auth_headers(
+            user_id="CODEX-TEST-FINANCE-DEPOSIT-PAY-ZERO",
+            role_code="finance",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+
+    assert confirm_response.status_code == 200
+    assert confirm_response.json()["status"] == "待补录金额"
+    refreshed_doc = _query_payment_docs(contract_id=contract_id, doc_type="DEPOSIT")[0]
+    assert refreshed_doc.status == "待补录金额"
+
+
+def test_pending_supplement_receipt_can_be_confirmed_after_amount_is_backfilled(auth_headers) -> None:
+    sales_contract_id = _create_effective_sales_contract(auth_headers, customer_id=CUSTOMER_COMPANY_ID)
+    purchase_contract_id = _create_effective_purchase_contract(auth_headers, supplier_id=SUPPLIER_COMPANY_ID)
+    sales_order_id = _create_sales_order_in_pending_finance(auth_headers, sales_contract_id=sales_contract_id)
+    approve_response = client.post(
+        f"/api/v1/sales-orders/{sales_order_id}/finance-approve",
+        json={
+            "result": True,
+            "purchase_contract_id": purchase_contract_id,
+            "actual_receipt_amount": 0,
+            "actual_pay_amount": 6000,
+            "comment": "先转待补录后再补录金额",
+        },
+        headers=auth_headers(
+            user_id="CODEX-TEST-FINANCE-RECEIPT-REFILL-1",
+            role_code="finance",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+    assert approve_response.status_code == 200
+
+    receipt_doc = _query_receipt_docs(sales_order_id=sales_order_id, doc_type="NORMAL")[0]
+    blocked_response = client.post(
+        f"/api/v1/receipt-docs/{receipt_doc.id}/confirm",
+        json={"amount_actual": 0, "voucher_files": []},
+        headers=auth_headers(
+            user_id="CODEX-TEST-FINANCE-RECEIPT-REFILL-2",
+            role_code="finance",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+    assert blocked_response.status_code == 200
+    assert blocked_response.json()["status"] == "待补录金额"
+
+    refill_response = client.post(
+        f"/api/v1/receipt-docs/{receipt_doc.id}/confirm",
+        json={
+            "amount_actual": 8800.45,
+            "voucher_files": ["CODEX-TEST-/receipt-backfill-001.png"],
+        },
+        headers=auth_headers(
+            user_id="CODEX-TEST-FINANCE-RECEIPT-REFILL-3",
+            role_code="finance",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+
+    assert refill_response.status_code == 200
+    body = refill_response.json()
+    assert body["status"] == "已确认"
+    assert body["voucher_file_paths"] == ["CODEX-TEST-/receipt-backfill-001.png"]
+    refreshed_doc = _query_receipt_docs(sales_order_id=sales_order_id, doc_type="NORMAL")[0]
+    assert refreshed_doc.amount_actual == Decimal("8800.45")
+    assert refreshed_doc.status == "已确认"
+
+
 def _query_payment_docs(
     *,
     contract_id: int | None = None,
@@ -269,6 +578,20 @@ def _query_receipt_docs(
         return list(db.scalars(statement.order_by(ReceiptDoc.id)).all())
 
 
+def _query_doc_attachments(owner_doc_type: str, owner_doc_id: int, biz_tag: str) -> list[str]:
+    with SessionLocal() as db:
+        statement = (
+            select(DocAttachment.path)
+            .where(
+                DocAttachment.owner_doc_type == owner_doc_type,
+                DocAttachment.owner_doc_id == owner_doc_id,
+                DocAttachment.biz_tag == biz_tag,
+            )
+            .order_by(DocAttachment.id)
+        )
+        return list(db.scalars(statement).all())
+
+
 def _query_contract_tasks(*, contract_id: int) -> list[ContractEffectiveTask]:
     with SessionLocal() as db:
         statement = (
@@ -297,13 +620,19 @@ def _relation_exists(
         return db.scalar(statement) is not None
 
 
-def _create_effective_sales_contract(auth_headers, *, customer_id: str) -> int:
+def _create_effective_sales_contract(
+    auth_headers,
+    *,
+    customer_id: str,
+    qty_signed: Decimal = Decimal("300.000"),
+    unit_price: Decimal = Decimal("6500.25"),
+) -> int:
     create_response = client.post(
         "/api/v1/contracts/sales",
         json={
             "contract_no": f"CODEX-TEST-M4-SALES-{uuid4().hex[:10]}",
             "customer_id": customer_id,
-            "items": [{"oil_product_id": "OIL-92", "qty_signed": 300, "unit_price": 6500.25}],
+            "items": [{"oil_product_id": "OIL-92", "qty_signed": float(qty_signed), "unit_price": float(unit_price)}],
         },
         headers=auth_headers(
             user_id="CODEX-TEST-M4-FINANCE-CREATE-SALES-CONTRACT",
@@ -332,13 +661,19 @@ def _create_effective_sales_contract(auth_headers, *, customer_id: str) -> int:
     return contract_id
 
 
-def _create_effective_purchase_contract(auth_headers, *, supplier_id: str) -> int:
+def _create_effective_purchase_contract(
+    auth_headers,
+    *,
+    supplier_id: str,
+    qty_signed: Decimal = Decimal("400.000"),
+    unit_price: Decimal = Decimal("6300.80"),
+) -> int:
     create_response = client.post(
         "/api/v1/contracts/purchase",
         json={
             "contract_no": f"CODEX-TEST-M4-PURCHASE-{uuid4().hex[:10]}",
             "supplier_id": supplier_id,
-            "items": [{"oil_product_id": "OIL-92", "qty_signed": 400, "unit_price": 6300.80}],
+            "items": [{"oil_product_id": "OIL-92", "qty_signed": float(qty_signed), "unit_price": float(unit_price)}],
         },
         headers=auth_headers(
             user_id="CODEX-TEST-M4-FINANCE-CREATE-PURCHASE-CONTRACT",

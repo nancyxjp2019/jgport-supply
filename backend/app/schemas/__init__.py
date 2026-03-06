@@ -12,8 +12,10 @@ from app.schemas.contract import (
     SalesContractCreateRequest,
 )
 from app.schemas.funds import (
+    PaymentDocConfirmRequest,
     PaymentDocResponse,
     PaymentDocSupplementRequest,
+    ReceiptDocConfirmRequest,
     ReceiptDocResponse,
     ReceiptDocSupplementRequest,
 )
@@ -42,10 +44,12 @@ __all__ = [
     "ContractItemResponse",
     "ContractResponse",
     "ContractSubmitRequest",
+    "PaymentDocConfirmRequest",
     "PaymentDocResponse",
     "PaymentDocSupplementRequest",
     "PurchaseContractCreateRequest",
     "PurchaseOrderResponse",
+    "ReceiptDocConfirmRequest",
     "ReceiptDocResponse",
     "ReceiptDocSupplementRequest",
     "SalesContractCreateRequest",

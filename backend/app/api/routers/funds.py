@@ -8,15 +8,22 @@ from app.db.session import get_db
 from app.models.payment_doc import PaymentDoc
 from app.models.receipt_doc import ReceiptDoc
 from app.schemas.funds import (
+    PaymentDocConfirmRequest,
     PaymentDocResponse,
     PaymentDocSupplementRequest,
+    ReceiptDocConfirmRequest,
     ReceiptDocResponse,
     ReceiptDocSupplementRequest,
 )
 from app.services.funds_service import (
     FundsServiceError,
+    ATTACHMENT_BIZ_TAG_PAYMENT_VOUCHER,
+    ATTACHMENT_BIZ_TAG_RECEIPT_VOUCHER,
+    confirm_payment_doc,
+    confirm_receipt_doc,
     create_payment_doc_supplement,
     create_receipt_doc_supplement,
+    list_doc_attachment_paths,
 )
 
 router = APIRouter(tags=["funds"])
@@ -46,7 +53,7 @@ def create_payment_supplement(
     except FundsServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
     assert payment_doc is not None
-    return _to_payment_response(payment_doc, message=result.message)
+    return _to_payment_response(payment_doc, message=result.message, db=db)
 
 
 @router.post("/receipt-docs/supplement", response_model=ReceiptDocResponse)
@@ -67,10 +74,54 @@ def create_receipt_supplement(
     except FundsServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
     assert receipt_doc is not None
-    return _to_receipt_response(receipt_doc, message=result.message)
+    return _to_receipt_response(receipt_doc, message=result.message, db=db)
 
 
-def _to_payment_response(payment_doc: PaymentDoc, *, message: str) -> PaymentDocResponse:
+@router.post("/payment-docs/{payment_doc_id}/confirm", response_model=PaymentDocResponse)
+def confirm_payment(
+    payment_doc_id: int,
+    payload: PaymentDocConfirmRequest,
+    actor: AuthenticatedActor = Depends(fund_doc_write_dependency),
+    db: Session = Depends(get_db),
+) -> PaymentDocResponse:
+    try:
+        result = confirm_payment_doc(
+            db,
+            operator_id=actor.user_id,
+            payment_doc_id=payment_doc_id,
+            amount_actual=payload.amount_actual,
+            voucher_files=payload.voucher_files,
+        )
+        payment_doc = db.get(PaymentDoc, result.doc_id)
+    except FundsServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    assert payment_doc is not None
+    return _to_payment_response(payment_doc, message=result.message, db=db)
+
+
+@router.post("/receipt-docs/{receipt_doc_id}/confirm", response_model=ReceiptDocResponse)
+def confirm_receipt(
+    receipt_doc_id: int,
+    payload: ReceiptDocConfirmRequest,
+    actor: AuthenticatedActor = Depends(fund_doc_write_dependency),
+    db: Session = Depends(get_db),
+) -> ReceiptDocResponse:
+    try:
+        result = confirm_receipt_doc(
+            db,
+            operator_id=actor.user_id,
+            receipt_doc_id=receipt_doc_id,
+            amount_actual=payload.amount_actual,
+            voucher_files=payload.voucher_files,
+        )
+        receipt_doc = db.get(ReceiptDoc, result.doc_id)
+    except FundsServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    assert receipt_doc is not None
+    return _to_receipt_response(receipt_doc, message=result.message, db=db)
+
+
+def _to_payment_response(payment_doc: PaymentDoc, *, message: str, db: Session) -> PaymentDocResponse:
     return PaymentDocResponse(
         id=payment_doc.id,
         doc_no=payment_doc.doc_no,
@@ -83,12 +134,19 @@ def _to_payment_response(payment_doc: PaymentDoc, *, message: str) -> PaymentDoc
         voucher_exempt_reason=payment_doc.voucher_exempt_reason,
         refund_status=payment_doc.refund_status,
         refund_amount=payment_doc.refund_amount,
+        confirmed_at=payment_doc.confirmed_at,
+        voucher_file_paths=list_doc_attachment_paths(
+            db,
+            owner_doc_type="payment_doc",
+            owner_doc_id=payment_doc.id,
+            biz_tag=ATTACHMENT_BIZ_TAG_PAYMENT_VOUCHER,
+        ),
         created_at=payment_doc.created_at,
         message=message,
     )
 
 
-def _to_receipt_response(receipt_doc: ReceiptDoc, *, message: str) -> ReceiptDocResponse:
+def _to_receipt_response(receipt_doc: ReceiptDoc, *, message: str, db: Session) -> ReceiptDocResponse:
     return ReceiptDocResponse(
         id=receipt_doc.id,
         doc_no=receipt_doc.doc_no,
@@ -101,6 +159,13 @@ def _to_receipt_response(receipt_doc: ReceiptDoc, *, message: str) -> ReceiptDoc
         voucher_exempt_reason=receipt_doc.voucher_exempt_reason,
         refund_status=receipt_doc.refund_status,
         refund_amount=receipt_doc.refund_amount,
+        confirmed_at=receipt_doc.confirmed_at,
+        voucher_file_paths=list_doc_attachment_paths(
+            db,
+            owner_doc_type="receipt_doc",
+            owner_doc_id=receipt_doc.id,
+            biz_tag=ATTACHMENT_BIZ_TAG_RECEIPT_VOUCHER,
+        ),
         created_at=receipt_doc.created_at,
         message=message,
     )

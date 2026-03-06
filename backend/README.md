@@ -10,6 +10,7 @@
   - `0004_add_m2_contract_domain`（M2：合同主表、明细表、合同生效待处理任务）
   - `0005_add_m3_order_domain`（M3：销售订单、采购订单、销售订单衍生任务）
   - `0006_add_m4_funds_domain`（M4：收款单、付款单、单据关系表）
+  - `0007_add_m4_doc_attach`（M4：凭证附件表）
 
 ## 2. 目录说明
 - `app/main.py`：应用入口
@@ -77,6 +78,8 @@
 - `GET /api/v1/purchase-orders/{id}` 允许 `operations/finance/admin + operator_company + admin_web`。
 - `POST /api/v1/payment-docs/supplement` 仅允许 `finance/admin + operator_company + admin_web`。
 - `POST /api/v1/receipt-docs/supplement` 仅允许 `finance/admin + operator_company + admin_web`。
+- `POST /api/v1/payment-docs/{id}/confirm` 仅允许 `finance/admin + operator_company + admin_web`。
+- `POST /api/v1/receipt-docs/{id}/confirm` 仅允许 `finance/admin + operator_company + admin_web`。
 
 ## 6. 已实现接口（阶段C迭代3-M3）
 - 订单域：
@@ -110,14 +113,20 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - 若 `psql` 未在 PATH，可使用完整路径执行，例如：`/usr/local/Cellar/postgresql@18/18.3/bin/psql`。
 - 测试默认使用临时 PostgreSQL 数据库，测试结束后自动销毁，不污染开发库。
 
-## 9. 已实现接口（阶段C迭代4-M4 第一批）
+## 9. 已实现接口（阶段C迭代4-M4）
 - 资金单据：
   - `POST /api/v1/payment-docs/supplement`
   - `POST /api/v1/receipt-docs/supplement`
+  - `POST /api/v1/payment-docs/{id}/confirm`
+  - `POST /api/v1/receipt-docs/{id}/confirm`
 - 当前实现约束：
   - 采购合同/销售合同生效后，会同步消费待处理任务并生成保证金收付款单草稿。
   - 销售订单财务审批通过后，会同步消费待处理任务并生成订单实收实付收付款单草稿。
   - `付款金额=0` 的销售衍生采购订单，会生成带“例外放行（需后补付款单）”文案的付款单草稿。
   - 手工补录付款单必须绑定匹配的 `采购合同 + 采购订单`。
   - 手工补录收款单必须绑定匹配的 `销售合同 + 销售订单`。
-  - 当前第一批尚未实现 `/receipt-docs/{id}/confirm`、`/payment-docs/{id}/confirm`、退款/核销和规则14阈值引擎。
+  - 非0金额确认必须上传凭证路径，并落库到 `doc_attachments`。
+  - `付款金额=0` 且命中规则11时无条件放行并可免凭证。
+  - `收款金额=0` 或非规则11的 `付款金额=0` 时，按规则14计算后转 `已确认` 或 `待补录金额`。
+  - 已转 `待补录金额` 的单据，可继续调用原确认接口补录金额和凭证后再次确认。
+  - 当前仍未实现退款/核销、收付款单驳回/待审核独立接口和真实文件上传。

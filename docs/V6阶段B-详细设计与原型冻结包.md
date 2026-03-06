@@ -83,7 +83,7 @@ purchase_payment_net =
 - 合同：`草稿` -> `待审批` -> `生效中` -> `数量履约完成` -> (`已关闭` 或 `手工关闭`) -> `已归档`；补充回退分支：`待审批 -> 草稿（驳回）`。
 - 销售订单：`草稿` -> `待运营审批` -> `待财务审批` -> (`驳回` 或 `已衍生采购订单`) -> `执行中` -> `已完成`。
 - 采购订单：`已创建` -> `待供应商确认` -> `供应商已确认` -> `待付款校验` -> `可继续执行` -> `执行中` -> `已完成`。
-- 收付款单：`草稿` -> `待审核` -> `已确认` -> `已核销`；异常分支 `待补录金额`、`已终止`。
+- 收付款单：首版冻结为 `草稿` -> `已确认` -> `已核销`；异常分支 `待补录金额`、`已终止`。`待审核/驳回` 独立接口不纳入首版。
 - 出入库单：`草稿` -> `待提交` -> `已生效` -> `已过账`；异常分支 `校验失败`、`已终止`。
 - 约束：合同状态进入`数量履约完成`后，新增出入库单一律不得生效。
 
@@ -151,6 +151,13 @@ purchase_payment_net =
 |---|---|---|---|---|
 | `/receipt-docs/{id}/confirm` | `POST` | `amount_actual`,`voucher_files[]` | 非0金额必须有凭证；0金额按规则14校验 | `status=已确认`或`待补录金额` |
 | `/payment-docs/{id}/confirm` | `POST` | `amount_actual`,`voucher_files[]` | 非0金额必须有凭证；0金额在规则11场景无条件放行，其他场景按规则14校验 | `status=已确认`或`待补录金额` |
+
+- 规则14实现口径冻结补充：
+  - 仅适用于“订单衍生的普通收款单/付款单”，不适用于合同保证金单据。
+  - 保证金对应数量 = `已确认/已核销且未退款的保证金净额 / 当前订单油品对应合同单价`
+  - 待执行数量：
+    - 销售方向：`contract_item.qty_signed - contract_item.qty_out_acc`
+    - 采购方向：`contract_item.qty_signed - contract_item.qty_in_acc`
 | `/payment-docs/supplement` | `POST` | `contract_id`,`purchase_order_id`,`amount_actual` | 手工补录必须同时绑定合同+采购订单 | `payment_doc_id` |
 | `/receipt-docs/supplement` | `POST` | `contract_id`,`sales_order_id`,`amount_actual` | 手工补录必须绑定合同 | `receipt_doc_id` |
 
@@ -184,6 +191,7 @@ purchase_payment_net =
 |---|---|---|
 | `BIZ-CONTRACT-THRESHOLD-001` | 出入库超量履约阈值 | 阻断单据生效 |
 | `BIZ-RECEIPT-ZERO-001` | 收款0金额不满足规则14阈值 | 转`待补录金额` |
+| `BIZ-PAY-ZERO-001` | 付款0金额不满足规则11/规则14放行条件 | 转`待补录金额` |
 | `BIZ-LINK-001` | 上下游ID缺失或关系不完整 | 阻断审核/生效 |
 | `BIZ-CLOSE-001` | 合同方向金额闭环不满足（超出0.01容差） | 不允许自动关闭 |
 | `BIZ-CONTRACT-QTY-DONE-001` | 合同已数量履约完成仍尝试新增出入库生效 | 阻断提交 |
