@@ -59,3 +59,11 @@ class Contract(Base):
         back_populates="contract",
         order_by="PaymentDoc.id",
     )
+    inbound_docs: Mapped[list["InboundDoc"]] = relationship(
+        back_populates="contract",
+        order_by="InboundDoc.id",
+    )
+    outbound_docs: Mapped[list["OutboundDoc"]] = relationship(
+        back_populates="contract",
+        order_by="OutboundDoc.id",
+    )

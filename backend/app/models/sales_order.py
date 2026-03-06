@@ -54,3 +54,7 @@ class SalesOrder(Base):
         back_populates="sales_order",
         order_by="ReceiptDoc.id",
     )
+    outbound_docs: Mapped[list["OutboundDoc"]] = relationship(
+        back_populates="sales_order",
+        order_by="OutboundDoc.id",
+    )

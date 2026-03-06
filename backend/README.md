@@ -11,6 +11,7 @@
   - `0005_add_m3_order_domain`（M3：销售订单、采购订单、销售订单衍生任务）
   - `0006_add_m4_funds_domain`（M4：收款单、付款单、单据关系表）
   - `0007_add_m4_doc_attach`（M4：凭证附件表）
+  - `0008_add_m5_inventory_exec`（M5：入库单、出库单、履约累计防重表）
 
 ## 2. 目录说明
 - `app/main.py`：应用入口
@@ -24,7 +25,7 @@
 - `app/models/contract_item.py`：合同油品明细模型
 - `app/models/contract_effective_task.py`：合同生效待处理任务模型
 - `alembic/`：迁移脚本
-- `tests/`：健康检查 + M1/M2/M3/M4 接口与服务测试
+- `tests/`：健康检查 + M1/M2/M3/M4/M5 接口与服务测试
 
 ## 3. 已实现接口（阶段C迭代1-M1）
 - 健康检查：
@@ -80,6 +81,18 @@
 - `POST /api/v1/receipt-docs/supplement` 仅允许 `finance/admin + operator_company + admin_web`。
 - `POST /api/v1/payment-docs/{id}/confirm` 仅允许 `finance/admin + operator_company + admin_web`。
 - `POST /api/v1/receipt-docs/{id}/confirm` 仅允许 `finance/admin + operator_company + admin_web`。
+- `POST /api/v1/inbound-docs/{id}/submit` 允许：
+  - `warehouse + warehouse_company + miniprogram`；
+  - `operations/finance/admin + operator_company + admin_web`。
+- `POST /api/v1/outbound-docs/warehouse-confirm` 允许：
+  - `warehouse + warehouse_company + miniprogram`；
+  - `operations/finance/admin + operator_company + admin_web`。
+- `POST /api/v1/outbound-docs/manual` 允许：
+  - `warehouse + warehouse_company + miniprogram`；
+  - `operations/finance/admin + operator_company + admin_web`。
+- `POST /api/v1/outbound-docs/{id}/submit` 允许：
+  - `warehouse + warehouse_company + miniprogram`；
+  - `operations/finance/admin + operator_company + admin_web`。
 
 ## 6. 已实现接口（阶段C迭代3-M3）
 - 订单域：
@@ -130,3 +143,19 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
   - `收款金额=0` 或非规则11的 `付款金额=0` 时，按规则14计算后转 `已确认` 或 `待补录金额`。
   - 已转 `待补录金额` 的单据，可继续调用原确认接口补录金额和凭证后再次确认。
   - 当前仍未实现退款/核销、收付款单驳回/待审核独立接口和真实文件上传。
+
+## 10. 已实现接口（阶段C迭代5-M5）
+- 仓储执行：
+  - `POST /api/v1/inbound-docs/{id}/submit`
+  - `POST /api/v1/outbound-docs/warehouse-confirm`
+  - `POST /api/v1/outbound-docs/manual`
+  - `POST /api/v1/outbound-docs/{id}/submit`
+- 当前实现约束：
+  - 采购合同审批生效后，会按合同油品明细自动生成入库单草稿。
+  - 仓库正常流程出库必须绑定销售合同、销售订单、仓库回执号，并按回执号幂等去重。
+  - 手工补录出库必须绑定 `销售合同 + 销售订单 + 油品`，且手工回执号在合同+油品维度唯一。
+  - 所有出库单只能基于状态为 `已衍生采购订单` 或 `执行中` 的销售订单生成，不能绕过审批主链。
+  - 出入库提交会执行合同超量履约阈值校验；超限转 `校验失败`，合同已数量履约完成则转 `已终止`。
+  - 过账成功后写入 `contract_qty_effects` 防重流水，并累计到 `contract_items.qty_in_acc/qty_out_acc`。
+  - 当合同全部油品明细达到签约数量时，合同状态自动更新为 `数量履约完成`。
+  - 当前仍未实现独立库存台账、库存余额报表、订单完成态联动与供应商确认发货状态机。

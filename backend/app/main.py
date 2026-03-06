@@ -1,7 +1,7 @@
 from fastapi import APIRouter, FastAPI
 
 from app.api.error_handlers import register_exception_handlers
-from app.api.routers import access, audit_logs, contracts, funds, health, orders, system_configs
+from app.api.routers import access, audit_logs, contracts, funds, health, inventory, orders, system_configs
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -21,4 +21,5 @@ api_router.include_router(audit_logs.router)
 api_router.include_router(contracts.router)
 api_router.include_router(orders.router)
 api_router.include_router(funds.router)
+api_router.include_router(inventory.router)
 app.include_router(api_router, prefix=settings.api_prefix)

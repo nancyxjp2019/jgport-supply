@@ -15,6 +15,7 @@ from app.models.contract_effective_task import ContractEffectiveTask
 from app.models.contract_item import ContractItem
 from app.schemas.contract import ContractItemPayload
 from app.services.funds_service import materialize_contract_effective_fund_docs
+from app.services.inventory_service import materialize_contract_effective_inbound_docs
 from app.services.threshold_service import get_active_threshold_snapshot
 
 CONTRACT_DIRECTION_PURCHASE = "purchase"
@@ -189,6 +190,11 @@ def approve_contract(
             db.add(task)
         db.flush()
         materialize_contract_effective_fund_docs(
+            db,
+            operator_id=operator_id,
+            tasks=tasks,
+        )
+        materialize_contract_effective_inbound_docs(
             db,
             operator_id=operator_id,
             tasks=tasks,

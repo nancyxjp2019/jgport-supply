@@ -3,8 +3,11 @@ from app.models.business_log import BusinessLog
 from app.models.contract import Contract
 from app.models.contract_effective_task import ContractEffectiveTask
 from app.models.contract_item import ContractItem
+from app.models.contract_qty_effect import ContractQtyEffect
 from app.models.doc_attachment import DocAttachment
 from app.models.doc_relation import DocRelation
+from app.models.inbound_doc import InboundDoc
+from app.models.outbound_doc import OutboundDoc
 from app.models.payment_doc import PaymentDoc
 from app.models.purchase_order import PurchaseOrder
 from app.models.receipt_doc import ReceiptDoc
@@ -19,8 +22,11 @@ __all__ = [
     "Contract",
     "ContractEffectiveTask",
     "ContractItem",
+    "ContractQtyEffect",
     "DocAttachment",
     "DocRelation",
+    "InboundDoc",
+    "OutboundDoc",
     "PaymentDoc",
     "PurchaseOrder",
     "ReceiptDoc",

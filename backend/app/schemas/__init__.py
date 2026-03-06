@@ -19,6 +19,14 @@ from app.schemas.funds import (
     ReceiptDocResponse,
     ReceiptDocSupplementRequest,
 )
+from app.schemas.inventory import (
+    InboundDocResponse,
+    InboundDocSubmitRequest,
+    OutboundDocManualCreateRequest,
+    OutboundDocResponse,
+    OutboundDocSubmitRequest,
+    OutboundDocWarehouseConfirmRequest,
+)
 from app.schemas.order import (
     PurchaseOrderResponse,
     SalesOrderCreateRequest,
@@ -44,11 +52,17 @@ __all__ = [
     "ContractItemResponse",
     "ContractResponse",
     "ContractSubmitRequest",
+    "InboundDocResponse",
+    "InboundDocSubmitRequest",
     "PaymentDocConfirmRequest",
     "PaymentDocResponse",
     "PaymentDocSupplementRequest",
     "PurchaseContractCreateRequest",
     "PurchaseOrderResponse",
+    "OutboundDocManualCreateRequest",
+    "OutboundDocResponse",
+    "OutboundDocSubmitRequest",
+    "OutboundDocWarehouseConfirmRequest",
     "ReceiptDocConfirmRequest",
     "ReceiptDocResponse",
     "ReceiptDocSupplementRequest",

@@ -4,7 +4,7 @@
 - 文档状态：`已冻结`
 - 目标：冻结实现口径，形成可开发规格，作为阶段C模块开发唯一输入。
 - 上游输入：
-  - `docs/需求方案.md`（当前规则 `1~38` 与“业务目标/角色权限”基线）
+  - `docs/需求方案.md`（当前规则 `1~39` 与“业务目标/角色权限”基线）
   - `docs/V6阶段A-流程图状态机与UI原型清单.md`
 - 下游输出：阶段C模块任务拆分、接口开发、联调与测试用例。
 
@@ -44,8 +44,8 @@
 | `sales_order_derivative_tasks` | `id`,`sales_order_id`,`target_doc_type`,`status`,`idempotency_key`,`payload_json` | `idempotency_key`唯一；财务审批通过时自动写入收付款待处理任务 | 销售订单财务审批后的下游任务表 |
 | `receipt_docs` | `id`,`doc_no`,`doc_type`,`contract_id`,`sales_order_id`,`amount_actual`,`voucher_required`,`voucher_exempt_reason`,`refund_status`,`refund_amount`,`status` | 手工录入必须有`contract_id`；`amount_actual=0`且免凭证时必须有原因 | 收款单（含保证金退款口径） |
 | `payment_docs` | `id`,`doc_no`,`doc_type`,`contract_id`,`purchase_order_id`,`amount_actual`,`voucher_required`,`voucher_exempt_reason`,`refund_status`,`refund_amount`,`status` | 手工补录必须同时关联`contract_id + purchase_order_id` | 付款单（含保证金退款口径） |
-| `inbound_docs` | `id`,`doc_no`,`contract_id`,`purchase_order_id`,`source_type`,`actual_qty`,`status` | 生效前必须通过合同超量履约阈值校验 | 入库单 |
-| `outbound_docs` | `id`,`doc_no`,`contract_id`,`sales_order_id`,`source_type`,`source_ticket_no`,`manual_ref_no`,`idempotency_key`,`actual_qty`,`status` | 系统出库与手工补录均需绑定销售合同并通过超量校验；`idempotency_key`唯一 | 出库单 |
+| `inbound_docs` | `id`,`doc_no`,`contract_id`,`purchase_order_id`,`oil_product_id`,`warehouse_id`,`source_type`,`idempotency_key`,`actual_qty`,`status` | 采购合同按油品明细逐条生成；生效前必须通过合同超量履约阈值校验；`idempotency_key`唯一 | 入库单 |
+| `outbound_docs` | `id`,`doc_no`,`contract_id`,`sales_order_id`,`oil_product_id`,`warehouse_id`,`source_type`,`source_ticket_no`,`manual_ref_no`,`idempotency_key`,`actual_qty`,`status` | 系统出库与手工补录均需绑定销售合同并通过超量校验；`idempotency_key`唯一 | 出库单 |
 | `contract_qty_effects` | `id`,`contract_item_id`,`doc_type`,`doc_id`,`effect_type`,`effect_qty`,`idempotency_key` | 唯一键：`contract_item_id + doc_type + doc_id + effect_type` | 履约累计防重流水（出入库生效唯一计入） |
 | `doc_relations` | `id`,`source_doc_type`,`source_doc_id`,`target_doc_type`,`target_doc_id`,`relation_type` | 同一关系去重唯一 | 单据上下游关系（支持一对多/多对多） |
 | `doc_attachments` | `id`,`owner_doc_type`,`owner_doc_id`,`path`,`biz_tag` | 附件按业务归属冻结：合同附件挂合同，订单业务附件挂订单，付款凭证挂付款单，收款凭证挂收款单，发货指令单附件挂采购订单 | 凭证与业务附件 |
@@ -167,7 +167,8 @@ purchase_payment_net =
 |---|---|---|---|---|
 | `/inbound-docs/{id}/submit` | `POST` | `actual_qty`,`warehouse_id` | 超量阈值校验；合同数量履约完成阻断；失败转`校验失败` | `status` |
 | `/outbound-docs/{id}/submit` | `POST` | `actual_qty`,`warehouse_id` | 超量阈值校验；合同数量履约完成阻断；失败转`校验失败` | `status` |
-| `/outbound-docs/manual` | `POST` | `contract_id`,`oil_product_id`,`sales_order_id`,`manual_ref_no`,`actual_qty`,`reason` | 必须绑定销售合同+销售订单；`manual_ref_no`在合同+油品下唯一 | `outbound_doc_id` |
+| `/outbound-docs/warehouse-confirm` | `POST` | `contract_id`,`sales_order_id`,`source_ticket_no`,`actual_qty`,`warehouse_id` | 必须绑定销售合同+销售订单；销售订单状态必须为`已衍生采购订单/执行中`；`source_ticket_no`参与幂等去重 | `outbound_doc_id`,`status=待提交` |
+| `/outbound-docs/manual` | `POST` | `contract_id`,`oil_product_id`,`sales_order_id`,`manual_ref_no`,`actual_qty`,`reason` | 必须绑定销售合同+销售订单；销售订单状态必须为`已衍生采购订单/执行中`；`manual_ref_no`在合同+油品下唯一 | `outbound_doc_id` |
 
 ## 5.5 看板与报表接口
 
