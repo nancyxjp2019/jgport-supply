@@ -63,6 +63,11 @@
           "name": "仓库执行回执",
           "pathName": "pages/exec/index",
           "query": ""
+        },
+        {
+          "name": "订单发起与查询",
+          "pathName": "pages/order/index",
+          "query": ""
         }
       ]
     }

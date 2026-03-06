@@ -2,6 +2,7 @@
   "pages": [
     "pages/login/index",
     "pages/exec/index",
+    "pages/order/index",
     "pages/report/index"
   ],
   "window": {

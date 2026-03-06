@@ -22,7 +22,7 @@ const ROLE_CARD_CONFIG = [
   },
   {
     roleCode: 'customer',
-    description: '验证当前页对客户角色的金额信息阻断。',
+    description: '进入订单发起与查询，按合同创建并提交订单。',
     companyLabel: '归属：客户公司',
   },
   {

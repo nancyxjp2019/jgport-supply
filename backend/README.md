@@ -79,6 +79,13 @@
 - `POST /api/v1/contracts/*` 与 `POST /api/v1/contracts/{id}/approve` 仅允许 `finance/admin + operator_company + admin_web`。
 - `POST /api/v1/contracts/{id}/manual-close` 仅允许 `finance/admin + operator_company + admin_web`。
 - `GET /api/v1/contracts/{id}` 与 `GET /api/v1/contracts/{id}/graph` 允许 `operations/finance/admin + operator_company + admin_web`。
+- `GET /api/v1/sales-contracts/available` 仅允许 `customer + customer_company + miniprogram`，且必须透传所属 `X-Company-Id`。
+- `GET /api/v1/sales-orders` 允许：
+  - `customer + customer_company + miniprogram`，且必须透传所属 `X-Company-Id`；
+  - `operations/finance/admin + operator_company + admin_web`。
+- `GET /api/v1/sales-orders/{id}` 允许：
+  - `customer + customer_company + miniprogram`，且仅可读取本公司订单；
+  - `operations/finance/admin + operator_company + admin_web`。
 - `PUT /api/v1/sales-orders/{id}` 允许：
   - `customer + customer_company + miniprogram`，且必须透传所属 `X-Company-Id`；
   - `operations/finance/admin + operator_company + admin_web`。
@@ -111,6 +118,9 @@
 
 ## 6. 已实现接口（阶段C迭代3-M3）
 - 订单域：
+  - `GET /api/v1/sales-contracts/available`
+  - `GET /api/v1/sales-orders`
+  - `GET /api/v1/sales-orders/{id}`
   - `POST /api/v1/sales-orders`
   - `PUT /api/v1/sales-orders/{id}`
   - `POST /api/v1/sales-orders/{id}/submit`
@@ -220,3 +230,15 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
   - 若微信账号未绑定业务角色，则返回 `binding_required=true`；在 `dev/test` 环境附带 `debug_openid` 供本地绑定脚本使用。
   - 当前仓库提供绑定脚本：`cd backend && python scripts/bootstrap_mini_program_account.py --openid ... --role-code ... --company-id ... --company-type ...`。
   - 本轮只完成微信登录骨架，不包含后台绑定 UI、真机 HTTPS 联调与正式用户中心。
+
+## 15. 已实现接口（阶段C迭代8-M8-08）
+- 小程序客户订单首批：
+  - `GET /api/v1/sales-contracts/available`
+  - `GET /api/v1/sales-orders`
+  - `GET /api/v1/sales-orders/{id}`
+- 当前实现约束：
+  - 可选合同查询仅返回当前客户公司下状态为 `生效中` 的销售合同及油品明细。
+  - 客户只能查询本公司订单；运营、财务、管理员可在管理后台读取订单列表与详情。
+  - 订单列表支持 `status` 状态筛选与 `limit` 条数限制，默认按 `id DESC` 返回。
+  - 返回结果补充 `sales_contract_no` 与 `created_at`，用于小程序订单页展示与继续编辑。
+  - 本轮只补查询接口，不新增小程序审批动作、附件上传与采购订单详情页。

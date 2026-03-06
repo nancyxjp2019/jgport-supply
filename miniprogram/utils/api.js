@@ -1,4 +1,11 @@
 const { getRuntimeMode } = require('../config/env');
+const {
+  createDemoSalesOrder,
+  listDemoAvailableSalesContracts,
+  listDemoSalesOrders,
+  submitDemoSalesOrder,
+  updateDemoSalesOrder,
+} = require('../mocks/order');
 const { getDemoLightReportOverview } = require('../mocks/report');
 const { request } = require('./request');
 const { buildDemoExecResponse } = require('./warehouse-exec');
@@ -19,6 +26,90 @@ async function getLightReportOverview() {
   return request({
     url: '/reports/light/overview',
     method: 'GET',
+  });
+}
+
+async function getAvailableSalesContracts() {
+  if (getRuntimeMode() === 'demo') {
+    await sleep(120);
+    const items = listDemoAvailableSalesContracts();
+    return {
+      data: {
+        items,
+        total: items.length,
+        message: '演示模式：可选合同查询成功',
+      },
+      statusCode: 200,
+    };
+  }
+  return request({
+    url: '/sales-contracts/available',
+    method: 'GET',
+  });
+}
+
+async function listSalesOrders(status) {
+  if (getRuntimeMode() === 'demo') {
+    await sleep(120);
+    const items = listDemoSalesOrders(status);
+    return {
+      data: {
+        items,
+        total: items.length,
+        message: '演示模式：订单列表查询成功',
+      },
+      statusCode: 200,
+    };
+  }
+  const suffix = status ? `?status=${encodeURIComponent(status)}` : '';
+  return request({
+    url: `/sales-orders${suffix}`,
+    method: 'GET',
+  });
+}
+
+async function createSalesOrderDraft(payload) {
+  if (getRuntimeMode() === 'demo') {
+    await sleep(120);
+    return {
+      data: createDemoSalesOrder(payload),
+      statusCode: 200,
+    };
+  }
+  return request({
+    url: '/sales-orders',
+    method: 'POST',
+    data: payload,
+  });
+}
+
+async function updateSalesOrderDraft(orderId, payload) {
+  if (getRuntimeMode() === 'demo') {
+    await sleep(120);
+    return {
+      data: updateDemoSalesOrder(orderId, payload),
+      statusCode: 200,
+    };
+  }
+  return request({
+    url: `/sales-orders/${orderId}`,
+    method: 'PUT',
+    data: payload,
+  });
+}
+
+async function submitSalesOrder(orderId, comment) {
+  if (getRuntimeMode() === 'demo') {
+    await sleep(120);
+    return {
+      data: submitDemoSalesOrder(orderId, comment),
+      statusCode: 200,
+    };
+  }
+  return request({
+    url: `/sales-orders/${orderId}/submit`,
+    method: 'POST',
+    data: { comment },
   });
 }
 
@@ -103,8 +194,13 @@ async function completeManualOutbound(payload) {
 module.exports = {
   completeManualOutbound,
   completeWarehouseOutbound,
+  createSalesOrderDraft,
+  getAvailableSalesContracts,
   getAccessProfile,
   getLightReportOverview,
   loginMiniprogramLocal,
   loginMiniprogramWechat,
+  listSalesOrders,
+  submitSalesOrder,
+  updateSalesOrderDraft,
 };

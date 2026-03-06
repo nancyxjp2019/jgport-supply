@@ -1,0 +1,164 @@
+<view class="page-shell">
+  <view class="hero-card order-hero-card">
+    <view class="page-title">订单发起与查询</view>
+    <view class="page-subtitle">面向客户角色的小程序订单页。支持选择可用合同、自动带出合同单价，并查询当前公司订单进度。</view>
+    <view class="pill-row order-hero-meta">
+      <view class="version-pill">{{runtimeLabel}}</view>
+      <view wx:if="{{roleLabel}}" class="mode-pill">当前身份：{{roleLabel}}</view>
+    </view>
+  </view>
+
+  <view class="panel-card session-card">
+    <view class="section-title">当前会话</view>
+    <view class="section-desc">该页面首批仅向客户角色开放。运营侧订单审批和财务审批仍在管理后台执行。</view>
+    <view class="button-row">
+      <button class="secondary-btn" bindtap="onSwitchRole">切换角色</button>
+      <button class="danger-btn" bindtap="onLogout">退出当前身份</button>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="status-card">
+    <view class="status-card__title">页面加载中</view>
+    <view class="status-tip">正在读取当前身份、可用合同和订单列表，请稍候。</view>
+  </view>
+
+  <view wx:elif="{{!allowed}}" class="status-card forbidden-card">
+    <view class="status-card__title">当前角色暂不开放订单发起与查询</view>
+    <view class="forbidden-text">当前身份：{{roleLabel || '未登录'}}。该页面首批仅面向客户角色。</view>
+    <view class="button-row">
+      <button class="secondary-btn" bindtap="onOpenDefaultPage">返回默认工作页</button>
+      <button class="danger-btn" bindtap="onLogout">退出当前身份</button>
+    </view>
+  </view>
+
+  <block wx:else>
+    <view class="panel-card">
+      <view class="section-title">功能区域</view>
+      <view class="section-desc">订单发起用于保存草稿或提交审批；订单查询用于查看状态和继续编辑草稿/驳回单。</view>
+      <view class="mode-switch">
+        <button class="mode-btn {{activeTab === 'create' ? 'mode-btn--active' : ''}}" data-tab="create" bindtap="onSwitchTab">订单发起</button>
+        <button class="mode-btn {{activeTab === 'query' ? 'mode-btn--active' : ''}}" data-tab="query" bindtap="onSwitchTab">订单查询</button>
+      </view>
+    </view>
+
+    <view wx:if="{{activeTab === 'create'}}" class="panel-card">
+      <view class="section-title">{{editingOrderId ? '编辑订单草稿' : '新建订单草稿'}}</view>
+      <view class="section-desc" wx:if="{{editingOrderId}}">当前编辑订单：{{editingOrderNo}}。仅草稿或驳回状态允许继续编辑。</view>
+      <view class="section-desc" wx:else>选择合同和油品后，系统会自动带出合同单价；订单单价不可脱离合同单价修改。</view>
+
+      <view class="field-list">
+        <view class="field-item">
+          <view class="field-label"><text class="field-required">*</text>合同</view>
+          <picker mode="selector" range="{{contractOptions}}" range-key="contractNo" value="{{selectedContractIndex}}" bindchange="onSelectContract">
+            <view class="field-picker">{{contractOptions.length ? contractOptions[selectedContractIndex].contractNo : '暂无可用合同'}}</view>
+          </picker>
+          <view wx:if="{{fieldErrors.salesContractId}}" class="field-error">{{fieldErrors.salesContractId}}</view>
+        </view>
+
+        <view class="field-item">
+          <view class="field-label"><text class="field-required">*</text>油品</view>
+          <picker mode="selector" range="{{oilOptions}}" range-key="oilProductId" value="{{selectedOilIndex}}" bindchange="onSelectOil">
+            <view class="field-picker">{{oilOptions.length ? oilOptions[selectedOilIndex].oilProductId : '请先选择合同'}}</view>
+          </picker>
+          <view wx:if="{{fieldErrors.oilProductId}}" class="field-error">{{fieldErrors.oilProductId}}</view>
+        </view>
+
+        <view class="field-item readonly-item">
+          <view class="field-label"><text class="field-required">*</text>合同单价</view>
+          <view class="readonly-value">¥{{form.unitPrice || '-'}}</view>
+          <view wx:if="{{fieldErrors.unitPrice}}" class="field-error">{{fieldErrors.unitPrice}}</view>
+        </view>
+
+        <view class="field-item">
+          <view class="field-label"><text class="field-required">*</text>下单数量</view>
+          <input class="field-input" type="digit" value="{{form.qty}}" data-field="qty" bindinput="onFieldInput" placeholder="请输入下单数量" />
+          <view wx:if="{{fieldErrors.qty}}" class="field-error">{{fieldErrors.qty}}</view>
+        </view>
+
+        <view class="field-item">
+          <view class="field-label">提交审批说明</view>
+          <textarea class="field-textarea" value="{{form.submitComment}}" data-field="submitComment" bindinput="onFieldInput" maxlength="256" placeholder="提交审批时必填。仅保存草稿可暂不填写。" auto-height />
+          <view wx:if="{{fieldErrors.submitComment}}" class="field-error">{{fieldErrors.submitComment}}</view>
+        </view>
+      </view>
+
+      <view class="button-row">
+        <button class="secondary-btn" loading="{{savingDraft}}" bindtap="onSaveDraft">保存草稿</button>
+        <button class="primary-btn" loading="{{submitting}}" bindtap="onSubmitApproval">提交审批</button>
+      </view>
+      <view class="button-row">
+        <button class="danger-btn" bindtap="onResetForm">清空当前表单</button>
+      </view>
+
+      <view wx:if="{{errorMessage}}" class="inline-error-card">
+        <view class="status-card__title">处理失败</view>
+        <view class="error-text">{{errorMessage}}</view>
+      </view>
+    </view>
+
+    <view wx:else class="panel-card">
+      <view class="section-title">订单查询</view>
+      <view class="section-desc">查看当前公司订单状态、审批意见和采购订单衍生情况。草稿和驳回单支持继续编辑。</view>
+
+      <scroll-view scroll-x class="status-filter-scroll">
+        <view class="pill-row status-filter-row">
+          <view wx:for="{{statusOptions}}" wx:key="key" class="filter-pill {{statusFilter === item.key ? 'filter-pill--active' : ''}}" data-status="{{item.key}}" bindtap="onFilterStatus">
+            {{item.label}}
+          </view>
+        </view>
+      </scroll-view>
+
+      <view class="button-row">
+        <button class="secondary-btn" loading="{{querying}}" bindtap="onRefreshOrders">刷新订单列表</button>
+      </view>
+
+      <view wx:if="{{listErrorMessage}}" class="inline-error-card">
+        <view class="status-card__title">列表加载失败</view>
+        <view class="error-text">{{listErrorMessage}}</view>
+      </view>
+
+      <view wx:if="{{!orders.length && !listErrorMessage}}" class="empty-card">
+        <view class="status-card__title">暂无订单</view>
+        <view class="empty-text">{{emptyText}}</view>
+      </view>
+
+      <view wx:for="{{orders}}" wx:key="id" class="order-card">
+        <view class="order-card__head">
+          <view>
+            <view class="order-card__title">{{item.order_no}}</view>
+            <view class="order-card__meta">合同：{{item.sales_contract_no}}</view>
+          </view>
+          <view class="status-pill {{item.statusClass}}">{{item.status}}</view>
+        </view>
+        <view class="order-card__grid">
+          <view class="order-metric">
+            <view class="order-metric__label">油品</view>
+            <view class="order-metric__value">{{item.oil_product_id}}</view>
+          </view>
+          <view class="order-metric">
+            <view class="order-metric__label">数量</view>
+            <view class="order-metric__value">{{item.qtyOrderedText}}</view>
+          </view>
+          <view class="order-metric">
+            <view class="order-metric__label">单价</view>
+            <view class="order-metric__value">¥{{item.unitPriceText}}</view>
+          </view>
+          <view class="order-metric">
+            <view class="order-metric__label">采购订单</view>
+            <view class="order-metric__value">{{item.purchase_order_id || '-'}}</view>
+          </view>
+        </view>
+        <view class="order-card__timeline">
+          <view class="card-caption">创建时间：{{item.createdAtText}}</view>
+          <view class="card-caption">提交时间：{{item.submittedAtText}}</view>
+        </view>
+        <view wx:if="{{item.submit_comment}}" class="status-tip">提交说明：{{item.submit_comment}}</view>
+        <view wx:if="{{item.ops_comment}}" class="status-tip">运营意见：{{item.ops_comment}}</view>
+        <view wx:if="{{item.finance_comment}}" class="status-tip">财务意见：{{item.finance_comment}}</view>
+        <view wx:if="{{item.canEdit}}" class="button-row order-card__actions">
+          <button class="secondary-btn" data-order-id="{{item.id}}" bindtap="onEditOrder">继续编辑</button>
+        </view>
+      </view>
+    </view>
+  </block>
+</view>

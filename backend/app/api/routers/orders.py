@@ -1,14 +1,20 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps.auth import AuthenticatedActor, get_current_actor, require_actor
+from app.models.contract import Contract
 from app.db.session import get_db
 from app.models.purchase_order import PurchaseOrder
 from app.models.sales_order import SalesOrder
 from app.schemas.order import (
+    AvailableSalesContractItemResponse,
+    AvailableSalesContractListResponse,
+    AvailableSalesContractResponse,
     PurchaseOrderResponse,
+    SalesOrderListItemResponse,
+    SalesOrderListResponse,
     SalesOrderCreateRequest,
     SalesOrderDerivativeTaskResponse,
     SalesOrderFinanceApproveRequest,
@@ -21,8 +27,11 @@ from app.services.order_service import (
     OrderServiceError,
     create_sales_order_draft,
     finance_approve_sales_order,
+    get_sales_order_detail_or_raise,
     get_purchase_order_or_raise,
     get_sales_order_or_raise,
+    list_available_sales_contracts,
+    list_sales_orders,
     ops_approve_sales_order,
     submit_sales_order,
     update_sales_order,
@@ -68,6 +77,69 @@ def create_sales_order(
     except OrderServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
     return _to_sales_order_response(sales_order, message=result.message)
+
+
+@router.get("/sales-contracts/available", response_model=AvailableSalesContractListResponse)
+def list_available_sales_contracts_route(
+    actor: AuthenticatedActor = Depends(get_current_actor),
+    db: Session = Depends(get_db),
+) -> AvailableSalesContractListResponse:
+    customer_company_id = _resolve_customer_sales_order_scope(actor)
+    items = list_available_sales_contracts(
+        db,
+        customer_company_id=customer_company_id,
+    )
+    return AvailableSalesContractListResponse(
+        items=[_to_available_sales_contract_response(item) for item in items],
+        total=len(items),
+        message="可选销售合同查询成功",
+    )
+
+
+@router.get("/sales-orders", response_model=SalesOrderListResponse)
+def list_sales_orders_route(
+    status_filter: str | None = Query(default=None, alias="status"),
+    limit: int = Query(default=20, ge=1, le=50),
+    actor: AuthenticatedActor = Depends(get_current_actor),
+    db: Session = Depends(get_db),
+) -> SalesOrderListResponse:
+    required_customer_company_id = _resolve_sales_order_reader_scope(actor)
+    items = list_sales_orders(
+        db,
+        required_customer_company_id=required_customer_company_id,
+        status_filter=status_filter,
+        limit=limit,
+    )
+    return SalesOrderListResponse(
+        items=[
+            _to_sales_order_list_item_response(sales_order, sales_contract_no=sales_contract_no)
+            for sales_order, sales_contract_no in items
+        ],
+        total=len(items),
+        message="销售订单列表查询成功",
+    )
+
+
+@router.get("/sales-orders/{sales_order_id}", response_model=SalesOrderResponse)
+def get_sales_order_detail_route(
+    sales_order_id: int,
+    actor: AuthenticatedActor = Depends(get_current_actor),
+    db: Session = Depends(get_db),
+) -> SalesOrderResponse:
+    required_customer_company_id = _resolve_sales_order_reader_scope(actor)
+    try:
+        sales_order, sales_contract_no = get_sales_order_detail_or_raise(
+            db,
+            sales_order_id=sales_order_id,
+            required_customer_company_id=required_customer_company_id,
+        )
+    except OrderServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    return _to_sales_order_response(
+        sales_order,
+        message="销售订单详情查询成功",
+        sales_contract_no=sales_contract_no,
+    )
 
 
 @router.put("/sales-orders/{sales_order_id}", response_model=SalesOrderResponse)
@@ -199,12 +271,43 @@ def _resolve_sales_order_creator_scope(actor: AuthenticatedActor) -> str | None:
     raise HTTPException(status_code=403, detail="当前身份无权操作销售订单")
 
 
+def _resolve_customer_sales_order_scope(actor: AuthenticatedActor) -> str:
+    if (
+        actor.role_code == "customer"
+        and actor.company_type == "customer_company"
+        and actor.client_type == "miniprogram"
+    ):
+        if not actor.company_id:
+            raise HTTPException(status_code=401, detail="未认证公司身份，禁止查询销售合同")
+        return actor.company_id
+    raise HTTPException(status_code=403, detail="当前身份无权查询可选销售合同")
+
+
+def _resolve_sales_order_reader_scope(actor: AuthenticatedActor) -> str | None:
+    if (
+        actor.role_code == "customer"
+        and actor.company_type == "customer_company"
+        and actor.client_type == "miniprogram"
+    ):
+        if not actor.company_id:
+            raise HTTPException(status_code=401, detail="未认证公司身份，禁止查询销售订单")
+        return actor.company_id
+    if (
+        actor.role_code in {"operations", "finance", "admin"}
+        and actor.company_type == "operator_company"
+        and actor.client_type == "admin_web"
+    ):
+        return None
+    raise HTTPException(status_code=403, detail="当前身份无权查询销售订单")
+
+
 def _to_sales_order_response(
     sales_order: SalesOrder,
     *,
     message: str,
     purchase_order_id: int | None = None,
     generated_task_count: int | None = None,
+    sales_contract_no: str | None = None,
 ) -> SalesOrderResponse:
     resolved_purchase_order_id = purchase_order_id
     if resolved_purchase_order_id is None and sales_order.purchase_orders:
@@ -226,6 +329,48 @@ def _to_sales_order_response(
         purchase_order_id=resolved_purchase_order_id,
         generated_task_count=generated_task_count if generated_task_count is not None else len(sales_order.derivative_tasks),
         message=message,
+        sales_contract_no=sales_contract_no,
+        created_at=sales_order.created_at,
+    )
+
+
+def _to_sales_order_list_item_response(
+    sales_order: SalesOrder,
+    *,
+    sales_contract_no: str,
+) -> SalesOrderListItemResponse:
+    purchase_order_id = sales_order.purchase_orders[0].id if sales_order.purchase_orders else None
+    return SalesOrderListItemResponse(
+        id=sales_order.id,
+        order_no=sales_order.order_no,
+        sales_contract_id=sales_order.sales_contract_id,
+        sales_contract_no=sales_contract_no,
+        oil_product_id=sales_order.oil_product_id,
+        qty_ordered=sales_order.qty_ordered,
+        unit_price=sales_order.unit_price,
+        status=sales_order.status,
+        submit_comment=sales_order.submit_comment,
+        ops_comment=sales_order.ops_comment,
+        finance_comment=sales_order.finance_comment,
+        purchase_order_id=purchase_order_id,
+        submitted_at=sales_order.submitted_at,
+        created_at=sales_order.created_at,
+    )
+
+
+def _to_available_sales_contract_response(contract: Contract) -> AvailableSalesContractResponse:
+    return AvailableSalesContractResponse(
+        id=contract.id,
+        contract_no=contract.contract_no,
+        customer_id=contract.customer_id or "",
+        items=[
+            AvailableSalesContractItemResponse(
+                oil_product_id=item.oil_product_id,
+                qty_signed=item.qty_signed,
+                unit_price=item.unit_price,
+            )
+            for item in contract.items
+        ],
     )
 
 

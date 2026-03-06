@@ -53,6 +53,50 @@ class SalesOrderResponse(BaseModel):
     purchase_order_id: int | None = None
     generated_task_count: int = 0
     message: str
+    sales_contract_no: str | None = None
+    created_at: datetime | None = None
+
+
+class SalesOrderListItemResponse(BaseModel):
+    id: int
+    order_no: str
+    sales_contract_id: int
+    sales_contract_no: str
+    oil_product_id: str
+    qty_ordered: Decimal
+    unit_price: Decimal
+    status: str
+    submit_comment: str | None = None
+    ops_comment: str | None = None
+    finance_comment: str | None = None
+    purchase_order_id: int | None = None
+    submitted_at: datetime | None = None
+    created_at: datetime
+
+
+class SalesOrderListResponse(BaseModel):
+    items: list[SalesOrderListItemResponse]
+    total: int
+    message: str
+
+
+class AvailableSalesContractItemResponse(BaseModel):
+    oil_product_id: str
+    qty_signed: Decimal
+    unit_price: Decimal
+
+
+class AvailableSalesContractResponse(BaseModel):
+    id: int
+    contract_no: str
+    customer_id: str
+    items: list[AvailableSalesContractItemResponse]
+
+
+class AvailableSalesContractListResponse(BaseModel):
+    items: list[AvailableSalesContractResponse]
+    total: int
+    message: str
 
 
 class SalesOrderDerivativeTaskResponse(BaseModel):

@@ -455,6 +455,79 @@ def get_purchase_order_or_raise(db: Session, purchase_order_id: int) -> Purchase
     return purchase_order
 
 
+def get_sales_order_detail_or_raise(
+    db: Session,
+    *,
+    sales_order_id: int,
+    required_customer_company_id: str | None,
+) -> tuple[SalesOrder, str]:
+    statement = (
+        select(SalesOrder, Contract.contract_no, Contract.customer_id)
+        .options(
+            selectinload(SalesOrder.purchase_orders),
+            selectinload(SalesOrder.derivative_tasks),
+        )
+        .join(Contract, Contract.id == SalesOrder.sales_contract_id)
+        .where(SalesOrder.id == sales_order_id)
+    )
+    row = db.execute(statement).one_or_none()
+    if row is None:
+        raise OrderServiceError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="销售订单不存在",
+        )
+    sales_order, sales_contract_no, customer_id = row
+    if required_customer_company_id is not None and customer_id != required_customer_company_id:
+        raise OrderServiceError(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="当前客户无权查看该销售订单",
+        )
+    return sales_order, str(sales_contract_no)
+
+
+def list_sales_orders(
+    db: Session,
+    *,
+    required_customer_company_id: str | None,
+    status_filter: str | None,
+    limit: int,
+) -> list[tuple[SalesOrder, str]]:
+    statement = (
+        select(SalesOrder, Contract.contract_no, Contract.customer_id)
+        .options(
+            selectinload(SalesOrder.purchase_orders),
+            selectinload(SalesOrder.derivative_tasks),
+        )
+        .join(Contract, Contract.id == SalesOrder.sales_contract_id)
+        .order_by(SalesOrder.id.desc())
+        .limit(limit)
+    )
+    if required_customer_company_id is not None:
+        statement = statement.where(Contract.customer_id == required_customer_company_id)
+    if status_filter:
+        statement = statement.where(SalesOrder.status == status_filter)
+    rows = db.execute(statement).all()
+    return [(sales_order, str(contract_no)) for sales_order, contract_no, _ in rows]
+
+
+def list_available_sales_contracts(
+    db: Session,
+    *,
+    customer_company_id: str,
+) -> list[Contract]:
+    statement = (
+        select(Contract)
+        .options(selectinload(Contract.items))
+        .where(
+            Contract.direction == CONTRACT_DIRECTION_SALES,
+            Contract.status == STATUS_EFFECTIVE,
+            Contract.customer_id == customer_company_id,
+        )
+        .order_by(Contract.id.desc())
+    )
+    return list(db.scalars(statement).all())
+
+
 def build_sales_order_snapshot(sales_order: SalesOrder) -> dict:
     return {
         "id": sales_order.id,
