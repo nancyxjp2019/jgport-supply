@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     debug: bool = True
     api_prefix: str = "/api/v1"
     database_url: str = "postgresql+psycopg://davidxi@127.0.0.1:5432/jgport_v6"
+    auth_proxy_shared_secret: str = "jgport-v6-dev-secret"
 
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE_PATH),

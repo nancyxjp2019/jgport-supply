@@ -6,6 +6,7 @@
 - 已提供迁移版本：
   - `0001_init_v6_schema`（基础 `business_logs` 表）
   - `0002_add_m1_foundation`（M1：权限边界、阈值版本、审计日志基座）
+  - `0003_fix_m1_review_findings`（M1：修复鉴权、版本化与测试隔离问题）
 
 ## 2. 目录说明
 - `app/main.py`：应用入口
@@ -30,7 +31,20 @@
   - `POST /api/v1/audit/logs`
   - `GET /api/v1/audit/logs`
 
-## 4. 本地启动
+## 4. 受保护接口身份上下文
+- 当前阶段受保护接口采用服务端身份上下文校验，调用方需透传以下请求头：
+  - `X-User-Id`
+  - `X-Role-Code`
+  - `X-Company-Type`
+  - `X-Client-Type`
+  - `X-Auth-Secret`
+- 上述身份上下文应由网关、登录中间层或服务端代理透传，不应由终端页面直接拼装。
+- `X-Auth-Secret` 必须与环境变量 `auth_proxy_shared_secret` 一致。
+- `GET/PUT /api/v1/system-configs/thresholds` 仅允许 `admin + operator_company + admin_web`。
+- `GET /api/v1/audit/logs` 允许 `admin/finance/operations + operator_company + admin_web`。
+- `POST /api/v1/audit/logs` 仅允许 `admin + operator_company + admin_web`。
+
+## 5. 本地启动
 ```bash
 cd backend
 conda activate jgport
@@ -42,6 +56,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 访问地址：`http://127.0.0.1:8000/api/v1/healthz`
 
-## 5. 说明
+## 6. 说明
 - V5 后端代码已归档至 `archive/v5/backend/`，仅供对照。
 - 若 `psql` 未在 PATH，可使用完整路径执行，例如：`/usr/local/Cellar/postgresql@18/18.3/bin/psql`。
+- 测试默认使用临时 PostgreSQL 数据库，测试结束后自动销毁，不污染开发库。

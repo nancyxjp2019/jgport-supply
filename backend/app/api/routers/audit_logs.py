@@ -2,20 +2,37 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.deps.auth import AuthenticatedActor, require_actor
 from app.db.session import SessionLocal, get_db
 from app.models.business_audit_log import BusinessAuditLog
 from app.schemas.audit import AuditLogCreateRequest, AuditLogItem, AuditLogListResponse
 from app.services.audit_log_service import AuditWriteFailedError, write_audit_log_with_retry
 
 router = APIRouter(prefix="/audit/logs", tags=["audit"])
+audit_writer_dependency = require_actor(
+    allowed_roles={"admin"},
+    allowed_client_types={"admin_web"},
+    allowed_company_types={"operator_company"},
+)
+audit_reader_dependency = require_actor(
+    allowed_roles={"admin", "finance", "operations"},
+    allowed_client_types={"admin_web"},
+    allowed_company_types={"operator_company"},
+)
 
 
 @router.post("")
-def create_audit_log(payload: AuditLogCreateRequest) -> dict[str, str | int]:
+def create_audit_log(
+    payload: AuditLogCreateRequest,
+    actor: AuthenticatedActor = Depends(audit_writer_dependency),
+) -> dict[str, str | int]:
     try:
         log = write_audit_log_with_retry(
             SessionLocal,
-            payload=payload.model_dump(),
+            payload={
+                **payload.model_dump(),
+                "operator_id": actor.user_id,
+            },
             max_retries=3,
         )
     except AuditWriteFailedError as exc:
@@ -30,6 +47,7 @@ def create_audit_log(payload: AuditLogCreateRequest) -> dict[str, str | int]:
 def list_audit_logs(
     biz_id: str | None = Query(default=None, min_length=1, max_length=64),
     limit: int = Query(default=20, ge=1, le=200),
+    _: AuthenticatedActor = Depends(audit_reader_dependency),
     db: Session = Depends(get_db),
 ) -> AuditLogListResponse:
     statement = select(BusinessAuditLog).order_by(BusinessAuditLog.id.desc()).limit(limit)

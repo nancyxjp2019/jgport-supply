@@ -4,16 +4,25 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.api.deps.auth import AuthenticatedActor, require_actor
 from app.db.session import get_db
 from app.models.business_audit_log import BusinessAuditLog
 from app.models.threshold_config_version import ThresholdConfigVersion
 from app.schemas.threshold import ThresholdConfigPublishRequest, ThresholdConfigResponse
 
 router = APIRouter(prefix="/system-configs", tags=["system-configs"])
+admin_actor_dependency = require_actor(
+    allowed_roles={"admin"},
+    allowed_client_types={"admin_web"},
+    allowed_company_types={"operator_company"},
+)
 
 
 @router.get("/thresholds", response_model=ThresholdConfigResponse)
-def get_thresholds(db: Session = Depends(get_db)) -> ThresholdConfigResponse:
+def get_thresholds(
+    _: AuthenticatedActor = Depends(admin_actor_dependency),
+    db: Session = Depends(get_db),
+) -> ThresholdConfigResponse:
     current = db.scalar(
         select(ThresholdConfigVersion)
         .where(ThresholdConfigVersion.is_active.is_(True))
@@ -35,6 +44,7 @@ def get_thresholds(db: Session = Depends(get_db)) -> ThresholdConfigResponse:
 @router.put("/thresholds", response_model=ThresholdConfigResponse)
 def publish_thresholds(
     payload: ThresholdConfigPublishRequest,
+    actor: AuthenticatedActor = Depends(admin_actor_dependency),
     db: Session = Depends(get_db),
 ) -> ThresholdConfigResponse:
     if payload.threshold_release > payload.threshold_over_exec:
@@ -50,6 +60,7 @@ def publish_thresholds(
         .limit(1)
     )
     next_version = db.scalar(select(func.coalesce(func.max(ThresholdConfigVersion.version), 0))) + 1
+    before_payload = _build_before_payload(current)
 
     if current is not None:
         current.is_active = False
@@ -62,7 +73,7 @@ def publish_thresholds(
         status="生效",
         is_active=True,
         reason=payload.reason,
-        created_by=payload.operator_id,
+        created_by=actor.user_id,
     )
     db.add(new_config)
     db.add(
@@ -70,8 +81,8 @@ def publish_thresholds(
             event_code="M1-THRESHOLD-PUBLISH",
             biz_type="threshold_config",
             biz_id=f"thresholds:v{next_version}",
-            operator_id=payload.operator_id,
-            before_json=_build_before_payload(current),
+            operator_id=actor.user_id,
+            before_json=before_payload,
             after_json={
                 "version": next_version,
                 "threshold_release": str(new_config.threshold_release),
