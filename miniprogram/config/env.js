@@ -83,21 +83,45 @@ function getApiBaseUrl() {
 
 function normalizeDemoRoleCode(value) {
   const normalized = String(value || '').trim().toLowerCase();
-  return DEMO_ACTORS[normalized] ? normalized : 'operations';
+  return DEMO_ACTORS[normalized] ? normalized : '';
+}
+
+function getDemoRoleCode() {
+  if (typeof wx === 'undefined' || typeof wx.getStorageSync !== 'function') {
+    return '';
+  }
+  return normalizeDemoRoleCode(wx.getStorageSync(STORAGE_DEMO_ROLE_KEY));
+}
+
+function setDemoRoleCode(roleCode) {
+  const normalizedRoleCode = normalizeDemoRoleCode(roleCode);
+  if (!normalizedRoleCode) {
+    throw new Error('当前角色无效，请重新选择');
+  }
+  if (typeof wx !== 'undefined' && typeof wx.setStorageSync === 'function') {
+    wx.setStorageSync(STORAGE_DEMO_ROLE_KEY, normalizedRoleCode);
+  }
+  return normalizedRoleCode;
+}
+
+function clearDemoRoleCode() {
+  if (typeof wx !== 'undefined' && typeof wx.removeStorageSync === 'function') {
+    wx.removeStorageSync(STORAGE_DEMO_ROLE_KEY);
+  }
 }
 
 function getDemoActor() {
-  if (typeof wx === 'undefined' || typeof wx.getStorageSync !== 'function') {
-    return DEMO_ACTORS.operations;
-  }
-  const roleCode = normalizeDemoRoleCode(wx.getStorageSync(STORAGE_DEMO_ROLE_KEY));
-  return DEMO_ACTORS[roleCode];
+  const roleCode = getDemoRoleCode();
+  return roleCode ? DEMO_ACTORS[roleCode] : null;
 }
 
 module.exports = {
   DEMO_ACTORS,
+  clearDemoRoleCode,
   getApiBaseUrl,
   getDemoActor,
+  getDemoRoleCode,
   getRuntimeMode,
   getRuntimeModeLabel,
+  setDemoRoleCode,
 };

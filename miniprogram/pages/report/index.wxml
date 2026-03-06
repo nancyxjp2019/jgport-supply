@@ -16,6 +16,23 @@
     </view>
   </view>
 
+  <view class="panel-card session-card">
+    <view class="session-card__head">
+      <view>
+        <view class="section-title">当前身份</view>
+        <view class="section-desc">当前以 <text class="meta-strong">{{roleLabel}}</text> 身份进行本地联调。</view>
+      </view>
+      <view class="pill-row session-card__tags">
+        <view wx:if="{{canView}}" class="status-pill status-pill--normal">快报可见</view>
+        <view wx:else class="status-pill status-pill--deny">快报阻断</view>
+      </view>
+    </view>
+    <view class="button-row">
+      <button class="secondary-btn" bindtap="onSwitchRole">切换角色</button>
+      <button class="danger-btn" bindtap="onLogout">退出当前身份</button>
+    </view>
+  </view>
+
   <view wx:if="{{!canView}}" class="status-card forbidden-card">
     <view class="status-card__title">当前角色暂不开放经营快报</view>
     <view class="forbidden-text">当前角色：{{roleLabel}}。轻量报表首版仅开放运营、财务、管理员（小程序）。</view>

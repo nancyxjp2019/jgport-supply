@@ -1,6 +1,7 @@
-const { getRuntimeModeLabel } = require('../../config/env');
+const { getDemoActor, getRuntimeModeLabel } = require('../../config/env');
 const { getLightReportOverview } = require('../../utils/api');
 const { formatDateTime, formatMoney, formatQty } = require('../../utils/format');
+const { logoutSession } = require('../../utils/session');
 const {
   buildAbnormalItems,
   buildMetricCards,
@@ -41,7 +42,28 @@ Page({
 
   async loadOverview() {
     const app = getApp();
-    const currentUser = (app && app.globalData && app.globalData.user) || {};
+    const currentUser = getDemoActor();
+    if (app && app.globalData) {
+      app.globalData.user = currentUser;
+    }
+    const runtimeMode = (app && app.globalData && app.globalData.runtimeMode) || 'demo';
+    if (!currentUser) {
+      this.setData({
+        loading: false,
+        errorMessage: '',
+        canView: false,
+        roleLabel: '',
+        runtimeLabel: getRuntimeModeLabel(runtimeMode),
+        overview: null,
+        metricCards: [],
+        abnormalItems: [],
+        abnormalExpanded: false,
+        isEmpty: false,
+      });
+      wx.stopPullDownRefresh();
+      wx.reLaunch({ url: '/pages/login/index' });
+      return;
+    }
     const roleLabel = getRoleLabel(currentUser.roleCode);
     const canView = canViewLightReport(currentUser.roleCode);
     this.setData({
@@ -49,8 +71,12 @@ Page({
       errorMessage: '',
       canView,
       roleLabel,
-      runtimeLabel: getRuntimeModeLabel(app.globalData.runtimeMode),
+      runtimeLabel: getRuntimeModeLabel(runtimeMode),
+      overview: null,
+      metricCards: [],
+      abnormalItems: [],
       abnormalExpanded: false,
+      isEmpty: false,
     });
 
     if (!canView) {
@@ -90,5 +116,14 @@ Page({
     this.setData({
       abnormalExpanded: !this.data.abnormalExpanded,
     });
+  },
+
+  onSwitchRole() {
+    wx.reLaunch({ url: '/pages/login/index' });
+  },
+
+  onLogout() {
+    logoutSession();
+    wx.reLaunch({ url: '/pages/login/index' });
   },
 });

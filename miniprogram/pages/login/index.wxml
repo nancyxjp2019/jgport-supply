@@ -1,0 +1,37 @@
+<view class="page-shell">
+  <view class="hero-card login-hero-card">
+    <view class="page-title">本地登录</view>
+    <view class="page-subtitle">当前仅做本地联调与评审。先选择一个业务角色，再进入对应页面继续验证。</view>
+    <view class="pill-row login-hero-meta">
+      <view class="version-pill">{{runtimeLabel}}</view>
+      <view wx:if="{{currentRoleLabel}}" class="mode-pill">当前身份：{{currentRoleLabel}}</view>
+    </view>
+  </view>
+
+  <view class="panel-card">
+    <view class="section-title">选择角色</view>
+    <view class="section-desc">运营、财务、管理员可查看经营快报；客户、供应商、仓库可验证页面阻断提示。</view>
+    <view class="role-grid">
+      <view wx:for="{{roleCards}}" wx:key="roleCode" class="role-card">
+        <view>
+          <view class="role-card__head">
+            <view class="role-card__title">{{item.roleLabel}}</view>
+            <view class="status-pill {{item.accessClass}}">{{item.accessText}}</view>
+          </view>
+          <view class="role-card__desc">{{item.description}}</view>
+          <view class="role-card__meta">{{item.companyLabel}}</view>
+        </view>
+        <button class="primary-btn" data-role-code="{{item.roleCode}}" bindtap="onLogin">以该角色进入</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="panel-card" wx:if="{{currentRoleLabel}}">
+    <view class="section-title">当前会话</view>
+    <view class="section-desc">当前已选择 <text class="meta-strong">{{currentRoleLabel}}</text> 身份进行本地联调。</view>
+    <view class="button-row" style="margin-top: 20rpx;">
+      <button class="secondary-btn" bindtap="onEnterReport">进入经营快报</button>
+      <button class="danger-btn" bindtap="onLogout">清除当前身份</button>
+    </view>
+  </view>
+</view>

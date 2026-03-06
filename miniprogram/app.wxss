@@ -20,6 +20,7 @@ button {
 
 .card,
 .hero-card,
+.panel-card,
 .metric-card,
 .abnormal-card,
 .detail-card,
@@ -33,11 +34,16 @@ button {
 }
 
 .hero-card,
+.panel-card,
 .abnormal-card,
 .detail-card,
 .empty-card,
 .status-card {
   margin-bottom: 20rpx;
+}
+
+.panel-card {
+  padding: 24rpx;
 }
 
 .page-title {
@@ -153,6 +159,11 @@ button {
   color: #fa5151;
 }
 
+.status-pill--deny {
+  background: rgba(255, 149, 0, 0.12);
+  color: #ff9500;
+}
+
 .abnormal-pill--pending {
   background: #fff3e0;
   color: #ff9500;
@@ -170,4 +181,64 @@ button {
 
 .link-text {
   color: #10aeff;
+}
+
+.section-title {
+  font-size: 30rpx;
+  line-height: 1.4;
+  font-weight: 700;
+  color: #333333;
+}
+
+.section-desc {
+  margin-top: 10rpx;
+  color: #999999;
+  font-size: 24rpx;
+  line-height: 1.7;
+}
+
+.meta-strong {
+  color: #333333;
+  font-weight: 700;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 20rpx;
+}
+
+.primary-btn,
+.secondary-btn,
+.danger-btn {
+  flex: 1;
+  min-width: 220rpx;
+  min-height: 84rpx;
+  margin: 0;
+  padding: 0 24rpx;
+  border-radius: 20rpx;
+  font-size: 28rpx;
+  line-height: 84rpx;
+}
+
+.primary-btn::after,
+.secondary-btn::after,
+.danger-btn::after {
+  border: none;
+}
+
+.primary-btn {
+  background: linear-gradient(160deg, #0f766e 0%, #0d9488 100%);
+  color: #ffffff;
+}
+
+.secondary-btn {
+  background: rgba(16, 174, 255, 0.12);
+  color: #10aeff;
+}
+
+.danger-btn {
+  background: rgba(250, 81, 81, 0.12);
+  color: #fa5151;
 }

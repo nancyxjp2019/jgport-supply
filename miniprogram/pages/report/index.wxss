@@ -24,6 +24,17 @@
   margin-top: 18rpx;
 }
 
+.session-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.session-card__tags {
+  justify-content: flex-end;
+}
+
 .status-card,
 .empty-card,
 .abnormal-card,

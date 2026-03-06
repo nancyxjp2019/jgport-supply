@@ -1,0 +1,57 @@
+.login-hero-card {
+  padding: 28rpx;
+}
+
+.login-hero-meta {
+  margin-top: 20rpx;
+}
+
+.role-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.role-card {
+  padding: 22rpx;
+  border: 1rpx solid rgba(24, 50, 74, 0.12);
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.84);
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.role-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+}
+
+.role-card__title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #333333;
+}
+
+.role-card__desc,
+.role-card__meta {
+  color: #999999;
+  font-size: 24rpx;
+  line-height: 1.7;
+}
+
+.status-pill--allow {
+  background: rgba(7, 193, 96, 0.12);
+  color: #07c160;
+}
+
+.status-pill--deny {
+  background: rgba(255, 149, 0, 0.12);
+  color: #ff9500;
+}
+
+.role-card .primary-btn {
+  width: 100%;
+}
