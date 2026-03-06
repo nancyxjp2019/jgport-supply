@@ -38,6 +38,7 @@ from app.schemas.order import (
     SalesOrderSubmitRequest,
     SalesOrderUpdateRequest,
 )
+from app.schemas.report import BoardTaskItem, BoardTasksResponse, DashboardSummaryResponse, LightReportOverviewResponse
 from app.schemas.threshold import ThresholdConfigPublishRequest, ThresholdConfigResponse
 
 __all__ = [
@@ -61,6 +62,8 @@ __all__ = [
     "PaymentDocSupplementRequest",
     "PurchaseContractCreateRequest",
     "PurchaseOrderResponse",
+    "BoardTaskItem",
+    "BoardTasksResponse",
     "OutboundDocManualCreateRequest",
     "OutboundDocResponse",
     "OutboundDocSubmitRequest",
@@ -68,6 +71,8 @@ __all__ = [
     "ReceiptDocConfirmRequest",
     "ReceiptDocResponse",
     "ReceiptDocSupplementRequest",
+    "DashboardSummaryResponse",
+    "LightReportOverviewResponse",
     "SalesContractCreateRequest",
     "SalesOrderCreateRequest",
     "SalesOrderDerivativeTaskResponse",

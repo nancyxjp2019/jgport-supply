@@ -4,7 +4,7 @@
 - 文档状态：`已冻结`
 - 目标：冻结实现口径，形成可开发规格，作为阶段C模块开发唯一输入。
 - 上游输入：
-  - `docs/需求方案.md`（当前规则 `1~40` 与“业务目标/角色权限”基线）
+  - `docs/需求方案.md`（当前规则 `1~41` 与“业务目标/角色权限”基线）
   - `docs/V6阶段A-流程图状态机与UI原型清单.md`
 - 下游输出：阶段C模块任务拆分、接口开发、联调与测试用例。
 
@@ -51,7 +51,7 @@
 | `doc_attachments` | `id`,`owner_doc_type`,`owner_doc_id`,`path`,`biz_tag` | 附件按业务归属冻结：合同附件挂合同，订单业务附件挂订单，付款凭证挂付款单，收款凭证挂收款单，发货指令单附件挂采购订单 | 凭证与业务附件 |
 | `business_audit_logs` | `id`,`event_code`,`biz_type`,`biz_id`,`operator_id`,`before_json`,`after_json`,`occurred_at` | 关闭、终止、阈值阻断必须落审计日志 | 审计日志 |
 | `system_configs` | `id`,`config_key`,`config_value`,`version`,`status` | 配置变更需版本化与审批留痕 | 参数中心 |
-| `report_snapshots` | `id`,`report_code`,`snapshot_time`,`metric_payload`,`version` | 按版本存档，不覆盖历史口径 | 报表快照与口径追溯 |
+| `report_snapshots` | `id`,`report_code`,`snapshot_time`,`metric_payload`,`version` | 按版本存档，不覆盖历史口径；首版固定 `version='v1'` | 报表快照与口径追溯 |
 
 ## 3.2 通用审计字段（所有业务单据）
 - 必填字段：`created_by`,`created_at`,`updated_by`,`updated_at`,`source_doc_id`,`source_event_id`,`biz_direction`。
@@ -66,6 +66,10 @@
 - 保证金口径：保证金是收付款单业务类型，不另行加总，避免重复计入。
 - 金额闭环容差：`abs(金额差额) <= 0.01` 视为闭环成立。
 - 数量精度：数量计算、阈值校验、履约累计统一按 `0.001` 精度处理。
+- 仪表盘口径冻结补充：
+  - 合同执行率仅统计状态在 `生效中/数量履约完成/已关闭/手工关闭/已归档` 的合同。
+  - 报表“当日”统一按 `Asia/Shanghai` 自然日计算。
+  - 库存周转窗口固定为“含今日的最近30个自然日”。
 - 保证金净额伪代码（固定实现口径）：
 ```text
 sales_receipt_net =
@@ -174,9 +178,9 @@ purchase_payment_net =
 
 | 接口 | 方法 | 说明 | SLA |
 |---|---|---|---|
-| `/dashboard/summary` | `GET` | 管理后台仪表盘四项核心指标 | `T+0`（5分钟内） |
-| `/boards/tasks` | `GET` | 待办、阻塞、超阈值告警 | `T+0` |
-| `/reports/light/overview` | `GET` | 小程序轻量汇总报表 | `T+0` |
+| `/dashboard/summary` | `GET` | 管理后台仪表盘四项核心指标；仅 `operations/finance/admin + operator_company + admin_web` | `T+0`（5分钟内） |
+| `/boards/tasks` | `GET` | 待办、阻塞、超阈值告警；仅 `operations/finance/admin + operator_company + admin_web` | `T+0` |
+| `/reports/light/overview` | `GET` | 小程序轻量汇总报表；仅 `operations/finance/admin + operator_company + miniprogram` | `T+0` |
 | `/reports/admin/multi-dim` | `GET` | 后台多维管理报表 | `T+0~T+1` |
 
 ## 5.6 参数中心接口（系统级阈值）

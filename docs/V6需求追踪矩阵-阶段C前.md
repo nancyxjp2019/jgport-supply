@@ -3,7 +3,7 @@
 ## 1. 目的与门槛
 - 目的：验证需求是否被完整理解并可直接进入模块开发。
 - 门槛：
-  - 规则覆盖率 `100%`（规则1~38全部映射）。
+  - 规则覆盖率 `100%`（规则1~41全部映射）。
   - 规则冲突数 `0`。
   - 阻断级未决问题 `0`。
 
@@ -49,6 +49,7 @@
 | 36 | 合同早期状态机（草稿->待审批->生效中；驳回回草稿） | M2 | 合同创建页/审批页 | `/contracts/purchase` `/contracts/sales` `/contracts/{id}/submit` `/contracts/{id}/approve` | `contracts.status` + 合同审批审计 | CT-001 |
 | 37 | 销售订单审批状态机与驳回回退 | M3 | MINI-ORDER-01 / ADM-ORDER-S-01 | `/sales-orders` `/sales-orders/{id}` `/sales-orders/{id}/submit` `/sales-orders/{id}/ops-approve` `/sales-orders/{id}/finance-approve` | `sales_orders.status` + 订单审批审计 | ORD-001 |
 | 38 | 销售订单财务审批必须绑定采购合同 | M3 | ADM-ORDER-S-01 / ADM-ORDER-P-01 | `/sales-orders/{id}/finance-approve` | `purchase_orders.purchase_contract_id` + `sales_order_derivative_tasks` | ORD-002 |
+| 41 | 仪表盘首版指标口径冻结（执行范围/自然日/30日窗口/v1） | M7 | ADM-DASH-01 / MINI-REPORT-01 | `/dashboard/summary` `/reports/light/overview` | `report_snapshots.version` + 仪表盘/轻报表指标快照 | RPT-006 |
 
 ## 3. 验收方式
 - 抽检方式：随机抽取任意10条规则，要求能在“模块/页面/API/数据/测试”5列中完整追溯。

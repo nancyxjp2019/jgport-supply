@@ -11,6 +11,7 @@ from app.models.outbound_doc import OutboundDoc
 from app.models.payment_doc import PaymentDoc
 from app.models.purchase_order import PurchaseOrder
 from app.models.receipt_doc import ReceiptDoc
+from app.models.report_snapshot import ReportSnapshot
 from app.models.role_company_binding import RoleCompanyBinding
 from app.models.sales_order import SalesOrder
 from app.models.sales_order_derivative_task import SalesOrderDerivativeTask
@@ -30,6 +31,7 @@ __all__ = [
     "PaymentDoc",
     "PurchaseOrder",
     "ReceiptDoc",
+    "ReportSnapshot",
     "RoleCompanyBinding",
     "SalesOrder",
     "SalesOrderDerivativeTask",

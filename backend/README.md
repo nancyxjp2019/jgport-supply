@@ -26,7 +26,9 @@
 - `app/models/contract_item.py`：合同油品明细模型
 - `app/models/contract_effective_task.py`：合同生效待处理任务模型
 - `alembic/`：迁移脚本
-- `tests/`：健康检查 + M1/M2/M3/M4/M5/M6 接口与服务测试
+- `tests/`：健康检查 + M1/M2/M3/M4/M5/M6/M7 接口与服务测试
+- `app/models/report_snapshot.py`：报表快照模型
+- `app/services/report_service.py`：仪表盘、业务看板、轻量报表服务
 
 ## 3. 已实现接口（阶段C迭代1-M1）
 - 健康检查：
@@ -96,6 +98,10 @@
 - `POST /api/v1/outbound-docs/{id}/submit` 允许：
   - `warehouse + warehouse_company + miniprogram`；
   - `operations/finance/admin + operator_company + admin_web`。
+- `GET /api/v1/dashboard/summary` 仅允许 `operations/finance/admin + operator_company + admin_web`。
+- `GET /api/v1/boards/tasks` 仅允许 `operations/finance/admin + operator_company + admin_web`。
+- `GET /api/v1/reports/light/overview` 仅允许 `operations/finance/admin + operator_company + miniprogram`。
+- `GET /api/v1/reports/admin/multi-dim` 仅允许 `operations/finance/admin + operator_company + admin_web`，当前返回 `501` 表示尚未纳入首批实现。
 
 ## 6. 已实现接口（阶段C迭代3-M3）
 - 订单域：
@@ -174,3 +180,17 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
   - 手工关闭会记录关闭差异金额与按油品的关闭差异数量明细。
   - 合同进入 `已关闭/手工关闭` 后，资金补录、出入库补录、出入库再次提交与后续资金确认会被服务端阻断。
   - 当前仍未实现每日闭环扫描任务、看板告警、合同 `已归档` 状态与订单完成态联动。
+
+## 12. 已实现接口（阶段C迭代7-M7首批）
+- 报表与看板：
+  - `GET /api/v1/dashboard/summary`
+  - `GET /api/v1/boards/tasks`
+  - `GET /api/v1/reports/light/overview`
+  - `GET /api/v1/reports/admin/multi-dim`（占位返回 `501`）
+- 当前实现约束：
+  - 仪表盘首版四指标已按规则41固定：合同执行率、当日实收实付、库存周转、超阈值告警数。
+  - 合同执行率仅统计 `生效中/数量履约完成/已关闭/手工关闭/已归档` 合同。
+  - 报表“当日”口径统一按 `Asia/Shanghai` 自然日计算。
+  - 小程序轻量报表首版仅向运营侧角色开放，不向客户/供应商/仓库暴露经营金额汇总。
+  - 查询报表时会写入 `report_snapshots` 快照，版本固定为 `v1`，历史快照不覆盖。
+  - 当前仍未实现多维管理报表、每日扫描任务、事件触发增量刷新编排与报表导出。

@@ -49,6 +49,12 @@ from app.services.order_service import (
     submit_sales_order,
     update_sales_order,
 )
+from app.services.report_service import (
+    ReportServiceError,
+    get_board_tasks,
+    get_dashboard_summary,
+    get_light_overview,
+)
 from app.services.threshold_service import get_active_threshold_snapshot
 
 __all__ = [
@@ -88,11 +94,15 @@ __all__ = [
     "normalize_qty",
     "ops_approve_sales_order",
     "OrderServiceError",
+    "ReportServiceError",
     "SalesOrderServiceResult",
+    "get_board_tasks",
     "submit_inbound_doc",
     "submit_contract_for_approval",
     "submit_sales_order",
     "submit_outbound_doc",
     "update_sales_order",
+    "get_dashboard_summary",
+    "get_light_overview",
     "write_audit_log_with_retry",
 ]
