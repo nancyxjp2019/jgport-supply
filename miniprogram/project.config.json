@@ -3,8 +3,8 @@
   "packOptions": {
     "ignore": [
       {
-        "type": "folder",
-        "value": "/tests"
+        "value": "/tests",
+        "type": "folder"
       }
     ],
     "include": []
@@ -49,7 +49,7 @@
   },
   "compileType": "miniprogram",
   "libVersion": "3.7.8",
-  "appid": "touristappid",
+  "appid": "wxe283ec4c51b2a347",
   "projectname": "jgport-v6-miniprogram",
   "condition": {
     "miniprogram": {
