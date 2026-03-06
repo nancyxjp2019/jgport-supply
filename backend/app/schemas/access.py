@@ -11,3 +11,14 @@ class AccessCheckRequest(BaseModel):
 class AccessCheckResponse(BaseModel):
     allowed: bool
     message: str
+
+
+class AccessMeResponse(BaseModel):
+    user_id: str
+    role_code: str
+    company_id: str | None
+    company_type: str
+    client_type: str
+    admin_web_allowed: bool
+    miniprogram_allowed: bool
+    message: str

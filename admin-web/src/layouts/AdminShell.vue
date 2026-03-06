@@ -36,7 +36,8 @@
         </div>
         <div class="shell__topbar-meta">
           <span class="meta-pill">{{ modeLabel }}</span>
-          <span class="meta-pill meta-pill--subtle">仅运营侧可见</span>
+          <span class="meta-pill meta-pill--subtle">当前登录：{{ currentRoleLabel }}</span>
+          <ElButton plain round @click="handleLogout">退出登录</ElButton>
         </div>
       </header>
 
@@ -48,12 +49,16 @@
 </template>
 
 <script setup lang="ts">
+import { ElButton } from 'element-plus'
 import { computed } from 'vue'
-import { RouterLink, RouterView, useRoute } from 'vue-router'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 import { reportsMode } from '@/api/http'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
 
 const navItems = [
   {
@@ -73,9 +78,15 @@ const routeSummary = computed(() =>
   typeof route.meta.summary === 'string' ? route.meta.summary : '聚焦运营与财务协同场景',
 )
 const modeLabel = computed(() => (reportsMode === 'proxy' ? '代理联调模式' : '演示模式'))
+const currentRoleLabel = computed(() => authStore.currentRoleLabel)
 const modeHint = computed(() =>
   reportsMode === 'proxy'
     ? '由开发代理在服务端注入身份头，本地联调时不在浏览器暴露密钥。'
     : '使用本地演示数据，便于在登录体系未落地前先评审页面。',
 )
+
+async function handleLogout() {
+  authStore.logout()
+  await router.replace('/login')
+}
 </script>

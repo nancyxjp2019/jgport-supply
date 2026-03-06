@@ -14,6 +14,25 @@ def test_access_check_requires_authenticated_identity() -> None:
     assert response.json()["detail"] == "未认证身份，禁止访问"
 
 
+def test_access_me_returns_current_actor_and_permissions(auth_headers) -> None:
+    response = client.get(
+        "/api/v1/access/me",
+        headers=auth_headers(
+            user_id="CODEX-TEST-FINANCE",
+            role_code="finance",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["user_id"] == "CODEX-TEST-FINANCE"
+    assert body["role_code"] == "finance"
+    assert body["admin_web_allowed"] is True
+    assert body["miniprogram_allowed"] is True
+    assert body["message"] == "身份读取成功"
+
+
 def test_customer_cannot_login_admin_web(auth_headers) -> None:
     response = client.post(
         "/api/v1/access/check",

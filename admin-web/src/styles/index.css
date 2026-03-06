@@ -387,6 +387,119 @@ body::before {
   height: 220px;
 }
 
+.login-page {
+  min-height: 100vh;
+  padding: 40px 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 520px);
+  gap: 28px;
+  align-items: stretch;
+}
+
+.login-hero,
+.login-panel,
+.login-role-card,
+.proxy-profile-card {
+  border: 1px solid var(--line-soft);
+  border-radius: 32px;
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-soft);
+}
+
+.login-hero,
+.login-panel {
+  padding: 32px;
+}
+
+.login-hero {
+  background:
+    radial-gradient(circle at top right, rgba(31, 95, 91, 0.18), transparent 28%),
+    linear-gradient(145deg, rgba(255, 251, 244, 0.96), rgba(236, 225, 209, 0.92));
+}
+
+.login-hero__eyebrow,
+.login-panel__eyebrow {
+  margin: 0 0 10px;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent-main);
+}
+
+.login-hero h1,
+.login-panel h2,
+.login-role-card h3 {
+  margin: 0 0 12px;
+  font-family: 'DIN Alternate', 'Bahnschrift', 'HarmonyOS Sans SC', sans-serif;
+}
+
+.login-hero h1 {
+  font-size: 54px;
+  line-height: 1.08;
+}
+
+.login-hero p,
+.login-role-card p,
+.proxy-profile-row span,
+.login-panel__tip {
+  margin: 0;
+  line-height: 1.8;
+  color: var(--ink-regular);
+}
+
+.login-hero__meta,
+.login-panel__header,
+.proxy-profile-row,
+.login-panel__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.login-hero__meta {
+  margin-top: 28px;
+  flex-wrap: wrap;
+}
+
+.login-panel {
+  display: grid;
+  gap: 20px;
+}
+
+.login-panel__header {
+  align-items: flex-start;
+}
+
+.login-panel__tip {
+  font-weight: 700;
+  color: var(--accent-rust);
+}
+
+.login-role-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.login-role-card {
+  padding: 22px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.proxy-profile-card {
+  padding: 22px 24px;
+  display: grid;
+  gap: 16px;
+}
+
+.proxy-profile-row strong {
+  font-size: 18px;
+  color: var(--ink-strong);
+}
+
 @media (max-width: 1200px) {
   .hero-grid,
   .task-overview-grid,
@@ -411,6 +524,23 @@ body::before {
 
   .shell__topbar {
     flex-direction: column;
+  }
+
+  .login-page {
+    grid-template-columns: 1fr;
+    padding: 24px 16px;
+  }
+
+  .login-hero h1 {
+    font-size: 40px;
+  }
+
+  .login-role-card,
+  .login-panel__header,
+  .proxy-profile-row,
+  .login-panel__actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 

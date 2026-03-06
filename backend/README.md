@@ -34,6 +34,7 @@
 - 健康检查：
   - `GET /api/v1/healthz`
 - 端权限边界：
+  - `GET /api/v1/access/me`
   - `POST /api/v1/access/check`
 - 参数中心（双阈值）：
   - `GET /api/v1/system-configs/thresholds`
@@ -67,6 +68,7 @@
   - `X-Auth-Secret`
 - 上述身份上下文应由网关、登录中间层或服务端代理透传，不应由终端页面直接拼装。
 - `X-Auth-Secret` 必须与环境变量 `auth_proxy_shared_secret` 一致。
+- 非开发环境必须显式配置随机密钥，禁止继续使用默认开发密钥。
 - `GET/PUT /api/v1/system-configs/thresholds` 仅允许 `admin + operator_company + admin_web`。
 - `GET /api/v1/audit/logs` 允许 `admin/finance/operations + operator_company + admin_web`。
 - `POST /api/v1/audit/logs` 仅允许 `admin + operator_company + admin_web`。
