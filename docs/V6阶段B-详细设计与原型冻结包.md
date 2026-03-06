@@ -147,6 +147,8 @@ purchase_payment_net =
 | `/sales-orders/{id}/submit` | `POST` | `comment` | 状态必须是`草稿` | `status=待运营审批` |
 | `/sales-orders/{id}/ops-approve` | `POST` | `result`,`comment` | 状态必须是`待运营审批` | 新状态 |
 | `/sales-orders/{id}/finance-approve` | `POST` | `result`,`purchase_contract_id`,`actual_receipt_amount`,`actual_pay_amount`,`comment` | 财务通过时必须绑定已生效采购合同；通过后触发采购订单 + 收付款任务 | 采购订单编号 + 收付款待处理任务 |
+| `/supplier/purchase-orders` | `GET` | `status`,`limit` | 仅 `supplier + supplier_company + miniprogram`；仅返回当前供应商公司采购订单 | 采购订单列表 |
+| `/supplier/purchase-orders/{id}` | `GET` | 无 | 仅 `supplier + supplier_company + miniprogram`；仅允许读取本公司采购订单详情 | 采购订单详情 + 发货准备信息 |
 | `/purchase-orders/{id}` | `GET` | 无 | 权限校验 | 采购订单详情 |
 
 ## 5.3 资金单据接口
@@ -208,7 +210,7 @@ purchase_payment_net =
 
 ## 6.1 页面冻结清单
 - 管理后台：`ADM-DASH-01`、`ADM-BOARD-01`、`ADM-CONTRACT-*`、`ADM-ORDER-*`、`ADM-PAYMENT-01`、`ADM-RECEIPT-01`、`ADM-INBOUND-01`、`ADM-OUTBOUND-01`、`ADM-TRACE-01`、`ADM-AUDIT-01`、`ADM-CONFIG-01`。
-- 小程序：`MINI-TODO-01`、`MINI-ORDER-01`、`MINI-EXEC-01`、`MINI-INOUT-01`、`MINI-REPORT-01`、`MINI-MSG-01`。
+- 小程序：`MINI-TODO-01`、`MINI-ORDER-01`、`MINI-EXEC-01`、`MINI-INOUT-01`、`MINI-SUPPLIER-PO-01`、`MINI-REPORT-01`、`MINI-MSG-01`。
 
 ## 6.2 关键字段字典冻结
 - 合同：编号、方向、油品、签约数量、单价、系统阈值快照、状态。
