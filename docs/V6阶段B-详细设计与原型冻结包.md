@@ -38,6 +38,7 @@
 |---|---|---|---|
 | `contracts` | `id`,`contract_no`,`direction`,`status`,`threshold_release_snapshot`,`threshold_over_exec_snapshot`,`close_type`,`manual_close_reason` | `contract_no`唯一；`direction`审批后不可变；阈值快照来自系统参数且`release <= over_exec` | 合同主表，区分采购/销售方向 |
 | `contract_items` | `id`,`contract_id`,`oil_product_id`,`qty_signed`,`unit_price`,`qty_in_acc`,`qty_out_acc` | `contract_id+oil_product_id`唯一 | 合同按油品明细，金额与数量计算基准 |
+| `contract_effective_tasks` | `id`,`contract_id`,`target_doc_type`,`status`,`idempotency_key`,`payload_json` | `idempotency_key`唯一；合同审批通过时自动写入待处理任务 | 合同生效后待生成下游单据的任务表 |
 | `sales_orders` | `id`,`order_no`,`sales_contract_id`,`status`,`unit_price`,`qty_ordered` | `unit_price`来自销售合同，不允许脱离合同重写 | 销售订单主表 |
 | `purchase_orders` | `id`,`order_no`,`purchase_contract_id`,`source_sales_order_id`,`payable_amount`,`zero_pay_exception_flag` | `source_sales_order_id`必填（销售衍生场景）；`zero_pay_exception_flag`仅在规则11场景为真 | 采购订单主表 |
 | `receipt_docs` | `id`,`doc_no`,`doc_type`,`contract_id`,`sales_order_id`,`amount_actual`,`voucher_required`,`voucher_exempt_reason`,`refund_status`,`refund_amount`,`status` | 手工录入必须有`contract_id`；`amount_actual=0`且免凭证时必须有原因 | 收款单（含保证金退款口径） |
@@ -78,7 +79,7 @@ purchase_payment_net =
 ```
 
 ## 3.4 状态枚举冻结
-- 合同：`草稿` -> `待审批` -> `生效中` -> `数量履约完成` -> (`已关闭` 或 `手工关闭`) -> `已归档`。
+- 合同：`草稿` -> `待审批` -> `生效中` -> `数量履约完成` -> (`已关闭` 或 `手工关闭`) -> `已归档`；补充回退分支：`待审批 -> 草稿（驳回）`。
 - 销售订单：`草稿` -> `待运营审批` -> `待财务审批` -> (`驳回` 或 `已审批`) -> `已衍生采购订单` -> `执行中` -> `已完成`。
 - 采购订单：`已创建` -> `待供应商确认` -> `供应商已确认` -> `待付款校验` -> `可继续执行` -> `执行中` -> `已完成`。
 - 收付款单：`草稿` -> `待审核` -> `已确认` -> `已核销`；异常分支 `待补录金额`、`已终止`。
@@ -91,8 +92,8 @@ purchase_payment_net =
 
 | 触发事件 | 前置条件 | 自动动作 | 幂等键 | 失败补偿 |
 |---|---|---|---|---|
-| 采购合同审批通过并生效 | 合同状态=`待审批` | 生成付款单（保证金）+ 入库单草稿，写入上下游关系 | `purchase_contract_effective:{contract_id}` | 重试3次，失败入补偿队列 |
-| 销售合同审批通过并生效 | 合同状态=`待审批` | 生成收款单（保证金），写入上下游关系 | `sales_contract_effective:{contract_id}` | 重试3次，失败告警+人工补录 |
+| 采购合同审批通过并生效 | 合同状态=`待审批` | 写入付款单（保证金）+ 入库单草稿的待处理任务，供下游模块消费生成实体单据 | `purchase_contract_effective:{contract_id}` | 重试3次，失败入补偿队列 |
+| 销售合同审批通过并生效 | 合同状态=`待审批` | 写入收款单（保证金）的待处理任务，供下游模块消费生成实体单据 | `sales_contract_effective:{contract_id}` | 重试3次，失败告警+人工补录 |
 | 销售订单财务审批通过 | 订单状态=`待财务审批` | 生成采购订单+付款单+收款单，写入关系图 | `sales_order_finance_approved:{sales_order_id}` | 幂等重放；部分成功走反向补偿 |
 | 销售衍生采购订单付款=0 | `source_sales_order_id`存在 | 无条件放行并标记`zero_pay_exception_flag=true` | `po_zero_pay_exception:{purchase_order_id}` | 放行后若补录失败，进入财务待办 |
 | 付款单0金额提交（非规则11） | `amount_actual=0`且非销售衍生采购订单 | 按规则14执行阈值校验并决定放行/待补录 | `payment_zero_submit:{payment_doc_id}` | 不通过转`待补录金额` |
@@ -124,11 +125,13 @@ purchase_payment_net =
 
 | 接口 | 方法 | 关键请求字段 | 关键校验 | 关键响应 |
 |---|---|---|---|---|
-| `/contracts/purchase` | `POST` | `contract_no`,`supplier_id`,`items[]` | 油品明细必填；系统阈值参数已生效 | `contract_id`,`status` |
-| `/contracts/sales` | `POST` | `contract_no`,`customer_id`,`items[]` | 油品明细必填；系统阈值参数已生效 | `contract_id`,`status` |
-| `/contracts/{id}/approve` | `POST` | `approval_result`,`comment` | 状态必须是`待审批` | `status=生效中` |
+| `/contracts/purchase` | `POST` | `contract_no`,`supplier_id`,`items[]` | 油品明细必填；系统阈值参数已生效 | `contract_id`,`status=草稿` |
+| `/contracts/sales` | `POST` | `contract_no`,`customer_id`,`items[]` | 油品明细必填；系统阈值参数已生效 | `contract_id`,`status=草稿` |
+| `/contracts/{id}/submit` | `POST` | `comment` | 状态必须是`草稿` | `status=待审批` |
+| `/contracts/{id}/approve` | `POST` | `approval_result`,`comment` | 状态必须是`待审批` | `approval_result=true` 返回 `status=生效中`；`approval_result=false` 返回 `status=草稿` |
+| `/contracts/{id}` | `GET` | 无 | 仅授权角色可读 | 合同头、明细、阈值快照、状态 |
 | `/contracts/{id}/manual-close` | `POST` | `reason`,`confirm_token` | 原因必填；权限校验；二次确认 | `status=手工关闭` |
-| `/contracts/{id}/graph` | `GET` | 无 | 仅授权角色可读 | 上下游单据图谱 |
+| `/contracts/{id}/graph` | `GET` | 无 | 仅授权角色可读 | 合同节点 + 当前待处理下游任务 + 已形成关系图谱 |
 
 ## 5.2 订单域接口
 

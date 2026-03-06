@@ -3,7 +3,7 @@
 ## 1. 目的与门槛
 - 目的：验证需求是否被完整理解并可直接进入模块开发。
 - 门槛：
-  - 规则覆盖率 `100%`（规则1~35全部映射）。
+  - 规则覆盖率 `100%`（规则1~36全部映射）。
   - 规则冲突数 `0`。
   - 阻断级未决问题 `0`。
 
@@ -18,8 +18,8 @@
 | 5 | 合规审计连续性 | M1/审计 | ADM-AUDIT-01 | 全关键动作写审计 | `business_audit_logs` | AUD-001 |
 | 6 | 金额单据中台化 | M4 | ADM-PAYMENT-01/ADM-RECEIPT-01 | `/payment-docs/*` `/receipt-docs/*` | `payment_docs`,`receipt_docs` | FIN-001 |
 | 7 | 数量单据中台化 | M5 | ADM-INBOUND-01/ADM-OUTBOUND-01 | `/inbound-docs/*` `/outbound-docs/*` | `inbound_docs`,`outbound_docs` | INV-001 |
-| 8 | 采购合同生效触发付款单+入库草稿 | M2+M4+M5 | 合同审批页 | `/contracts/{id}/approve` 触发事件 | 合同/付款单/入库单 | TRG-001 |
-| 9 | 销售合同生效触发收款单保证金 | M2+M4 | 合同审批页 | `/contracts/{id}/approve` 触发事件 | 合同/收款单 | TRG-002 |
+| 8 | 采购合同生效触发付款单+入库草稿 | M2+M4+M5 | 合同审批页 | `/contracts/{id}/approve` 写入下游待处理任务 | `contracts` + `contract_effective_tasks` + 付款单/入库单 | TRG-001 |
+| 9 | 销售合同生效触发收款单保证金 | M2+M4 | 合同审批页 | `/contracts/{id}/approve` 写入下游待处理任务 | `contracts` + `contract_effective_tasks` + 收款单 | TRG-002 |
 | 10 | 销售订单财务通过自动三单 + 订单关闭条件冻结 | M3+M4+M6 | ADM-ORDER-S-01/ADM-ORDER-P-01 | `/sales-orders/{id}/finance-approve` + 订单完成判定 | 销售/采购订单状态枚举 + 收付款单 + 出库累计 | TRG-003 |
 | 11 | 销售衍生采购订单付款=0无条件放行 | M3+M4 | ADM-ORDER-P-01 | `po_zero_pay_exception`触发 | `purchase_orders.zero_pay_exception_flag` | EXC-001 |
 | 12 | 出库双通道（系统+手工）+ 履约累计幂等防重 | M5+M6 | ADM-OUTBOUND-01 | `/outbound-docs/manual` + 仓库出库事件 + 生效累计任务 | `outbound_docs` + `contract_qty_effects` + `doc_relations` | INV-002 |
@@ -46,6 +46,7 @@
 | 33 | 非目标：完整财务核算体系 | 业务范围 | - | - | 产品边界声明 | SCOPE-002 |
 | 34 | 终端用户可见信息统一中文显示 | M8+M7 | `ADM-*` + `MINI-*` 全页面提示文案 | 前端消息映射层 + 表单校验提示 + 阻断提示渲染 | 前端文案资源与错误消息映射 | UXR-004 |
 | 35 | 管理后台Web登录边界与后端接口授权分层 | M1+M8 | 管理后台登录页 + 全接口鉴权链路 | 登录鉴权中间件 + 角色/公司范围校验 | 登录身份上下文 + 角色权限策略 | SEC-001 |
+| 36 | 合同早期状态机（草稿->待审批->生效中；驳回回草稿） | M2 | 合同创建页/审批页 | `/contracts/purchase` `/contracts/sales` `/contracts/{id}/submit` `/contracts/{id}/approve` | `contracts.status` + 合同审批审计 | CT-001 |
 
 ## 3. 验收方式
 - 抽检方式：随机抽取任意10条规则，要求能在“模块/页面/API/数据/测试”5列中完整追溯。
