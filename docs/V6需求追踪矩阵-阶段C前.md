@@ -20,18 +20,18 @@
 | 7 | 数量单据中台化 | M5 | ADM-INBOUND-01/ADM-OUTBOUND-01 | `/inbound-docs/*` `/outbound-docs/*` | `inbound_docs`,`outbound_docs` | INV-001 |
 | 8 | 采购合同生效触发付款单+入库草稿 | M2+M4+M5 | 合同审批页 | `/contracts/{id}/approve` 触发事件 | 合同/付款单/入库单 | TRG-001 |
 | 9 | 销售合同生效触发收款单保证金 | M2+M4 | 合同审批页 | `/contracts/{id}/approve` 触发事件 | 合同/收款单 | TRG-002 |
-| 10 | 销售订单财务通过自动三单 + 细粒度状态机唯一标准 | M3+M4 | ADM-ORDER-S-01/ADM-ORDER-P-01 | `/sales-orders/{id}/finance-approve` | 销售/采购订单状态枚举 + 收付款单 | TRG-003 |
+| 10 | 销售订单财务通过自动三单 + 订单关闭条件冻结 | M3+M4+M6 | ADM-ORDER-S-01/ADM-ORDER-P-01 | `/sales-orders/{id}/finance-approve` + 订单完成判定 | 销售/采购订单状态枚举 + 收付款单 + 出库累计 | TRG-003 |
 | 11 | 销售衍生采购订单付款=0无条件放行 | M3+M4 | ADM-ORDER-P-01 | `po_zero_pay_exception`触发 | `purchase_orders.zero_pay_exception_flag` | EXC-001 |
-| 12 | 出库双通道（系统+手工） | M5 | ADM-OUTBOUND-01 | `/outbound-docs/manual` + 仓库出库事件 | `outbound_docs.source_type` | INV-002 |
+| 12 | 出库双通道（系统+手工）+ 履约累计幂等防重 | M5+M6 | ADM-OUTBOUND-01 | `/outbound-docs/manual` + 仓库出库事件 + 生效累计任务 | `outbound_docs` + `contract_qty_effects` + `doc_relations` | INV-002 |
 | 13 | 双阈值模型与约束（系统级统一下发） | M1+M2+M6 | ADM-CONFIG-01 | `/system-configs/thresholds` + 合同生效写快照 | `system_configs` + `contracts.threshold_*_snapshot` | CFG-001 |
 | 14 | 零金额免凭证（规则14场景） | M4 | ADM-RECEIPT-01 | `/receipt-docs/{id}/confirm` | 收付款单免凭证字段 | EXC-002 |
 | 15 | 单价来自合同，实收实付来自单据，附件按单据分层归属 | M3+M4 | ADM-ORDER-S-01 | 订单创建/财务确认/附件上传 | `sales_orders.unit_price` + 收付款单 + `doc_attachments` | FIN-002 |
-| 16 | 数量履约完成状态 | M6 | 合同详情状态流 | 履约计算任务 | `contract_items.qty_in_acc/qty_out_acc` | CLS-001 |
-| 17 | 金额闭环采购/销售分开 | M6 | 合同详情闭环面板 | 自动关闭校验任务 | 合同方向闭环字段 | CLS-002 |
+| 16 | 数量履约完成状态 + 完成后禁止新增出入库生效 | M5+M6 | 合同详情状态流 | 履约计算任务 + 出入库生效阻断 | `contract_items.qty_in_acc/qty_out_acc` + 合同状态 | CLS-001 |
+| 17 | 金额闭环采购/销售分开 + 保证金净额伪代码口径 | M4+M6 | 合同详情闭环面板 | 自动关闭校验任务 | 收付款单净额字段 + 退款字段 | CLS-002 |
 | 18 | 自动关闭与手工关闭边界 | M6 | 合同详情手工关闭 | `/contracts/{id}/manual-close` | 合同状态+关闭字段 | CLS-003 |
 | 19 | 手工关闭五步处理顺序 | M6 | 手工关闭确认弹窗 | 关闭事务编排 | 差异记录/终止记录 | CLS-004 |
 | 20 | 合同履约数量上限 | M5+M6 | 入库/出库提交页 | `/inbound-docs/{id}/submit` `/outbound-docs/{id}/submit` | 阈值校验结果 | INV-003 |
-| 21 | 单据上下游可追溯 | M1+M6 | ADM-TRACE-01 | 图谱查询API | `doc_relations` | AUD-002 |
+| 21 | 单据上下游可追溯 + 双通道唯一键防重 | M1+M5+M6 | ADM-TRACE-01 | 图谱查询API + 防重累计流水 | `doc_relations` + `contract_qty_effects` | AUD-002 |
 | 22 | 当前版本低并发策略 | NFR | - | 幂等+事务，不用分布式锁 | `source_event_id`,`幂等键` | NFR-001 |
 | 23 | 全新库初始化清单 | M1 | ADM-CONFIG-01 | 初始化脚本与校验 | 主数据/字典/参数 | OPS-002 |
 | 24 | 后台全量、小程序轻量 | M8 | 端能力矩阵 | 菜单与权限路由 | 角色权限表 | UXR-001 |
@@ -39,7 +39,7 @@
 | 26 | 后台必须有仪表盘+看板 | M7 | ADM-DASH-01/ADM-BOARD-01 | `/dashboard/summary` `/boards/tasks` | 指标快照 | RPT-001 |
 | 27 | 报表分层（小程序轻量/后台多维） | M7 | MINI-REPORT-01 + 后台报表页 | 轻量/多维报表接口 | 报表口径字典 | RPT-002 |
 | 28 | 报表SLA与口径冻结 | M7 | 仪表盘口径提示 | SLA监控+口径版本参数 | `report_snapshots.version` | RPT-003 |
-| 29 | 报表混合生成机制 | M7 | 报表任务监控 | 事件增量+定时校准任务 | 报表任务与快照 | RPT-004 |
+| 29 | 报表混合生成机制 + 每日闭环/履约扫描告警 | M6+M7 | 报表任务监控/业务看板 | 事件增量+定时校准+每日扫描任务 | 报表任务 + 扫描审计日志 + 告警快照 | RPT-004 |
 | 30 | 小程序仅看驳回结果 | M8 | MINI-ORDER-01 | 小程序禁用驳回动作 | 端权限配置 | UXR-003 |
 | 31 | 仪表盘首版四指标冻结 | M7 | ADM-DASH-01 | `/dashboard/summary` | 指标定义版本 | RPT-005 |
 | 32 | 非目标：多活/跨地域容灾 | NFR范围 | - | - | 架构范围声明 | SCOPE-001 |

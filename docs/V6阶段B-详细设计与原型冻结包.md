@@ -38,10 +38,11 @@
 | `contract_items` | `id`,`contract_id`,`oil_product_id`,`qty_signed`,`unit_price`,`qty_in_acc`,`qty_out_acc` | `contract_id+oil_product_id`唯一 | 合同按油品明细，金额与数量计算基准 |
 | `sales_orders` | `id`,`order_no`,`sales_contract_id`,`status`,`unit_price`,`qty_ordered` | `unit_price`来自销售合同，不允许脱离合同重写 | 销售订单主表 |
 | `purchase_orders` | `id`,`order_no`,`purchase_contract_id`,`source_sales_order_id`,`payable_amount`,`zero_pay_exception_flag` | `source_sales_order_id`必填（销售衍生场景）；`zero_pay_exception_flag`仅在规则11场景为真 | 采购订单主表 |
-| `receipt_docs` | `id`,`doc_no`,`doc_type`,`contract_id`,`sales_order_id`,`amount_actual`,`voucher_required`,`voucher_exempt_reason`,`status` | 手工录入必须有`contract_id`；`amount_actual=0`且免凭证时必须有原因 | 收款单 |
-| `payment_docs` | `id`,`doc_no`,`doc_type`,`contract_id`,`purchase_order_id`,`amount_actual`,`voucher_required`,`voucher_exempt_reason`,`status` | 手工补录必须同时关联`contract_id + purchase_order_id` | 付款单 |
+| `receipt_docs` | `id`,`doc_no`,`doc_type`,`contract_id`,`sales_order_id`,`amount_actual`,`voucher_required`,`voucher_exempt_reason`,`refund_status`,`refund_amount`,`status` | 手工录入必须有`contract_id`；`amount_actual=0`且免凭证时必须有原因 | 收款单（含保证金退款口径） |
+| `payment_docs` | `id`,`doc_no`,`doc_type`,`contract_id`,`purchase_order_id`,`amount_actual`,`voucher_required`,`voucher_exempt_reason`,`refund_status`,`refund_amount`,`status` | 手工补录必须同时关联`contract_id + purchase_order_id` | 付款单（含保证金退款口径） |
 | `inbound_docs` | `id`,`doc_no`,`contract_id`,`purchase_order_id`,`source_type`,`actual_qty`,`status` | 生效前必须通过合同超量履约阈值校验 | 入库单 |
-| `outbound_docs` | `id`,`doc_no`,`contract_id`,`sales_order_id`,`source_type`,`actual_qty`,`status` | 系统出库与手工补录均需绑定销售合同并通过超量校验 | 出库单 |
+| `outbound_docs` | `id`,`doc_no`,`contract_id`,`sales_order_id`,`source_type`,`source_ticket_no`,`manual_ref_no`,`idempotency_key`,`actual_qty`,`status` | 系统出库与手工补录均需绑定销售合同并通过超量校验；`idempotency_key`唯一 | 出库单 |
+| `contract_qty_effects` | `id`,`contract_item_id`,`doc_type`,`doc_id`,`effect_type`,`effect_qty`,`idempotency_key` | 唯一键：`contract_item_id + doc_type + doc_id + effect_type` | 履约累计防重流水（出入库生效唯一计入） |
 | `doc_relations` | `id`,`source_doc_type`,`source_doc_id`,`target_doc_type`,`target_doc_id`,`relation_type` | 同一关系去重唯一 | 单据上下游关系（支持一对多/多对多） |
 | `doc_attachments` | `id`,`owner_doc_type`,`owner_doc_id`,`path`,`biz_tag` | 附件按业务归属冻结：合同附件挂合同，订单业务附件挂订单，付款凭证挂付款单，收款凭证挂收款单，发货指令单附件挂采购订单 | 凭证与业务附件 |
 | `business_audit_logs` | `id`,`event_code`,`biz_type`,`biz_id`,`operator_id`,`before_json`,`after_json`,`occurred_at` | 关闭、终止、阈值阻断必须落审计日志 | 审计日志 |
@@ -54,13 +55,25 @@
 - 手工关闭专用：`manual_close_by`,`manual_close_at`,`manual_close_reason`,`manual_close_diff_amount`,`manual_close_diff_qty`。
 
 ## 3.3 关键计算口径冻结
-- 数量履约（销售）：`contract_item.qty_out_acc = Σ已生效出库单数量`。
+- 数量履约（销售）：`contract_item.qty_out_acc = Σ已生效出库单数量（基于contract_qty_effects防重流水）`。
 - 数量履约（采购）：`contract_item.qty_in_acc = Σ已生效入库单数量`。
-- 金额闭环（销售）：`Σ(累计实际出库量 × 合同单价) = 累计收款单净额（含保证金类型）`。
-- 金额闭环（采购）：`Σ(累计实际入库量 × 合同单价) = 累计付款单净额（含保证金类型）`。
+- 金额闭环（销售）：`Σ(累计实际出库量 × 合同单价) = 销售合同累计实收净额`。
+- 金额闭环（采购）：`Σ(累计实际入库量 × 合同单价) = 采购合同累计实付净额`。
 - 保证金口径：保证金是收付款单业务类型，不另行加总，避免重复计入。
 - 金额闭环容差：`abs(金额差额) <= 0.01` 视为闭环成立。
 - 数量精度：数量计算、阈值校验、履约累计统一按 `0.001` 精度处理。
+- 保证金净额伪代码（固定实现口径）：
+```text
+sales_receipt_net =
+  SUM(receipt_docs.amount_actual where doc_type='NORMAL' and status in [已确认,已核销])
++ SUM(receipt_docs.amount_actual where doc_type='DEPOSIT' and status in [已确认,已核销] and refund_status != '已退款')
+- SUM(receipt_docs.refund_amount where doc_type='DEPOSIT' and status in [已确认,已核销])
+
+purchase_payment_net =
+  SUM(payment_docs.amount_actual where doc_type='NORMAL' and status in [已确认,已核销])
++ SUM(payment_docs.amount_actual where doc_type='DEPOSIT' and status in [已确认,已核销] and refund_status != '已退款')
+- SUM(payment_docs.refund_amount where doc_type='DEPOSIT' and status in [已确认,已核销])
+```
 
 ## 3.4 状态枚举冻结
 - 合同：`草稿` -> `待审批` -> `生效中` -> `数量履约完成` -> (`已关闭` 或 `手工关闭`) -> `已归档`。
@@ -68,6 +81,7 @@
 - 采购订单：`已创建` -> `待供应商确认` -> `供应商已确认` -> `待付款校验` -> `可继续执行` -> `执行中` -> `已完成`。
 - 收付款单：`草稿` -> `待审核` -> `已确认` -> `已核销`；异常分支 `待补录金额`、`已终止`。
 - 出入库单：`草稿` -> `待提交` -> `已生效` -> `已过账`；异常分支 `校验失败`、`已终止`。
+- 约束：合同状态进入`数量履约完成`后，新增出入库单一律不得生效。
 
 ## 4. 触发矩阵、幂等与补偿
 
@@ -82,15 +96,20 @@
 | 付款单0金额提交（非规则11） | `amount_actual=0`且非销售衍生采购订单 | 按规则14执行阈值校验并决定放行/待补录 | `payment_zero_submit:{payment_doc_id}` | 不通过转`待补录金额` |
 | 仓库正常流程出库确认 | 仓库执行完成 | 生成出库单待生效 | `warehouse_outbound_confirmed:{warehouse_ticket_id}` | 重试；失败转手工补录待办 |
 | 手工补录出库单提交 | 绑定销售合同 | 进入阈值校验并生效/阻断 | `manual_outbound_submit:{outbound_doc_id}` | 阻断后保留`校验失败`可重提 |
+| 出入库单生效履约累计 | 单据状态变更为`已生效` | 写入`contract_qty_effects`并更新`contract_items`累计值 | `qty_effect:{doc_type}:{doc_id}` | 唯一冲突则跳过重复累计并记录审计 |
+| 合同已数量履约完成后的出入库提交 | 合同状态=`数量履约完成` | 阻断新增出入库单生效 | `contract_qty_done_block:{contract_id}:{doc_id}` | 返回阻断错误并写审计 |
 | 入库单提交生效 | 录入实际入库量 | 执行超量阈值校验并生效/阻断 | `inbound_submit:{inbound_doc_id}` | 阻断后可调整数量重提 |
 | 收款单0金额提交 | `amount_actual=0` | 按规则14执行阈值校验并决定放行/待补录 | `receipt_zero_submit:{receipt_doc_id}` | 不通过转`待补录金额` |
 | 自动关闭校验任务 | 合同数量履约完成 | 按合同方向执行金额闭环校验 | `contract_auto_close_check:{contract_id}:{version}` | 校验失败转授权手工关闭 |
+| 每日闭环扫描任务 | 每日定时触发 | 扫描`数量履约完成且未关闭`合同并生成看板告警 | `contract_close_scan:{date}:{contract_id}` | 重复触发幂等跳过，写审计 |
+| 每日履约滞留扫描任务 | 每日定时触发 | 扫描`生效中且履约长时间未变化`合同并告警 | `contract_fulfillment_scan:{date}:{contract_id}` | 重复触发幂等跳过，写审计 |
 | 手工关闭执行 | 授权通过+原因必填 | 锁定、终止未生效、释放预占、差异记录、归档 | `contract_manual_close:{contract_id}` | 任一步失败回滚本事务并告警 |
 
 ## 4.2 幂等规则冻结
 - 所有自动触发写入`source_event_id`，重复事件仅返回已处理结果，不重复落库。
 - 业务唯一冲突统一返回`HTTP 409`与业务错误码。
 - 当前阶段按低并发假设，不引入分布式锁；通过幂等键 + 事务提交保证最终一致。
+- 双通道防重：`doc_relations`关系唯一 + `contract_qty_effects`唯一累计流水双重保证，防止系统单与手工单重复计入履约量。
 
 ## 4.3 失败补偿规则冻结
 - 同事务内失败：数据库回滚。
@@ -131,9 +150,9 @@
 
 | 接口 | 方法 | 关键请求字段 | 关键校验 | 关键响应 |
 |---|---|---|---|---|
-| `/inbound-docs/{id}/submit` | `POST` | `actual_qty`,`warehouse_id` | 超量阈值校验；失败转`校验失败` | `status` |
-| `/outbound-docs/{id}/submit` | `POST` | `actual_qty`,`warehouse_id` | 超量阈值校验；失败转`校验失败` | `status` |
-| `/outbound-docs/manual` | `POST` | `contract_id`,`oil_product_id`,`actual_qty`,`reason` | 必须绑定销售合同 | `outbound_doc_id` |
+| `/inbound-docs/{id}/submit` | `POST` | `actual_qty`,`warehouse_id` | 超量阈值校验；合同数量履约完成阻断；失败转`校验失败` | `status` |
+| `/outbound-docs/{id}/submit` | `POST` | `actual_qty`,`warehouse_id` | 超量阈值校验；合同数量履约完成阻断；失败转`校验失败` | `status` |
+| `/outbound-docs/manual` | `POST` | `contract_id`,`oil_product_id`,`sales_order_id`,`manual_ref_no`,`actual_qty`,`reason` | 必须绑定销售合同+销售订单；`manual_ref_no`在合同+油品下唯一 | `outbound_doc_id` |
 
 ## 5.5 看板与报表接口
 
@@ -159,6 +178,8 @@
 | `BIZ-RECEIPT-ZERO-001` | 收款0金额不满足规则14阈值 | 转`待补录金额` |
 | `BIZ-LINK-001` | 上下游ID缺失或关系不完整 | 阻断审核/生效 |
 | `BIZ-CLOSE-001` | 合同方向金额闭环不满足（超出0.01容差） | 不允许自动关闭 |
+| `BIZ-CONTRACT-QTY-DONE-001` | 合同已数量履约完成仍尝试新增出入库生效 | 阻断提交 |
+| `BIZ-QTY-DEDUP-001` | 双通道履约累计命中重复键 | 跳过重复累计并记录审计 |
 | `BIZ-PAY-SUPPLEMENT-001` | 手工补录付款单缺合同或采购订单 | 阻断提交 |
 | `BIZ-ORDER-PRICE-001` | 订单单价与合同单价不一致 | 阻断提交 |
 
@@ -193,6 +214,7 @@
 - 事件源：合同生效、订单审批、收付款确认、出入库生效、手工关闭。
 - 口径版本：报表查询必须带`metric_version`，默认返回当前生效版本。
 - 重算策略：仅对口径变更涉及范围执行重算并保留旧版本快照。
+- 定时任务：每日执行合同闭环扫描与履约滞留扫描，任务幂等键防重复触发，任务结果落审计并推送看板告警。
 
 ## 8. 阶段B出口门槛
 - 数据模型、触发矩阵、API契约、原型冻结包完成联合评审。
