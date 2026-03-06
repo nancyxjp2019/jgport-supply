@@ -1,7 +1,7 @@
-const { getDemoActor, getRuntimeModeLabel } = require('../../config/env');
-const { getLightReportOverview } = require('../../utils/api');
+const { getRuntimeMode, getRuntimeModeLabel } = require('../../config/env');
+const { getAccessProfile, getLightReportOverview } = require('../../utils/api');
 const { formatDateTime, formatMoney, formatQty } = require('../../utils/format');
-const { logoutSession } = require('../../utils/session');
+const { getAccessToken, initializeSession, logoutSession, updateAccessProfile } = require('../../utils/session');
 const {
   buildAbnormalItems,
   buildMetricCards,
@@ -42,26 +42,46 @@ Page({
 
   async loadOverview() {
     const app = getApp();
-    const currentUser = getDemoActor();
-    if (app && app.globalData) {
-      app.globalData.user = currentUser;
+    const runtimeMode = getRuntimeMode();
+    let currentUser = initializeSession();
+    if (runtimeMode === 'local_api') {
+      if (!getAccessToken() || !currentUser) {
+        this._redirectToLogin();
+        return;
+      }
+      try {
+        const response = await getAccessProfile();
+        currentUser = updateAccessProfile(response.data);
+      } catch (error) {
+        if (Number(error.statusCode || 0) === 401) {
+          logoutSession();
+          wx.showToast({ title: error.message || '登录状态已失效，请重新登录', icon: 'none' });
+          this._redirectToLogin();
+          return;
+        }
+        this.setData({
+          loading: false,
+          errorMessage: error.message || '读取登录身份失败，请确认本地后端已启动',
+          canView: false,
+          roleLabel: currentUser ? currentUser.roleLabel : '',
+          runtimeLabel: getRuntimeModeLabel(runtimeMode),
+          metricVersionText: '口径版本 v1',
+          snapshotTimeText: '暂无时间',
+          slaStatusText: '正常',
+          statusClass: 'status-pill--normal',
+          statusText: '身份读取失败',
+          overview: null,
+          metricCards: [],
+          abnormalItems: [],
+          abnormalExpanded: false,
+          isEmpty: false,
+        });
+        wx.stopPullDownRefresh();
+        return;
+      }
     }
-    const runtimeMode = (app && app.globalData && app.globalData.runtimeMode) || 'demo';
     if (!currentUser) {
-      this.setData({
-        loading: false,
-        errorMessage: '',
-        canView: false,
-        roleLabel: '',
-        runtimeLabel: getRuntimeModeLabel(runtimeMode),
-        overview: null,
-        metricCards: [],
-        abnormalItems: [],
-        abnormalExpanded: false,
-        isEmpty: false,
-      });
-      wx.stopPullDownRefresh();
-      wx.reLaunch({ url: '/pages/login/index' });
+      this._redirectToLogin();
       return;
     }
     const roleLabel = getRoleLabel(currentUser.roleCode);
@@ -72,6 +92,11 @@ Page({
       canView,
       roleLabel,
       runtimeLabel: getRuntimeModeLabel(runtimeMode),
+      metricVersionText: '口径版本 v1',
+      snapshotTimeText: '暂无时间',
+      slaStatusText: '正常',
+      statusClass: 'status-pill--normal',
+      statusText: '数据已更新',
       overview: null,
       metricCards: [],
       abnormalItems: [],
@@ -101,6 +126,12 @@ Page({
         isEmpty: isOverviewEmpty(overview),
       });
     } catch (error) {
+      if (Number(error.statusCode || 0) === 401) {
+        logoutSession();
+        wx.showToast({ title: error.message || '登录状态已失效，请重新登录', icon: 'none' });
+        this._redirectToLogin();
+        return;
+      }
       this.setData({
         loading: false,
         errorMessage: error.message || '轻量报表加载失败，请稍后重试',
@@ -124,6 +155,28 @@ Page({
 
   onLogout() {
     logoutSession();
+    wx.reLaunch({ url: '/pages/login/index' });
+  },
+
+  _redirectToLogin() {
+    this.setData({
+      loading: false,
+      errorMessage: '',
+      canView: false,
+      roleLabel: '',
+      runtimeLabel: getRuntimeModeLabel(getRuntimeMode()),
+      metricVersionText: '口径版本 v1',
+      snapshotTimeText: '暂无时间',
+      slaStatusText: '正常',
+      statusClass: 'status-pill--normal',
+      statusText: '请先登录',
+      overview: null,
+      metricCards: [],
+      abnormalItems: [],
+      abnormalExpanded: false,
+      isEmpty: false,
+    });
+    wx.stopPullDownRefresh();
     wx.reLaunch({ url: '/pages/login/index' });
   },
 });

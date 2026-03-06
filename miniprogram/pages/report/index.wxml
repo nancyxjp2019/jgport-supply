@@ -33,12 +33,7 @@
     </view>
   </view>
 
-  <view wx:if="{{!canView}}" class="status-card forbidden-card">
-    <view class="status-card__title">当前角色暂不开放经营快报</view>
-    <view class="forbidden-text">当前角色：{{roleLabel}}。轻量报表首版仅开放运营、财务、管理员（小程序）。</view>
-  </view>
-
-  <block wx:elif="{{loading}}">
+  <block wx:if="{{loading}}">
     <view class="metric-grid">
       <view wx:for="{{skeletonItems}}" wx:key="*this" class="skeleton-card"></view>
     </view>
@@ -47,6 +42,11 @@
   <view wx:elif="{{errorMessage}}" class="status-card error-card">
     <view class="status-card__title">加载失败</view>
     <view class="error-text">{{errorMessage}}</view>
+  </view>
+
+  <view wx:elif="{{!canView}}" class="status-card forbidden-card">
+    <view class="status-card__title">当前角色暂不开放经营快报</view>
+    <view class="forbidden-text">当前角色：{{roleLabel}}。轻量报表首版仅开放运营、财务、管理员（小程序）。</view>
   </view>
 
   <view wx:elif="{{isEmpty}}" class="empty-card">

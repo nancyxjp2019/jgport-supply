@@ -1,6 +1,7 @@
-const { DEMO_ACTORS, getRuntimeModeLabel } = require('../../config/env');
+const { DEMO_ACTORS, getApiBaseUrl, getRuntimeMode, getRuntimeModeLabel } = require('../../config/env');
+const { loginMiniprogramLocal } = require('../../utils/api');
 const { canViewLightReport } = require('../../utils/light-report');
-const { initializeSession, loginAsDemoRole, logoutSession } = require('../../utils/session');
+const { initializeSession, loginAsDemoRole, logoutSession, saveAccessSession, setLoginRuntimeMode } = require('../../utils/session');
 
 const ROLE_CARD_CONFIG = [
   {
@@ -46,29 +47,52 @@ function buildRoleCards() {
 
 Page({
   data: {
+    runtimeMode: 'demo',
     runtimeLabel: '演示模式',
     currentRoleLabel: '',
+    apiBaseUrl: '',
     roleCards: buildRoleCards(),
   },
 
   onShow() {
     const currentUser = initializeSession();
-    const app = getApp();
+    const runtimeMode = getRuntimeMode();
     this.setData({
-      runtimeLabel: getRuntimeModeLabel((app.globalData && app.globalData.runtimeMode) || 'demo'),
+      runtimeMode,
+      runtimeLabel: getRuntimeModeLabel(runtimeMode),
       currentRoleLabel: currentUser ? currentUser.roleLabel : '',
+      apiBaseUrl: getApiBaseUrl(),
       roleCards: buildRoleCards(),
     });
   },
 
-  onLogin(event) {
+  onSelectMode(event) {
+    const mode = String(event.currentTarget.dataset.mode || '').trim();
+    setLoginRuntimeMode(mode);
+    this.setData({
+      runtimeMode: getRuntimeMode(),
+      runtimeLabel: getRuntimeModeLabel(getRuntimeMode()),
+      currentRoleLabel: '',
+      apiBaseUrl: getApiBaseUrl(),
+    });
+  },
+
+  async onLogin(event) {
     const roleCode = String(event.currentTarget.dataset.roleCode || '').trim();
     let actor = null;
     try {
-      actor = loginAsDemoRole(roleCode);
+      if (this.data.runtimeMode === 'local_api') {
+        const response = await loginMiniprogramLocal(roleCode);
+        actor = saveAccessSession({
+          accessToken: response.data.access_token,
+          profile: response.data,
+        });
+      } else {
+        actor = loginAsDemoRole(roleCode);
+      }
     } catch (error) {
       wx.showToast({
-        title: error.message || '角色切换失败',
+        title: error.message || '登录失败，请稍后重试',
         icon: 'none',
       });
       return;

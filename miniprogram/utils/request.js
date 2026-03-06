@@ -1,6 +1,7 @@
 const { getApiBaseUrl } = require('../config/env');
+const { getAccessToken } = require('./session');
 
-function request({ url, method = 'GET', data = null, timeout = 12000 }) {
+function request({ url, method = 'GET', data = null, timeout = 12000, header = {}, skipAuth = false }) {
   const baseUrl = getApiBaseUrl();
   if (!baseUrl) {
     return Promise.reject({
@@ -10,14 +11,20 @@ function request({ url, method = 'GET', data = null, timeout = 12000 }) {
   }
 
   return new Promise((resolve, reject) => {
+    const token = !skipAuth ? getAccessToken() : '';
+    const requestHeaders = {
+      'Content-Type': 'application/json',
+      ...header,
+    };
+    if (token) {
+      requestHeaders.Authorization = `Bearer ${token}`;
+    }
     wx.request({
       url: `${baseUrl}${url}`,
       method,
       data,
       timeout,
-      header: {
-        'Content-Type': 'application/json',
-      },
+      header: requestHeaders,
       success: (res) => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           resolve({

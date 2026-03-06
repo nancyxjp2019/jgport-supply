@@ -1,4 +1,5 @@
-const { getDemoActor, getRuntimeMode, getRuntimeModeLabel } = require('./config/env');
+const { getRuntimeMode, getRuntimeModeLabel } = require('./config/env');
+const { initializeSession } = require('./utils/session');
 
 App({
   globalData: {
@@ -10,6 +11,6 @@ App({
   onLaunch() {
     this.globalData.runtimeMode = getRuntimeMode();
     this.globalData.runtimeLabel = getRuntimeModeLabel(this.globalData.runtimeMode);
-    this.globalData.user = getDemoActor();
+    this.globalData.user = initializeSession();
   },
 });

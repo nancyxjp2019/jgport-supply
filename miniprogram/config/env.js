@@ -1,11 +1,17 @@
 const STORAGE_RUNTIME_MODE_KEY = 'mini_runtime_mode';
 const STORAGE_DEMO_ROLE_KEY = 'mini_demo_role_code';
+const LOCAL_API_BASE_URL = 'http://127.0.0.1:8000/api/v1';
 
 const RUNTIME_MODES = Object.freeze({
   demo: {
     key: 'demo',
     label: '演示模式',
     apiBaseUrl: '',
+  },
+  local_api: {
+    key: 'local_api',
+    label: '本地联调',
+    apiBaseUrl: LOCAL_API_BASE_URL,
   },
 });
 
@@ -61,7 +67,7 @@ const DEMO_ACTORS = Object.freeze({
 });
 
 function normalizeRuntimeMode(value) {
-  return value === 'demo' ? value : 'demo';
+  return ['demo', 'local_api'].includes(String(value || '').trim()) ? String(value || '').trim() : 'demo';
 }
 
 function getRuntimeMode() {
@@ -69,6 +75,14 @@ function getRuntimeMode() {
     return 'demo';
   }
   return normalizeRuntimeMode(wx.getStorageSync(STORAGE_RUNTIME_MODE_KEY));
+}
+
+function setRuntimeMode(mode) {
+  const normalizedMode = normalizeRuntimeMode(mode);
+  if (typeof wx !== 'undefined' && typeof wx.setStorageSync === 'function') {
+    wx.setStorageSync(STORAGE_RUNTIME_MODE_KEY, normalizedMode);
+  }
+  return normalizedMode;
 }
 
 function getRuntimeModeLabel(mode) {
@@ -123,5 +137,6 @@ module.exports = {
   getDemoRoleCode,
   getRuntimeMode,
   getRuntimeModeLabel,
+  setRuntimeMode,
   setDemoRoleCode,
 };

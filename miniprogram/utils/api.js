@@ -21,6 +21,24 @@ async function getLightReportOverview() {
   });
 }
 
+async function getAccessProfile() {
+  return request({
+    url: '/access/me',
+    method: 'GET',
+  });
+}
+
+async function loginMiniprogramLocal(roleCode) {
+  return request({
+    url: '/mini-auth/dev-login',
+    method: 'POST',
+    data: { role_code: roleCode },
+    skipAuth: true,
+  });
+}
+
 module.exports = {
+  getAccessProfile,
   getLightReportOverview,
+  loginMiniprogramLocal,
 };

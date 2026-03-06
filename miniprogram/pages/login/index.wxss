@@ -6,6 +6,40 @@
   margin-top: 20rpx;
 }
 
+.mode-switch {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 20rpx;
+}
+
+.mode-btn {
+  flex: 1;
+  min-height: 76rpx;
+  margin: 0;
+  border-radius: 18rpx;
+  background: rgba(16, 174, 255, 0.08);
+  color: #10aeff;
+  font-size: 26rpx;
+  line-height: 76rpx;
+}
+
+.mode-btn::after {
+  border: none;
+}
+
+.mode-btn--active {
+  background: linear-gradient(160deg, #0f766e 0%, #0d9488 100%);
+  color: #ffffff;
+}
+
+.mode-hint {
+  margin-top: 16rpx;
+  color: #999999;
+  font-size: 24rpx;
+  line-height: 1.7;
+  word-break: break-all;
+}
+
 .role-grid {
   display: flex;
   flex-direction: column;

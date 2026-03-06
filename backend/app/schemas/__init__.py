@@ -20,6 +20,7 @@ from app.schemas.funds import (
     ReceiptDocResponse,
     ReceiptDocSupplementRequest,
 )
+from app.schemas.mini_auth import MiniProgramDevLoginRequest, MiniProgramDevLoginResponse
 from app.schemas.inventory import (
     InboundDocResponse,
     InboundDocSubmitRequest,
@@ -57,6 +58,8 @@ __all__ = [
     "ContractSubmitRequest",
     "InboundDocResponse",
     "InboundDocSubmitRequest",
+    "MiniProgramDevLoginRequest",
+    "MiniProgramDevLoginResponse",
     "PaymentDocConfirmRequest",
     "PaymentDocResponse",
     "PaymentDocSupplementRequest",

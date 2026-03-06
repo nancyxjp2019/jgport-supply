@@ -21,3 +21,4 @@ def test_dev_env_allows_blank_auth_proxy_secret() -> None:
         database_url='postgresql+psycopg://user@127.0.0.1:5432/jgport_v6',
     )
     assert settings.auth_proxy_shared_secret == 'jgport-v6-dev-secret'
+    assert settings.direct_auth_token_secret == 'jgport-v6-dev-token-secret'

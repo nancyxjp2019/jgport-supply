@@ -9,6 +9,16 @@
   </view>
 
   <view class="panel-card">
+    <view class="section-title">运行模式</view>
+    <view class="section-desc">演示模式用于页面评审，本地联调用于微信开发者工具直连本机后端。</view>
+    <view class="mode-switch">
+      <button class="mode-btn {{runtimeMode === 'demo' ? 'mode-btn--active' : ''}}" data-mode="demo" bindtap="onSelectMode">演示模式</button>
+      <button class="mode-btn {{runtimeMode === 'local_api' ? 'mode-btn--active' : ''}}" data-mode="local_api" bindtap="onSelectMode">本地联调</button>
+    </view>
+    <view wx:if="{{runtimeMode === 'local_api'}}" class="mode-hint">本机后端地址：{{apiBaseUrl}}</view>
+  </view>
+
+  <view class="panel-card">
     <view class="section-title">选择角色</view>
     <view class="section-desc">运营、财务、管理员可查看经营快报；客户、供应商、仓库可验证页面阻断提示。</view>
     <view class="role-grid">
@@ -28,7 +38,7 @@
 
   <view class="panel-card" wx:if="{{currentRoleLabel}}">
     <view class="section-title">当前会话</view>
-    <view class="section-desc">当前已选择 <text class="meta-strong">{{currentRoleLabel}}</text> 身份进行本地联调。</view>
+    <view class="section-desc">当前已选择 <text class="meta-strong">{{currentRoleLabel}}</text> 身份，运行模式为 <text class="meta-strong">{{runtimeLabel}}</text>。</view>
     <view class="button-row" style="margin-top: 20rpx;">
       <button class="secondary-btn" bindtap="onEnterReport">进入经营快报</button>
       <button class="danger-btn" bindtap="onLogout">清除当前身份</button>

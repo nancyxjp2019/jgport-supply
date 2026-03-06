@@ -69,6 +69,7 @@
 - 上述身份上下文应由网关、登录中间层或服务端代理透传，不应由终端页面直接拼装。
 - `X-Auth-Secret` 必须与环境变量 `auth_proxy_shared_secret` 一致。
 - 非开发环境必须显式配置随机密钥，禁止继续使用默认开发密钥。
+- 开发者工具本地联调另提供 `Authorization: Bearer <token>` 方式，仅 `dev/test` 环境开放，由 `POST /api/v1/mini-auth/dev-login` 签发，不能替代正式登录体系。
 - `GET/PUT /api/v1/system-configs/thresholds` 仅允许 `admin + operator_company + admin_web`。
 - `GET /api/v1/audit/logs` 允许 `admin/finance/operations + operator_company + admin_web`。
 - `POST /api/v1/audit/logs` 仅允许 `admin + operator_company + admin_web`。
@@ -136,6 +137,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - V5 后端代码已归档至 `archive/v5/backend/`，仅供对照。
 - 若 `psql` 未在 PATH，可使用完整路径执行，例如：`/usr/local/Cellar/postgresql@18/18.3/bin/psql`。
 - 测试默认使用临时 PostgreSQL 数据库，测试结束后自动销毁，不污染开发库。
+- `POST /api/v1/mini-auth/dev-login` 仅用于微信开发者工具本地联调；非开发环境不得作为正式认证方案。
 
 ## 9. 已实现接口（阶段C迭代4-M4）
 - 资金单据：
@@ -196,3 +198,12 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
   - 小程序轻量报表首版仅向运营侧角色开放，不向客户/供应商/仓库暴露经营金额汇总。
   - 查询报表时会写入 `report_snapshots` 快照，版本固定为 `v1`，历史快照不覆盖。
   - 当前仍未实现多维管理报表、每日扫描任务、事件触发增量刷新编排与报表导出。
+
+## 13. 已实现接口（阶段C迭代8-M8-05）
+- 小程序开发者工具本地联调：
+  - `POST /api/v1/mini-auth/dev-login`
+- 当前实现约束：
+  - 仅 `dev/test` 环境开放本地联调令牌签发。
+  - `POST /api/v1/mini-auth/dev-login` 会根据冻结角色与公司归属返回 `Bearer` 令牌。
+  - 受保护接口在 `dev/test` 环境支持 `Authorization: Bearer <token>` 本地联调方式。
+  - 该链路仅用于微信开发者工具本地联调，不能替代正式微信登录与生产认证。
