@@ -1,0 +1,116 @@
+.report-hero {
+  padding: 24rpx;
+}
+
+.report-hero__head,
+.report-hero__meta,
+.abnormal-card__head,
+.detail-row__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+}
+
+.report-hero__head {
+  align-items: flex-start;
+}
+
+.report-hero__tags {
+  justify-content: flex-end;
+}
+
+.report-hero__meta {
+  margin-top: 18rpx;
+}
+
+.status-card,
+.empty-card,
+.abnormal-card,
+.detail-card {
+  padding: 24rpx;
+}
+
+.status-card__title,
+.detail-card__title,
+.abnormal-card__title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #333333;
+}
+
+.forbidden-card {
+  border-color: rgba(255, 149, 0, 0.18);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 243, 224, 0.88));
+}
+
+.error-card {
+  border-color: rgba(250, 81, 81, 0.18);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 235, 238, 0.88));
+}
+
+.empty-card {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.skeleton-card {
+  width: calc((100% - 16rpx) / 2);
+  min-height: 192rpx;
+}
+
+.abnormal-card {
+  background: linear-gradient(160deg, rgba(255, 149, 0, 0.08), rgba(255, 255, 255, 0.96));
+}
+
+.abnormal-card__label {
+  font-size: 24rpx;
+  color: #999999;
+}
+
+.abnormal-card__title {
+  margin-top: 10rpx;
+}
+
+.abnormal-card__action {
+  min-width: 88rpx;
+  min-height: 44rpx;
+  padding: 0 16rpx;
+  border-radius: 999rpx;
+  background: rgba(16, 174, 255, 0.12);
+  color: #10aeff;
+  font-size: 22rpx;
+  text-align: center;
+  line-height: 44rpx;
+}
+
+.abnormal-pill-row {
+  margin-top: 20rpx;
+}
+
+.abnormal-detail-card {
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.detail-row {
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #eeeeee;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-row__label,
+.detail-row__value {
+  font-size: 26rpx;
+  color: #333333;
+}
+
+.detail-row__value {
+  font-weight: 700;
+}
+
+.page-footer {
+  padding: 8rpx 4rpx 36rpx;
+  text-align: center;
+}

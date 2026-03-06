@@ -21,7 +21,7 @@
 - 业务规则变更必须同步更新 `docs/需求方案.md` 并标注状态。
 - 官方 `Vben Admin` 当前以 Monorepo 模板方式提供；V6 仓库首批不直接整仓引入上游模板，而是在 `admin-web/` 内按其工程组织思想建立本地化骨架，避免一次性引入无关应用与包。
 
-## 5. 当前进展（2026-03-05）
+## 5. 当前进展（2026-03-06）
 - 已完成 `backend/` 最小可运行基座：
   - FastAPI 应用入口与 `/api/v1/healthz`
   - SQLAlchemy 会话与 `business_logs` 模型
@@ -30,3 +30,8 @@
   - `alembic upgrade head` 成功
   - `pytest` 成功
   - `uvicorn` 启动后健康检查返回 `{\"status\":\"ok\"}`
+
+- 已完成 `miniprogram/` 最小可运行基座：
+  - 原生小程序应用入口与 `project.config.json`
+  - `MINI-REPORT-01` 经营快报页
+  - 演示模式与页面纯函数测试

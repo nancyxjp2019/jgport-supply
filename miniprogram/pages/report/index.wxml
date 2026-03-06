@@ -1,0 +1,79 @@
+<view class="page-shell">
+  <view class="hero-card report-hero">
+    <view class="report-hero__head">
+      <view>
+        <view class="page-title">经营快报</view>
+        <view class="page-subtitle">{{statusText}}</view>
+      </view>
+      <view class="pill-row report-hero__tags">
+        <view class="version-pill">{{metricVersionText}}</view>
+        <view class="mode-pill">{{runtimeLabel}}</view>
+      </view>
+    </view>
+    <view class="report-hero__meta">
+      <text class="meta-text">更新时间：{{snapshotTimeText}}</text>
+      <view class="status-pill {{statusClass}}">{{slaStatusText}}</view>
+    </view>
+  </view>
+
+  <view wx:if="{{!canView}}" class="status-card forbidden-card">
+    <view class="status-card__title">当前角色暂不开放经营快报</view>
+    <view class="forbidden-text">当前角色：{{roleLabel}}。轻量报表首版仅开放运营、财务、管理员（小程序）。</view>
+  </view>
+
+  <block wx:elif="{{loading}}">
+    <view class="metric-grid">
+      <view wx:for="{{skeletonItems}}" wx:key="*this" class="skeleton-card"></view>
+    </view>
+  </block>
+
+  <view wx:elif="{{errorMessage}}" class="status-card error-card">
+    <view class="status-card__title">加载失败</view>
+    <view class="error-text">{{errorMessage}}</view>
+  </view>
+
+  <view wx:elif="{{isEmpty}}" class="empty-card">
+    <view class="status-card__title">今日暂无汇总数据</view>
+    <view class="empty-text">当前暂无可展示的实收、实付和出入库汇总。</view>
+  </view>
+
+  <block wx:else>
+    <view class="metric-grid">
+      <view wx:for="{{metricCards}}" wx:key="key" class="metric-card {{item.className}}">
+        <view class="metric-card__label">{{item.label}}</view>
+        <text class="metric-card__value">{{item.value}}</text>
+        <view class="metric-card__desc">{{item.desc}}</view>
+      </view>
+    </view>
+
+    <view class="abnormal-card" bindtap="onToggleAbnormalDetail">
+      <view class="abnormal-card__head">
+        <view>
+          <view class="abnormal-card__label">异常提醒</view>
+          <view class="abnormal-card__title">异常 {{overview.abnormal_count}} 项</view>
+          <view class="card-caption">点击查看异常明细预览</view>
+        </view>
+        <view class="abnormal-card__action">{{abnormalExpanded ? '收起' : '展开'}}</view>
+      </view>
+      <view class="pill-row abnormal-pill-row">
+        <view wx:for="{{abnormalItems}}" wx:key="key" class="abnormal-pill {{item.className}}">
+          {{item.label}} {{item.value}}
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{abnormalExpanded}}" class="detail-card abnormal-detail-card">
+      <view class="detail-card__title">异常明细预览</view>
+      <view wx:for="{{abnormalItems}}" wx:key="key" class="detail-row">
+        <view class="detail-row__head">
+          <view class="detail-row__label">{{item.label}}</view>
+          <view class="detail-row__value">{{item.value}} 项</view>
+        </view>
+        <view class="status-tip">{{item.tip}}</view>
+      </view>
+      <view class="footer-text">完整业务看板请在管理后台查看。</view>
+    </view>
+  </block>
+
+  <view class="page-footer footer-text">首版仅开放运营、财务、管理员（小程序）查看，不向客户、供应商、仓库暴露经营金额汇总。</view>
+</view>

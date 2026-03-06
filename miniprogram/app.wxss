@@ -1,0 +1,173 @@
+page {
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top right, rgba(16, 174, 255, 0.18), transparent 32%),
+    linear-gradient(180deg, #f7fbfb 0%, #f5f5f5 48%, #eef3f5 100%);
+  color: #333333;
+  font-size: 28rpx;
+}
+
+view,
+text,
+button {
+  box-sizing: border-box;
+}
+
+.page-shell {
+  min-height: 100vh;
+  padding: 24rpx 24rpx 40rpx;
+}
+
+.card,
+.hero-card,
+.metric-card,
+.abnormal-card,
+.detail-card,
+.empty-card,
+.status-card,
+.skeleton-card {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1rpx solid #eeeeee;
+  border-radius: 24rpx;
+  box-shadow: 0 16rpx 36rpx rgba(15, 118, 110, 0.08);
+}
+
+.hero-card,
+.abnormal-card,
+.detail-card,
+.empty-card,
+.status-card {
+  margin-bottom: 20rpx;
+}
+
+.page-title {
+  font-size: 36rpx;
+  line-height: 1.4;
+  font-weight: 700;
+}
+
+.page-subtitle,
+.meta-text,
+.card-caption,
+.status-tip,
+.footer-text,
+.empty-text,
+.error-text,
+.forbidden-text {
+  color: #999999;
+  font-size: 24rpx;
+  line-height: 1.6;
+}
+
+.metric-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
+}
+
+.metric-card {
+  width: calc((100% - 16rpx) / 2);
+  min-height: 192rpx;
+  padding: 20rpx;
+  color: #ffffff;
+}
+
+.metric-card__label {
+  font-size: 24rpx;
+  opacity: 0.9;
+}
+
+.metric-card__value {
+  display: block;
+  margin-top: 18rpx;
+  font-size: 40rpx;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.metric-card__desc {
+  margin-top: 14rpx;
+  font-size: 22rpx;
+  opacity: 0.88;
+}
+
+.metric-card--receipt {
+  background: linear-gradient(160deg, #0f766e 0%, #0d9488 100%);
+}
+
+.metric-card--payment {
+  background: linear-gradient(160deg, #9a3412 0%, #c2410c 100%);
+}
+
+.metric-card--inbound {
+  background: linear-gradient(160deg, #166534 0%, #15803d 100%);
+}
+
+.metric-card--outbound {
+  background: linear-gradient(160deg, #3730a3 0%, #4338ca 100%);
+}
+
+.pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.pill,
+.version-pill,
+.mode-pill,
+.abnormal-pill,
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44rpx;
+  padding: 0 16rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+}
+
+.version-pill {
+  background: rgba(7, 193, 96, 0.12);
+  color: #07c160;
+}
+
+.mode-pill {
+  background: rgba(16, 174, 255, 0.12);
+  color: #10aeff;
+}
+
+.status-pill--normal {
+  background: rgba(7, 193, 96, 0.12);
+  color: #07c160;
+}
+
+.status-pill--delayed {
+  background: rgba(255, 149, 0, 0.12);
+  color: #ff9500;
+}
+
+.status-pill--error {
+  background: rgba(250, 81, 81, 0.12);
+  color: #fa5151;
+}
+
+.abnormal-pill--pending {
+  background: #fff3e0;
+  color: #ff9500;
+}
+
+.abnormal-pill--failed {
+  background: #ffebee;
+  color: #fa5151;
+}
+
+.abnormal-pill--qtydone {
+  background: #fff5e6;
+  color: #d97706;
+}
+
+.link-text {
+  color: #10aeff;
+}

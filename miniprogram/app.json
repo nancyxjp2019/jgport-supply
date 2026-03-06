@@ -1,0 +1,14 @@
+{
+  "pages": [
+    "pages/report/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "隽港顺达 V6",
+    "navigationBarBackgroundColor": "#0F766E",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#F5F5F5",
+    "backgroundTextStyle": "light"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}
