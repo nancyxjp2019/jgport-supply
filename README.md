@@ -4,10 +4,11 @@
 - 本仓库已切换到 **V6 重建模式**。
 - 历史 V5 代码与文档已归档至 `archive/v5/`，用于追溯与参考，不再作为 V6 默认开发目录。
 - V6 默认开发目录：`backend/`、`admin-web/`、`miniprogram/`、`docs/`。
+- 当前已完成：`M1~M7` 后端与报表首批能力，`M8-01` 管理后台基座与报表页首批能力。
 
 ## 2. 目录说明
 - `backend/`：V6 后端工程（FastAPI + PostgreSQL 18）
-- `admin-web/`：V6 管理后台工程（Vue 3 + Element Plus + Vben Admin）
+- `admin-web/`：V6 管理后台工程（Vue 3 + Element Plus，工程组织对齐 Vben Admin）
 - `miniprogram/`：V6 小程序执行链工程
 - `docs/`：V6 需求、方案、设计、迁移与联调文档
 - `archive/v5/`：V5 归档区（只读参考，避免干扰 V6 开发）

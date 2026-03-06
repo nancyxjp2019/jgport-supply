@@ -1,0 +1,81 @@
+<template>
+  <div class="shell">
+    <aside class="shell__rail">
+      <div class="brand-card">
+        <p class="brand-card__eyebrow">运营驾驶舱</p>
+        <h1>JGPORT V6</h1>
+        <p>报表口径与页面结构对齐 M7 原型说明，先落地经营首页与业务看板。</p>
+      </div>
+
+      <nav class="shell__nav">
+        <RouterLink
+          v-for="item in navItems"
+          :key="item.to"
+          :to="item.to"
+          class="shell__nav-item"
+          active-class="is-active"
+        >
+          <span class="shell__nav-title">{{ item.label }}</span>
+          <span class="shell__nav-summary">{{ item.summary }}</span>
+        </RouterLink>
+      </nav>
+
+      <div class="shell__mode-card">
+        <span class="shell__mode-label">当前模式</span>
+        <strong>{{ modeLabel }}</strong>
+        <p>{{ modeHint }}</p>
+      </div>
+    </aside>
+
+    <main class="shell__main">
+      <header class="shell__topbar">
+        <div>
+          <p class="shell__topbar-eyebrow">管理后台首批页面</p>
+          <h2>{{ routeTitle }}</h2>
+          <p>{{ routeSummary }}</p>
+        </div>
+        <div class="shell__topbar-meta">
+          <span class="meta-pill">{{ modeLabel }}</span>
+          <span class="meta-pill meta-pill--subtle">仅运营侧可见</span>
+        </div>
+      </header>
+
+      <section class="shell__content">
+        <RouterView />
+      </section>
+    </main>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed } from 'vue'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
+
+import { reportsMode } from '@/api/http'
+
+const route = useRoute()
+
+const navItems = [
+  {
+    to: '/dashboard',
+    label: '经营仪表盘',
+    summary: '聚焦履约、资金、库存与异常预警',
+  },
+  {
+    to: '/board',
+    label: '业务看板',
+    summary: '聚焦待补录金额、库存阻塞与合同待关闭',
+  },
+]
+
+const routeTitle = computed(() => (typeof route.meta.title === 'string' ? route.meta.title : '管理后台'))
+const routeSummary = computed(() =>
+  typeof route.meta.summary === 'string' ? route.meta.summary : '聚焦运营与财务协同场景',
+)
+const modeLabel = computed(() => (reportsMode === 'proxy' ? '代理联调模式' : '演示模式'))
+const modeHint = computed(() =>
+  reportsMode === 'proxy'
+    ? '由开发代理在服务端注入身份头，本地联调时不在浏览器暴露密钥。'
+    : '使用本地演示数据，便于在登录体系未落地前先评审页面。',
+)
+</script>
