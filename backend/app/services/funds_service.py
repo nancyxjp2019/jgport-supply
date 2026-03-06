@@ -21,6 +21,11 @@ from app.models.purchase_order import PurchaseOrder
 from app.models.receipt_doc import ReceiptDoc
 from app.models.sales_order import SalesOrder
 from app.models.sales_order_derivative_task import SalesOrderDerivativeTask
+from app.services.contract_close_service import (
+    ContractCloseServiceError,
+    ensure_contract_open_for_funds,
+    evaluate_contract_closure,
+)
 
 MONEY_PRECISION = Decimal("0.01")
 QTY_PRECISION = Decimal("0.001")
@@ -241,6 +246,7 @@ def create_payment_doc_supplement(
     amount_actual: Decimal,
 ) -> FundsServiceResult:
     contract = _get_contract_or_raise(db, contract_id)
+    _ensure_contract_open_for_funds_or_raise(contract)
     purchase_order = _get_purchase_order_or_raise(db, purchase_order_id)
     if purchase_order.purchase_contract_id != contract.id:
         raise FundsServiceError(
@@ -302,6 +308,7 @@ def create_receipt_doc_supplement(
     amount_actual: Decimal,
 ) -> FundsServiceResult:
     contract = _get_contract_or_raise(db, contract_id)
+    _ensure_contract_open_for_funds_or_raise(contract)
     sales_order = _get_sales_order_or_raise(db, sales_order_id)
     if sales_order.sales_contract_id != contract.id:
         raise FundsServiceError(
@@ -398,7 +405,15 @@ def confirm_payment_doc(
                 "voucher_file_count": len(normalized_voucher_files),
             },
         )
+        close_result = evaluate_contract_closure(
+            db,
+            contract_id=payment_doc.contract_id,
+            operator_id=operator_id,
+            trigger_code="PAYMENT_DOC_CONFIRMED",
+        )
         _commit_or_raise(db, message="确认付款单失败，请稍后重试")
+        if close_result.closed:
+            return FundsServiceResult(doc_id=payment_doc.id, message="付款单已确认，合同已自动关闭")
         return FundsServiceResult(doc_id=payment_doc.id, message="付款单已确认")
 
     if _is_rule11_zero_pay_doc(db, payment_doc):
@@ -417,7 +432,15 @@ def confirm_payment_doc(
             after_json=_build_payment_snapshot(payment_doc),
             extra_json={"confirm_rule": "RULE11", "voucher_file_count": 0},
         )
+        close_result = evaluate_contract_closure(
+            db,
+            contract_id=payment_doc.contract_id,
+            operator_id=operator_id,
+            trigger_code="PAYMENT_DOC_CONFIRMED",
+        )
         _commit_or_raise(db, message="确认付款单失败，请稍后重试")
+        if close_result.closed:
+            return FundsServiceResult(doc_id=payment_doc.id, message="付款单已按规则11例外确认，合同已自动关闭")
         return FundsServiceResult(doc_id=payment_doc.id, message="付款单已按规则11例外确认")
 
     if _passes_rule14_for_payment(db, payment_doc):
@@ -436,7 +459,15 @@ def confirm_payment_doc(
             after_json=_build_payment_snapshot(payment_doc),
             extra_json={"confirm_rule": "RULE14", "voucher_file_count": 0},
         )
+        close_result = evaluate_contract_closure(
+            db,
+            contract_id=payment_doc.contract_id,
+            operator_id=operator_id,
+            trigger_code="PAYMENT_DOC_CONFIRMED",
+        )
         _commit_or_raise(db, message="确认付款单失败，请稍后重试")
+        if close_result.closed:
+            return FundsServiceResult(doc_id=payment_doc.id, message="付款单已按规则14免凭证确认，合同已自动关闭")
         return FundsServiceResult(doc_id=payment_doc.id, message="付款单已按规则14免凭证确认")
 
     payment_doc.status = DOC_STATUS_PENDING_SUPPLEMENT
@@ -502,7 +533,15 @@ def confirm_receipt_doc(
                 "voucher_file_count": len(normalized_voucher_files),
             },
         )
+        close_result = evaluate_contract_closure(
+            db,
+            contract_id=receipt_doc.contract_id,
+            operator_id=operator_id,
+            trigger_code="RECEIPT_DOC_CONFIRMED",
+        )
         _commit_or_raise(db, message="确认收款单失败，请稍后重试")
+        if close_result.closed:
+            return FundsServiceResult(doc_id=receipt_doc.id, message="收款单已确认，合同已自动关闭")
         return FundsServiceResult(doc_id=receipt_doc.id, message="收款单已确认")
 
     if _passes_rule14_for_receipt(db, receipt_doc):
@@ -521,7 +560,15 @@ def confirm_receipt_doc(
             after_json=_build_receipt_snapshot(receipt_doc),
             extra_json={"confirm_rule": "RULE14", "voucher_file_count": 0},
         )
+        close_result = evaluate_contract_closure(
+            db,
+            contract_id=receipt_doc.contract_id,
+            operator_id=operator_id,
+            trigger_code="RECEIPT_DOC_CONFIRMED",
+        )
         _commit_or_raise(db, message="确认收款单失败，请稍后重试")
+        if close_result.closed:
+            return FundsServiceResult(doc_id=receipt_doc.id, message="收款单已按规则14免凭证确认，合同已自动关闭")
         return FundsServiceResult(doc_id=receipt_doc.id, message="收款单已按规则14免凭证确认")
 
     receipt_doc.status = DOC_STATUS_PENDING_SUPPLEMENT
@@ -604,6 +651,13 @@ def _get_contract_or_raise(db: Session, contract_id: int) -> Contract:
             detail="关联合同不存在",
         )
     return contract
+
+
+def _ensure_contract_open_for_funds_or_raise(contract: Contract) -> None:
+    try:
+        ensure_contract_open_for_funds(contract)
+    except ContractCloseServiceError as exc:
+        raise FundsServiceError(status_code=exc.status_code, detail=exc.detail) from exc
 
 
 def _get_contract_item_or_raise(db: Session, contract_id: int, oil_product_id: str) -> ContractItem:

@@ -12,6 +12,7 @@
   - `0006_add_m4_funds_domain`（M4：收款单、付款单、单据关系表）
   - `0007_add_m4_doc_attach`（M4：凭证附件表）
   - `0008_add_m5_inventory_exec`（M5：入库单、出库单、履约累计防重表）
+  - `0009_add_m6_contract_close`（M6：合同关闭字段、手工关闭差异记录）
 
 ## 2. 目录说明
 - `app/main.py`：应用入口
@@ -25,7 +26,7 @@
 - `app/models/contract_item.py`：合同油品明细模型
 - `app/models/contract_effective_task.py`：合同生效待处理任务模型
 - `alembic/`：迁移脚本
-- `tests/`：健康检查 + M1/M2/M3/M4/M5 接口与服务测试
+- `tests/`：健康检查 + M1/M2/M3/M4/M5/M6 接口与服务测试
 
 ## 3. 已实现接口（阶段C迭代1-M1）
 - 健康检查：
@@ -45,6 +46,7 @@
   - `POST /api/v1/contracts/sales`
   - `POST /api/v1/contracts/{id}/submit`
   - `POST /api/v1/contracts/{id}/approve`
+  - `POST /api/v1/contracts/{id}/manual-close`
   - `GET /api/v1/contracts/{id}`
   - `GET /api/v1/contracts/{id}/graph`
 - 当前实现约束：
@@ -67,6 +69,7 @@
 - `GET /api/v1/audit/logs` 允许 `admin/finance/operations + operator_company + admin_web`。
 - `POST /api/v1/audit/logs` 仅允许 `admin + operator_company + admin_web`。
 - `POST /api/v1/contracts/*` 与 `POST /api/v1/contracts/{id}/approve` 仅允许 `finance/admin + operator_company + admin_web`。
+- `POST /api/v1/contracts/{id}/manual-close` 仅允许 `finance/admin + operator_company + admin_web`。
 - `GET /api/v1/contracts/{id}` 与 `GET /api/v1/contracts/{id}/graph` 允许 `operations/finance/admin + operator_company + admin_web`。
 - `PUT /api/v1/sales-orders/{id}` 允许：
   - `customer + customer_company + miniprogram`，且必须透传所属 `X-Company-Id`；
@@ -159,3 +162,15 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
   - 过账成功后写入 `contract_qty_effects` 防重流水，并累计到 `contract_items.qty_in_acc/qty_out_acc`。
   - 当合同全部油品明细达到签约数量时，合同状态自动更新为 `数量履约完成`。
   - 当前仍未实现独立库存台账、库存余额报表、订单完成态联动与供应商确认发货状态机。
+
+## 11. 已实现接口（阶段C迭代6-M6）
+- 合同关闭：
+  - `POST /api/v1/contracts/{id}/manual-close`
+- 当前实现约束：
+  - 金额闭环按合同方向分开计算：销售只看收款净额，采购只看付款净额。
+  - 当合同已达到 `数量履约完成` 且金额闭环满足 `|差额| <= 0.01` 时，会在收付款确认或出入库过账后自动关闭合同。
+  - 自动关闭与手工关闭都会执行关闭收口：未终态的收付款单、入库单、出库单统一转 `已终止` 并写审计。
+  - 手工关闭要求：合同已达到 `数量履约完成`、原因必填、确认口令固定为 `MANUAL_CLOSE`。
+  - 手工关闭会记录关闭差异金额与按油品的关闭差异数量明细。
+  - 合同进入 `已关闭/手工关闭` 后，资金补录、出入库补录、出入库再次提交与后续资金确认会被服务端阻断。
+  - 当前仍未实现每日闭环扫描任务、看板告警、合同 `已归档` 状态与订单完成态联动。

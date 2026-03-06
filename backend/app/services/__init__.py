@@ -13,6 +13,13 @@ from app.services.contract_service import (
     normalize_qty,
     submit_contract_for_approval,
 )
+from app.services.contract_close_service import (
+    ContractCloseResult,
+    ContractCloseServiceError,
+    ensure_contract_open_for_funds,
+    evaluate_contract_closure,
+    manual_close_contract,
+)
 from app.services.funds_service import (
     FundsServiceError,
     FundsServiceResult,
@@ -48,6 +55,8 @@ __all__ = [
     "AuditWriteFailedError",
     "CONTRACT_DIRECTION_PURCHASE",
     "CONTRACT_DIRECTION_SALES",
+    "ContractCloseResult",
+    "ContractCloseServiceError",
     "ContractServiceError",
     "ContractServiceResult",
     "approve_contract",
@@ -69,9 +78,12 @@ __all__ = [
     "InventoryServiceError",
     "InventoryServiceResult",
     "ensure_sales_purchase_relation",
+    "ensure_contract_open_for_funds",
+    "evaluate_contract_closure",
     "materialize_contract_effective_fund_docs",
     "materialize_contract_effective_inbound_docs",
     "materialize_sales_order_fund_docs",
+    "manual_close_contract",
     "normalize_price",
     "normalize_qty",
     "ops_approve_sales_order",

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, Integer, Numeric, String, func
+from sqlalchemy import DateTime, Integer, JSON, Numeric, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -21,7 +21,13 @@ class Contract(Base):
     threshold_release_snapshot: Mapped[Decimal | None] = mapped_column(Numeric(8, 3), nullable=True)
     threshold_over_exec_snapshot: Mapped[Decimal | None] = mapped_column(Numeric(8, 3), nullable=True)
     close_type: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    closed_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     manual_close_reason: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    manual_close_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    manual_close_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    manual_close_diff_amount: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    manual_close_diff_qty_json: Mapped[list[dict[str, str]] | None] = mapped_column(JSON, nullable=True)
     submit_comment: Mapped[str | None] = mapped_column(String(256), nullable=True)
     approval_comment: Mapped[str | None] = mapped_column(String(256), nullable=True)
     created_by: Mapped[str] = mapped_column(String(64), nullable=False)

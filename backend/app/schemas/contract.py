@@ -43,6 +43,11 @@ class ContractApproveRequest(BaseModel):
     comment: str = Field(min_length=1, max_length=256, description="审批意见")
 
 
+class ContractManualCloseRequest(BaseModel):
+    reason: str = Field(min_length=1, max_length=256, description="手工关闭原因")
+    confirm_token: str = Field(min_length=1, max_length=32, description="手工关闭确认口令")
+
+
 class ContractItemResponse(BaseModel):
     id: int
     oil_product_id: str
@@ -61,6 +66,14 @@ class ContractResponse(BaseModel):
     customer_id: str | None = None
     threshold_release_snapshot: Decimal | None = None
     threshold_over_exec_snapshot: Decimal | None = None
+    close_type: str | None = None
+    closed_by: str | None = None
+    closed_at: datetime | None = None
+    manual_close_reason: str | None = None
+    manual_close_by: str | None = None
+    manual_close_at: datetime | None = None
+    manual_close_diff_amount: Decimal | None = None
+    manual_close_diff_qty_json: list[dict[str, str]] | None = None
     submit_comment: str | None = None
     approval_comment: str | None = None
     approved_by: str | None = None

@@ -4,7 +4,7 @@
 - 文档状态：`已冻结`
 - 目标：冻结实现口径，形成可开发规格，作为阶段C模块开发唯一输入。
 - 上游输入：
-  - `docs/需求方案.md`（当前规则 `1~39` 与“业务目标/角色权限”基线）
+  - `docs/需求方案.md`（当前规则 `1~40` 与“业务目标/角色权限”基线）
   - `docs/V6阶段A-流程图状态机与UI原型清单.md`
 - 下游输出：阶段C模块任务拆分、接口开发、联调与测试用例。
 
@@ -36,7 +36,7 @@
 
 | 实体 | 关键字段 | 关键约束 | 说明 |
 |---|---|---|---|
-| `contracts` | `id`,`contract_no`,`direction`,`status`,`threshold_release_snapshot`,`threshold_over_exec_snapshot`,`close_type`,`manual_close_reason` | `contract_no`唯一；`direction`审批后不可变；阈值快照来自系统参数且`release <= over_exec` | 合同主表，区分采购/销售方向 |
+| `contracts` | `id`,`contract_no`,`direction`,`status`,`threshold_release_snapshot`,`threshold_over_exec_snapshot`,`close_type`,`closed_by`,`closed_at`,`manual_close_reason`,`manual_close_by`,`manual_close_at`,`manual_close_diff_amount`,`manual_close_diff_qty_json` | `contract_no`唯一；`direction`审批后不可变；阈值快照来自系统参数且`release <= over_exec` | 合同主表，区分采购/销售方向 |
 | `contract_items` | `id`,`contract_id`,`oil_product_id`,`qty_signed`,`unit_price`,`qty_in_acc`,`qty_out_acc` | `contract_id+oil_product_id`唯一 | 合同按油品明细，金额与数量计算基准 |
 | `contract_effective_tasks` | `id`,`contract_id`,`target_doc_type`,`status`,`idempotency_key`,`payload_json` | `idempotency_key`唯一；合同审批通过时自动写入待处理任务 | 合同生效后待生成下游单据的任务表 |
 | `sales_orders` | `id`,`order_no`,`sales_contract_id`,`status`,`unit_price`,`qty_ordered` | `unit_price`来自销售合同，不允许脱离合同重写 | 销售订单主表 |
@@ -56,7 +56,7 @@
 ## 3.2 通用审计字段（所有业务单据）
 - 必填字段：`created_by`,`created_at`,`updated_by`,`updated_at`,`source_doc_id`,`source_event_id`,`biz_direction`。
 - 状态变更字段：`approved_by`,`approved_at`,`confirmed_by`,`confirmed_at`,`terminated_by`,`terminated_at`,`terminate_reason`。
-- 手工关闭专用：`manual_close_by`,`manual_close_at`,`manual_close_reason`,`manual_close_diff_amount`,`manual_close_diff_qty`。
+- 手工关闭专用：`manual_close_by`,`manual_close_at`,`manual_close_reason`,`manual_close_diff_amount`,`manual_close_diff_qty_json`。
 
 ## 3.3 关键计算口径冻结
 - 数量履约（销售）：`contract_item.qty_out_acc = Σ已生效出库单数量（基于contract_qty_effects防重流水）`。
@@ -104,7 +104,7 @@ purchase_payment_net =
 | 合同已数量履约完成后的出入库提交 | 合同状态=`数量履约完成` | 阻断新增出入库单生效 | `contract_qty_done_block:{contract_id}:{doc_id}` | 返回阻断错误并写审计 |
 | 入库单提交生效 | 录入实际入库量 | 执行超量阈值校验并生效/阻断 | `inbound_submit:{inbound_doc_id}` | 阻断后可调整数量重提 |
 | 收款单0金额提交 | `amount_actual=0` | 按规则14执行阈值校验并决定放行/待补录 | `receipt_zero_submit:{receipt_doc_id}` | 不通过转`待补录金额` |
-| 自动关闭校验任务 | 合同数量履约完成 | 按合同方向执行金额闭环校验 | `contract_auto_close_check:{contract_id}:{version}` | 校验失败转授权手工关闭 |
+| 自动关闭校验任务 | 合同数量履约完成 | 按合同方向执行金额闭环校验；成功后自动关闭并终止剩余未终态草稿/待处理单据 | `contract_auto_close_check:{contract_id}:{version}` | 校验失败转授权手工关闭 |
 | 每日闭环扫描任务 | 每日定时触发 | 扫描`数量履约完成且未关闭`合同并生成看板告警 | `contract_close_scan:{date}:{contract_id}` | 重复触发幂等跳过，写审计 |
 | 每日履约滞留扫描任务 | 每日定时触发 | 扫描`生效中且履约长时间未变化`合同并告警 | `contract_fulfillment_scan:{date}:{contract_id}` | 重复触发幂等跳过，写审计 |
 | 手工关闭执行 | 授权通过+原因必填 | 锁定、终止未生效、释放预占、差异记录、归档 | `contract_manual_close:{contract_id}` | 任一步失败回滚本事务并告警 |
@@ -131,7 +131,7 @@ purchase_payment_net =
 | `/contracts/{id}/submit` | `POST` | `comment` | 状态必须是`草稿` | `status=待审批` |
 | `/contracts/{id}/approve` | `POST` | `approval_result`,`comment` | 状态必须是`待审批` | `approval_result=true` 返回 `status=生效中`；`approval_result=false` 返回 `status=草稿` |
 | `/contracts/{id}` | `GET` | 无 | 仅授权角色可读 | 合同头、明细、阈值快照、状态 |
-| `/contracts/{id}/manual-close` | `POST` | `reason`,`confirm_token` | 原因必填；权限校验；二次确认 | `status=手工关闭` |
+| `/contracts/{id}/manual-close` | `POST` | `reason`,`confirm_token` | 原因必填；权限校验；`confirm_token` 固定为 `MANUAL_CLOSE` | `status=手工关闭` |
 | `/contracts/{id}/graph` | `GET` | 无 | 仅授权角色可读 | 合同节点 + 当前待处理下游任务 + 已形成关系图谱 |
 
 ## 5.2 订单域接口

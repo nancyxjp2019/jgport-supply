@@ -19,6 +19,7 @@ from app.models.doc_relation import DocRelation
 from app.models.inbound_doc import InboundDoc
 from app.models.outbound_doc import OutboundDoc
 from app.models.sales_order import SalesOrder
+from app.services.contract_close_service import evaluate_contract_closure
 
 QTY_PRECISION = Decimal("0.001")
 
@@ -345,7 +346,15 @@ def submit_inbound_doc(
         operator_id=operator_id,
         before_json=before_contract_json,
     )
+    close_result = evaluate_contract_closure(
+        db,
+        contract_id=contract.id,
+        operator_id=operator_id,
+        trigger_code="INBOUND_DOC_POSTED",
+    )
     _commit_or_raise(db, message="提交入库单失败，请稍后重试")
+    if close_result.closed:
+        return InventoryServiceResult(doc_id=inbound_doc.id, message="入库单已过账，合同已自动关闭")
     if effect_applied:
         message = "入库单已过账并计入履约数量"
     else:
@@ -445,7 +454,15 @@ def submit_outbound_doc(
         operator_id=operator_id,
         before_json=before_contract_json,
     )
+    close_result = evaluate_contract_closure(
+        db,
+        contract_id=contract.id,
+        operator_id=operator_id,
+        trigger_code="OUTBOUND_DOC_POSTED",
+    )
     _commit_or_raise(db, message="提交出库单失败，请稍后重试")
+    if close_result.closed:
+        return InventoryServiceResult(doc_id=outbound_doc.id, message="出库单已过账，合同已自动关闭")
     if effect_applied:
         message = "出库单已过账并计入履约数量"
     else:

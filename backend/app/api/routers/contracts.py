@@ -10,11 +10,13 @@ from app.schemas.contract import (
     ContractApproveRequest,
     ContractEffectiveTaskResponse,
     ContractGraphResponse,
+    ContractManualCloseRequest,
     ContractResponse,
     ContractSubmitRequest,
     PurchaseContractCreateRequest,
     SalesContractCreateRequest,
 )
+from app.services.contract_close_service import ContractCloseServiceError, manual_close_contract
 from app.services.contract_service import (
     CONTRACT_DIRECTION_PURCHASE,
     CONTRACT_DIRECTION_SALES,
@@ -169,6 +171,27 @@ def get_contract_graph(
     )
 
 
+@router.post("/{contract_id}/manual-close", response_model=ContractResponse)
+def manual_close_contract_route(
+    contract_id: int,
+    payload: ContractManualCloseRequest,
+    actor: AuthenticatedActor = Depends(contract_write_dependency),
+    db: Session = Depends(get_db),
+) -> ContractResponse:
+    try:
+        result = manual_close_contract(
+            db,
+            contract_id=contract_id,
+            operator_id=actor.user_id,
+            reason=payload.reason,
+            confirm_token=payload.confirm_token,
+        )
+        contract = get_contract_or_raise(db, result.contract_id)
+    except (ContractCloseServiceError, ContractServiceError) as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    return _to_contract_response(contract, message=result.message)
+
+
 def _to_contract_response(
     contract: Contract,
     *,
@@ -184,6 +207,14 @@ def _to_contract_response(
         customer_id=contract.customer_id,
         threshold_release_snapshot=contract.threshold_release_snapshot,
         threshold_over_exec_snapshot=contract.threshold_over_exec_snapshot,
+        close_type=contract.close_type,
+        closed_by=contract.closed_by,
+        closed_at=contract.closed_at,
+        manual_close_reason=contract.manual_close_reason,
+        manual_close_by=contract.manual_close_by,
+        manual_close_at=contract.manual_close_at,
+        manual_close_diff_amount=contract.manual_close_diff_amount,
+        manual_close_diff_qty_json=contract.manual_close_diff_qty_json,
         submit_comment=contract.submit_comment,
         approval_comment=contract.approval_comment,
         approved_by=contract.approved_by,
