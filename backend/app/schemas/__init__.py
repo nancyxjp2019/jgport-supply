@@ -41,6 +41,7 @@ from app.schemas.order import (
 )
 from app.schemas.report import BoardTaskItem, BoardTasksResponse, DashboardSummaryResponse, LightReportOverviewResponse
 from app.schemas.threshold import ThresholdConfigPublishRequest, ThresholdConfigResponse
+from app.schemas.wechat_auth import MiniProgramWeChatLoginRequest, MiniProgramWeChatLoginResponse
 
 __all__ = [
     "AccessCheckRequest",
@@ -86,4 +87,6 @@ __all__ = [
     "SalesOrderUpdateRequest",
     "ThresholdConfigPublishRequest",
     "ThresholdConfigResponse",
+    "MiniProgramWeChatLoginRequest",
+    "MiniProgramWeChatLoginResponse",
 ]

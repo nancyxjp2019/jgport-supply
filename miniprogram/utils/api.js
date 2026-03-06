@@ -37,8 +37,18 @@ async function loginMiniprogramLocal(roleCode) {
   });
 }
 
+async function loginMiniprogramWechat(code) {
+  return request({
+    url: '/mini-auth/wechat-login',
+    method: 'POST',
+    data: { code },
+    skipAuth: true,
+  });
+}
+
 module.exports = {
   getAccessProfile,
   getLightReportOverview,
   loginMiniprogramLocal,
+  loginMiniprogramWechat,
 };

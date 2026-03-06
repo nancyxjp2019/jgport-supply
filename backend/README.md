@@ -13,6 +13,8 @@
   - `0007_add_m4_doc_attach`（M4：凭证附件表）
   - `0008_add_m5_inventory_exec`（M5：入库单、出库单、履约累计防重表）
   - `0009_add_m6_contract_close`（M6：合同关闭字段、手工关闭差异记录）
+  - `0010_add_m7_reports`（M7：仪表盘、看板、轻量报表快照）
+  - `0011_add_m8_wechat_auth`（M8-06：小程序微信登录绑定表）
 
 ## 2. 目录说明
 - `app/main.py`：应用入口
@@ -70,6 +72,7 @@
 - `X-Auth-Secret` 必须与环境变量 `auth_proxy_shared_secret` 一致。
 - 非开发环境必须显式配置随机密钥，禁止继续使用默认开发密钥。
 - 开发者工具本地联调另提供 `Authorization: Bearer <token>` 方式，仅 `dev/test` 环境开放，由 `POST /api/v1/mini-auth/dev-login` 签发，不能替代正式登录体系。
+- 小程序正式微信登录也使用 `Authorization: Bearer <token>` 访问受保护接口；非开发环境必须显式配置 `direct_auth_token_secret`。
 - `GET/PUT /api/v1/system-configs/thresholds` 仅允许 `admin + operator_company + admin_web`。
 - `GET /api/v1/audit/logs` 允许 `admin/finance/operations + operator_company + admin_web`。
 - `POST /api/v1/audit/logs` 仅允许 `admin + operator_company + admin_web`。
@@ -207,3 +210,13 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
   - `POST /api/v1/mini-auth/dev-login` 会根据冻结角色与公司归属返回 `Bearer` 令牌。
   - 受保护接口在 `dev/test` 环境支持 `Authorization: Bearer <token>` 本地联调方式。
   - 该链路仅用于微信开发者工具本地联调，不能替代正式微信登录与生产认证。
+
+## 14. 已实现接口（阶段C迭代8-M8-06）
+- 小程序微信登录：
+  - `POST /api/v1/mini-auth/wechat-login`
+- 当前实现约束：
+  - 服务端通过微信官方 `code2session` 接口完成 `openid/session_key` 交换。
+  - 若微信账号已绑定业务角色，则签发 Bearer 令牌并返回当前角色与公司归属。
+  - 若微信账号未绑定业务角色，则返回 `binding_required=true`；在 `dev/test` 环境附带 `debug_openid` 供本地绑定脚本使用。
+  - 当前仓库提供绑定脚本：`cd backend && python scripts/bootstrap_mini_program_account.py --openid ... --role-code ... --company-id ... --company-type ...`。
+  - 本轮只完成微信登录骨架，不包含后台绑定 UI、真机 HTTPS 联调与正式用户中心。

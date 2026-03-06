@@ -29,24 +29,24 @@ def verify_direct_auth_token(token: str) -> AuthenticatedActor:
     try:
         prefix, payload_segment, signature_segment = token.split(".", 2)
     except ValueError as exc:
-        raise _build_invalid_token_error("联调令牌格式不正确") from exc
+        raise _build_invalid_token_error("登录令牌格式不正确") from exc
     if prefix != TOKEN_PREFIX:
-        raise _build_invalid_token_error("联调令牌版本不支持")
+        raise _build_invalid_token_error("登录令牌版本不支持")
 
     expected_signature = _sign_segment(payload_segment, settings.direct_auth_token_secret)
     if not hmac.compare_digest(signature_segment, expected_signature):
-        raise _build_invalid_token_error("联调令牌签名校验失败")
+        raise _build_invalid_token_error("登录令牌签名校验失败")
 
     try:
         payload = json.loads(_decode_segment(payload_segment))
     except (json.JSONDecodeError, ValueError) as exc:
-        raise _build_invalid_token_error("联调令牌内容解析失败") from exc
+        raise _build_invalid_token_error("登录令牌内容解析失败") from exc
 
     required_fields = {"user_id", "role_code", "company_id", "company_type", "client_type", "exp"}
     if not required_fields.issubset(payload):
-        raise _build_invalid_token_error("联调令牌字段不完整")
+        raise _build_invalid_token_error("登录令牌字段不完整")
     if int(payload["exp"]) <= int(time.time()):
-        raise _build_invalid_token_error("联调令牌已过期，请重新登录")
+        raise _build_invalid_token_error("登录令牌已过期，请重新登录")
 
     return AuthenticatedActor(
         user_id=str(payload["user_id"]),

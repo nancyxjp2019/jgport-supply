@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://davidxi@127.0.0.1:5432/jgport_v6"
     auth_proxy_shared_secret: str = ""
     direct_auth_token_secret: str = ""
+    wechat_mini_app_id: str = ""
+    wechat_mini_app_secret: str = ""
+    wechat_api_base: str = "https://api.weixin.qq.com"
+    wechat_api_timeout_seconds: int = 8
 
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE_PATH),
@@ -48,6 +52,8 @@ class Settings(BaseSettings):
             raise ValueError("非开发环境禁止使用默认服务端身份透传密钥")
         if not self.direct_auth_token_secret and normalized_env in {"dev", "test"}:
             self.direct_auth_token_secret = DEFAULT_DEV_DIRECT_AUTH_TOKEN_SECRET
+        if not self.direct_auth_token_secret and normalized_env not in {"dev", "test"}:
+            raise ValueError("非开发环境必须配置直接登录令牌密钥")
         return self
 
 

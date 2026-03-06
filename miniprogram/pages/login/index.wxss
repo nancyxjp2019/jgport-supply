@@ -8,12 +8,14 @@
 
 .mode-switch {
   display: flex;
+  flex-wrap: wrap;
   gap: 16rpx;
   margin-top: 20rpx;
 }
 
 .mode-btn {
   flex: 1;
+  min-width: 200rpx;
   min-height: 76rpx;
   margin: 0;
   border-radius: 18rpx;
@@ -34,6 +36,29 @@
 
 .mode-hint {
   margin-top: 16rpx;
+  color: #999999;
+  font-size: 24rpx;
+  line-height: 1.7;
+  word-break: break-all;
+}
+
+.binding-hint {
+  margin-top: 20rpx;
+  padding: 20rpx;
+  border-radius: 20rpx;
+  background: rgba(255, 243, 224, 0.88);
+  border: 1rpx solid rgba(255, 149, 0, 0.18);
+}
+
+.binding-hint__title {
+  color: #9a3412;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.binding-hint__desc,
+.binding-hint__debug {
+  margin-top: 10rpx;
   color: #999999;
   font-size: 24rpx;
   line-height: 1.7;

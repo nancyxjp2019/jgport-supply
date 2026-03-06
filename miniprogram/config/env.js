@@ -1,6 +1,6 @@
 const STORAGE_RUNTIME_MODE_KEY = 'mini_runtime_mode';
 const STORAGE_DEMO_ROLE_KEY = 'mini_demo_role_code';
-const LOCAL_API_BASE_URL = 'http://127.0.0.1:8000/api/v1';
+const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8000/api/v1';
 
 const RUNTIME_MODES = Object.freeze({
   demo: {
@@ -11,7 +11,12 @@ const RUNTIME_MODES = Object.freeze({
   local_api: {
     key: 'local_api',
     label: '本地联调',
-    apiBaseUrl: LOCAL_API_BASE_URL,
+    apiBaseUrl: DEFAULT_API_BASE_URL,
+  },
+  wechat_auth: {
+    key: 'wechat_auth',
+    label: '微信登录',
+    apiBaseUrl: DEFAULT_API_BASE_URL,
   },
 });
 
@@ -67,7 +72,7 @@ const DEMO_ACTORS = Object.freeze({
 });
 
 function normalizeRuntimeMode(value) {
-  return ['demo', 'local_api'].includes(String(value || '').trim()) ? String(value || '').trim() : 'demo';
+  return ['demo', 'local_api', 'wechat_auth'].includes(String(value || '').trim()) ? String(value || '').trim() : 'demo';
 }
 
 function getRuntimeMode() {

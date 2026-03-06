@@ -1,5 +1,5 @@
 const { DEMO_ACTORS, getApiBaseUrl, getRuntimeMode, getRuntimeModeLabel } = require('../../config/env');
-const { loginMiniprogramLocal } = require('../../utils/api');
+const { loginMiniprogramLocal, loginMiniprogramWechat } = require('../../utils/api');
 const { canViewLightReport } = require('../../utils/light-report');
 const { initializeSession, loginAsDemoRole, logoutSession, saveAccessSession, setLoginRuntimeMode } = require('../../utils/session');
 
@@ -51,6 +51,8 @@ Page({
     runtimeLabel: '演示模式',
     currentRoleLabel: '',
     apiBaseUrl: '',
+    bindingHint: '',
+    debugOpenId: '',
     roleCards: buildRoleCards(),
   },
 
@@ -62,6 +64,8 @@ Page({
       runtimeLabel: getRuntimeModeLabel(runtimeMode),
       currentRoleLabel: currentUser ? currentUser.roleLabel : '',
       apiBaseUrl: getApiBaseUrl(),
+      bindingHint: '',
+      debugOpenId: '',
       roleCards: buildRoleCards(),
     });
   },
@@ -74,6 +78,8 @@ Page({
       runtimeLabel: getRuntimeModeLabel(getRuntimeMode()),
       currentRoleLabel: '',
       apiBaseUrl: getApiBaseUrl(),
+      bindingHint: '',
+      debugOpenId: '',
     });
   },
 
@@ -83,6 +89,25 @@ Page({
     try {
       if (this.data.runtimeMode === 'local_api') {
         const response = await loginMiniprogramLocal(roleCode);
+        actor = saveAccessSession({
+          accessToken: response.data.access_token,
+          profile: response.data,
+        });
+      } else if (this.data.runtimeMode === 'wechat_auth') {
+        const code = await this.requestWechatCode();
+        const response = await loginMiniprogramWechat(code);
+        if (response.data.binding_required) {
+          this.setData({
+            bindingHint: response.data.message || '当前微信账号未绑定业务角色，请联系管理员',
+            debugOpenId: response.data.debug_openid || '',
+            currentRoleLabel: '',
+          });
+          wx.showToast({
+            title: '当前微信账号未绑定',
+            icon: 'none',
+          });
+          return;
+        }
         actor = saveAccessSession({
           accessToken: response.data.access_token,
           profile: response.data,
@@ -99,6 +124,8 @@ Page({
     }
     this.setData({
       currentRoleLabel: actor ? actor.roleLabel : '',
+      bindingHint: '',
+      debugOpenId: '',
     });
     wx.reLaunch({ url: '/pages/report/index' });
   },
@@ -111,7 +138,30 @@ Page({
     logoutSession();
     this.setData({
       currentRoleLabel: '',
+      bindingHint: '',
+      debugOpenId: '',
     });
     wx.showToast({ title: '已清除当前身份', icon: 'none' });
+  },
+
+  requestWechatCode() {
+    return new Promise((resolve, reject) => {
+      if (typeof wx === 'undefined' || typeof wx.login !== 'function') {
+        reject({ message: '当前环境不支持微信登录，请在微信开发者工具中重试' });
+        return;
+      }
+      wx.login({
+        success: (result) => {
+          if (!result.code) {
+            reject({ message: '获取微信登录凭证失败，请重试' });
+            return;
+          }
+          resolve(result.code);
+        },
+        fail: (error) => {
+          reject({ message: error.errMsg || '调用微信登录失败，请稍后重试' });
+        },
+      });
+    });
   },
 });

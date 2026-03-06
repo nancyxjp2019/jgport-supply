@@ -7,6 +7,7 @@ from app.models.contract_qty_effect import ContractQtyEffect
 from app.models.doc_attachment import DocAttachment
 from app.models.doc_relation import DocRelation
 from app.models.inbound_doc import InboundDoc
+from app.models.mini_program_account import MiniProgramAccount
 from app.models.outbound_doc import OutboundDoc
 from app.models.payment_doc import PaymentDoc
 from app.models.purchase_order import PurchaseOrder
@@ -27,6 +28,7 @@ __all__ = [
     "DocAttachment",
     "DocRelation",
     "InboundDoc",
+    "MiniProgramAccount",
     "OutboundDoc",
     "PaymentDoc",
     "PurchaseOrder",

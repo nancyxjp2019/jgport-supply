@@ -1,7 +1,7 @@
 <view class="page-shell">
   <view class="hero-card login-hero-card">
-    <view class="page-title">本地登录</view>
-    <view class="page-subtitle">当前仅做本地联调与评审。先选择一个业务角色，再进入对应页面继续验证。</view>
+    <view class="page-title">登录入口</view>
+    <view class="page-subtitle">当前支持演示模式、本地联调和微信登录三种入口。按当前验证目标选择模式后继续。</view>
     <view class="pill-row login-hero-meta">
       <view class="version-pill">{{runtimeLabel}}</view>
       <view wx:if="{{currentRoleLabel}}" class="mode-pill">当前身份：{{currentRoleLabel}}</view>
@@ -10,15 +10,16 @@
 
   <view class="panel-card">
     <view class="section-title">运行模式</view>
-    <view class="section-desc">演示模式用于页面评审，本地联调用于微信开发者工具直连本机后端。</view>
+    <view class="section-desc">演示模式用于页面评审，本地联调用于开发者工具直连本机后端，微信登录用于验证真实 `wx.login` 链路。</view>
     <view class="mode-switch">
       <button class="mode-btn {{runtimeMode === 'demo' ? 'mode-btn--active' : ''}}" data-mode="demo" bindtap="onSelectMode">演示模式</button>
       <button class="mode-btn {{runtimeMode === 'local_api' ? 'mode-btn--active' : ''}}" data-mode="local_api" bindtap="onSelectMode">本地联调</button>
+      <button class="mode-btn {{runtimeMode === 'wechat_auth' ? 'mode-btn--active' : ''}}" data-mode="wechat_auth" bindtap="onSelectMode">微信登录</button>
     </view>
-    <view wx:if="{{runtimeMode === 'local_api'}}" class="mode-hint">本机后端地址：{{apiBaseUrl}}</view>
+    <view wx:if="{{runtimeMode === 'local_api' || runtimeMode === 'wechat_auth'}}" class="mode-hint">本机后端地址：{{apiBaseUrl}}</view>
   </view>
 
-  <view class="panel-card">
+  <view class="panel-card" wx:if="{{runtimeMode !== 'wechat_auth'}}">
     <view class="section-title">选择角色</view>
     <view class="section-desc">运营、财务、管理员可查看经营快报；客户、供应商、仓库可验证页面阻断提示。</view>
     <view class="role-grid">
@@ -33,6 +34,17 @@
         </view>
         <button class="primary-btn" data-role-code="{{item.roleCode}}" bindtap="onLogin">以该角色进入</button>
       </view>
+    </view>
+  </view>
+
+  <view class="panel-card" wx:if="{{runtimeMode === 'wechat_auth'}}">
+    <view class="section-title">微信登录</view>
+    <view class="section-desc">该模式通过微信官方 `wx.login` 获取临时凭证，再由后端调用 `code2session` 完成身份识别。</view>
+    <button class="primary-btn" bindtap="onLogin">使用微信身份登录</button>
+    <view wx:if="{{bindingHint}}" class="binding-hint">
+      <view class="binding-hint__title">当前微信账号尚未完成绑定</view>
+      <view class="binding-hint__desc">{{bindingHint}}</view>
+      <view wx:if="{{debugOpenId}}" class="binding-hint__debug">开发环境 openid：{{debugOpenId}}</view>
     </view>
   </view>
 

@@ -27,7 +27,7 @@ function syncAppGlobal(actor) {
 }
 
 function initializeSession() {
-  const actor = getRuntimeMode() === 'local_api' ? getStoredAccessActor() : getDemoActor();
+  const actor = ['local_api', 'wechat_auth'].includes(getRuntimeMode()) ? getStoredAccessActor() : getDemoActor();
   syncAppGlobal(actor);
   return actor;
 }
@@ -81,7 +81,7 @@ function getStoredAccessActor() {
 function saveAccessSession({ accessToken, profile }) {
   const actor = adaptAccessProfile(profile);
   if (!accessToken || !actor) {
-    throw new Error('本地联调登录结果无效');
+    throw new Error('登录结果无效，请重新登录');
   }
   if (typeof wx !== 'undefined' && typeof wx.setStorageSync === 'function') {
     wx.setStorageSync(STORAGE_ACCESS_TOKEN_KEY, String(accessToken).trim());

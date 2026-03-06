@@ -21,18 +21,12 @@ def get_current_actor(
     x_auth_secret: str | None = Header(default=None, alias="X-Auth-Secret"),
 ) -> AuthenticatedActor:
     settings = get_settings()
-    normalized_env = str(settings.env or "").strip().lower()
     if authorization:
         scheme, _, token = authorization.partition(" ")
         if scheme.lower() != "bearer" or not token.strip():
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="联调令牌格式不正确",
-            )
-        if normalized_env not in {"dev", "test"}:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="当前环境未开放本地联调令牌",
+                detail="登录令牌格式不正确",
             )
         return verify_direct_auth_token(token.strip())
     if not all([x_user_id, x_role_code, x_company_type, x_client_type, x_auth_secret]):

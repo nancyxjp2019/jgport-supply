@@ -60,4 +60,4 @@ def test_bearer_token_with_invalid_signature_is_rejected() -> None:
         headers={"Authorization": "Bearer m1.invalid.invalid"},
     )
     assert response.status_code == 401
-    assert response.json()["detail"] == "联调令牌签名校验失败"
+    assert response.json()["detail"] == "登录令牌签名校验失败"

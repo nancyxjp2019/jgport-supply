@@ -87,3 +87,29 @@ test('保存本地联调会话后可恢复当前身份', () => {
   assert.equal(actor.roleLabel, '运营');
   assert.equal(app.globalData.runtimeMode, 'local_api');
 });
+
+test('微信登录模式也会从访问令牌会话恢复身份', () => {
+  const storage = createStorageHarness();
+  const app = { globalData: {} };
+  global.getApp = () => app;
+  delete require.cache[require.resolve('../config/env')];
+  delete require.cache[require.resolve('../utils/session')];
+  const { saveAccessSession, initializeSession } = require('../utils/session');
+  saveAccessSession({
+    accessToken: 'CODEX-TEST-WX-TOKEN',
+    profile: {
+      user_id: 'MINI-WX-1',
+      role_code: 'finance',
+      company_id: 'AUTO-TEST-OPERATOR-COMPANY',
+      company_type: 'operator_company',
+      client_type: 'miniprogram',
+      admin_web_allowed: false,
+      miniprogram_allowed: true,
+    },
+  });
+  storage.set('mini_runtime_mode', 'wechat_auth');
+  const actor = initializeSession();
+  assert.equal(actor.roleCode, 'finance');
+  assert.equal(actor.roleLabel, '财务');
+  assert.equal(app.globalData.runtimeMode, 'wechat_auth');
+});
