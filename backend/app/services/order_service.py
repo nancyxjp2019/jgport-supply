@@ -16,6 +16,10 @@ from app.models.contract_item import ContractItem
 from app.models.purchase_order import PurchaseOrder
 from app.models.sales_order import SalesOrder
 from app.models.sales_order_derivative_task import SalesOrderDerivativeTask
+from app.services.funds_service import (
+    ensure_sales_purchase_relation,
+    materialize_sales_order_fund_docs,
+)
 from app.services.contract_service import (
     CONTRACT_DIRECTION_PURCHASE,
     CONTRACT_DIRECTION_SALES,
@@ -352,6 +356,17 @@ def finance_approve_sales_order(
     )
     for task in tasks:
         db.add(task)
+    db.flush()
+    ensure_sales_purchase_relation(
+        db,
+        sales_order_id=sales_order.id,
+        purchase_order_id=purchase_order.id,
+    )
+    materialize_sales_order_fund_docs(
+        db,
+        operator_id=operator_id,
+        tasks=tasks,
+    )
 
     sales_order.status = SALES_ORDER_STATUS_DERIVED
     db.add(

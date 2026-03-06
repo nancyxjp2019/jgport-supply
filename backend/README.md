@@ -9,6 +9,7 @@
   - `0003_fix_m1_review_findings`（M1：修复鉴权、版本化与测试隔离问题）
   - `0004_add_m2_contract_domain`（M2：合同主表、明细表、合同生效待处理任务）
   - `0005_add_m3_order_domain`（M3：销售订单、采购订单、销售订单衍生任务）
+  - `0006_add_m4_funds_domain`（M4：收款单、付款单、单据关系表）
 
 ## 2. 目录说明
 - `app/main.py`：应用入口
@@ -22,7 +23,7 @@
 - `app/models/contract_item.py`：合同油品明细模型
 - `app/models/contract_effective_task.py`：合同生效待处理任务模型
 - `alembic/`：迁移脚本
-- `tests/`：健康检查 + M1/M2/M3 接口与服务测试
+- `tests/`：健康检查 + M1/M2/M3/M4 接口与服务测试
 
 ## 3. 已实现接口（阶段C迭代1-M1）
 - 健康检查：
@@ -74,6 +75,8 @@
 - `POST /api/v1/sales-orders/{id}/ops-approve` 仅允许 `operations/admin + operator_company + admin_web`。
 - `POST /api/v1/sales-orders/{id}/finance-approve` 仅允许 `finance/admin + operator_company + admin_web`。
 - `GET /api/v1/purchase-orders/{id}` 允许 `operations/finance/admin + operator_company + admin_web`。
+- `POST /api/v1/payment-docs/supplement` 仅允许 `finance/admin + operator_company + admin_web`。
+- `POST /api/v1/receipt-docs/supplement` 仅允许 `finance/admin + operator_company + admin_web`。
 
 ## 6. 已实现接口（阶段C迭代3-M3）
 - 订单域：
@@ -106,3 +109,15 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - V5 后端代码已归档至 `archive/v5/backend/`，仅供对照。
 - 若 `psql` 未在 PATH，可使用完整路径执行，例如：`/usr/local/Cellar/postgresql@18/18.3/bin/psql`。
 - 测试默认使用临时 PostgreSQL 数据库，测试结束后自动销毁，不污染开发库。
+
+## 9. 已实现接口（阶段C迭代4-M4 第一批）
+- 资金单据：
+  - `POST /api/v1/payment-docs/supplement`
+  - `POST /api/v1/receipt-docs/supplement`
+- 当前实现约束：
+  - 采购合同/销售合同生效后，会同步消费待处理任务并生成保证金收付款单草稿。
+  - 销售订单财务审批通过后，会同步消费待处理任务并生成订单实收实付收付款单草稿。
+  - `付款金额=0` 的销售衍生采购订单，会生成带“例外放行（需后补付款单）”文案的付款单草稿。
+  - 手工补录付款单必须绑定匹配的 `采购合同 + 采购订单`。
+  - 手工补录收款单必须绑定匹配的 `销售合同 + 销售订单`。
+  - 当前第一批尚未实现 `/receipt-docs/{id}/confirm`、`/payment-docs/{id}/confirm`、退款/核销和规则14阈值引擎。

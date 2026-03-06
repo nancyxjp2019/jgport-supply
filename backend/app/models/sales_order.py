@@ -50,3 +50,7 @@ class SalesOrder(Base):
         cascade="all, delete-orphan",
         order_by="SalesOrderDerivativeTask.id",
     )
+    receipt_docs: Mapped[list["ReceiptDoc"]] = relationship(
+        back_populates="sales_order",
+        order_by="ReceiptDoc.id",
+    )

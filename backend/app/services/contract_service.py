@@ -14,6 +14,7 @@ from app.models.contract import Contract
 from app.models.contract_effective_task import ContractEffectiveTask
 from app.models.contract_item import ContractItem
 from app.schemas.contract import ContractItemPayload
+from app.services.funds_service import materialize_contract_effective_fund_docs
 from app.services.threshold_service import get_active_threshold_snapshot
 
 CONTRACT_DIRECTION_PURCHASE = "purchase"
@@ -186,6 +187,12 @@ def approve_contract(
         generated_task_count = len(tasks)
         for task in tasks:
             db.add(task)
+        db.flush()
+        materialize_contract_effective_fund_docs(
+            db,
+            operator_id=operator_id,
+            tasks=tasks,
+        )
         event_code = "M2-CONTRACT-APPROVE"
         message = "合同审批通过并已生效"
     else:

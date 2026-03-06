@@ -51,3 +51,11 @@ class Contract(Base):
         cascade="all, delete-orphan",
         order_by="ContractEffectiveTask.id",
     )
+    receipt_docs: Mapped[list["ReceiptDoc"]] = relationship(
+        back_populates="contract",
+        order_by="ReceiptDoc.id",
+    )
+    payment_docs: Mapped[list["PaymentDoc"]] = relationship(
+        back_populates="contract",
+        order_by="PaymentDoc.id",
+    )

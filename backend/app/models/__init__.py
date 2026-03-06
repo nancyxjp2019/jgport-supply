@@ -3,7 +3,10 @@ from app.models.business_log import BusinessLog
 from app.models.contract import Contract
 from app.models.contract_effective_task import ContractEffectiveTask
 from app.models.contract_item import ContractItem
+from app.models.doc_relation import DocRelation
+from app.models.payment_doc import PaymentDoc
 from app.models.purchase_order import PurchaseOrder
+from app.models.receipt_doc import ReceiptDoc
 from app.models.role_company_binding import RoleCompanyBinding
 from app.models.sales_order import SalesOrder
 from app.models.sales_order_derivative_task import SalesOrderDerivativeTask
@@ -15,7 +18,10 @@ __all__ = [
     "Contract",
     "ContractEffectiveTask",
     "ContractItem",
+    "DocRelation",
+    "PaymentDoc",
     "PurchaseOrder",
+    "ReceiptDoc",
     "RoleCompanyBinding",
     "SalesOrder",
     "SalesOrderDerivativeTask",

@@ -42,3 +42,7 @@ class PurchaseOrder(Base):
     )
 
     sales_order: Mapped["SalesOrder"] = relationship(back_populates="purchase_orders")
+    payment_docs: Mapped[list["PaymentDoc"]] = relationship(
+        back_populates="purchase_order",
+        order_by="PaymentDoc.id",
+    )
