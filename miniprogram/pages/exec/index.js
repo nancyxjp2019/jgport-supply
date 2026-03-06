@@ -50,6 +50,13 @@ Page({
     latestSubmittedAtText: '',
   },
 
+  onLoad(options) {
+    const mode = String((options && options.mode) || '').trim();
+    if (mode === 'system' || mode === 'manual') {
+      this.setData({ activeMode: mode });
+    }
+  },
+
   onShow() {
     this.loadPage();
   },

@@ -48,7 +48,8 @@ async function getAvailableSalesContracts() {
   });
 }
 
-async function listSalesOrders(status) {
+async function listSalesOrders(status, options) {
+  const limit = Number(options && options.limit ? options.limit : 20);
   if (getRuntimeMode() === 'demo') {
     await sleep(120);
     const items = listDemoSalesOrders(status);
@@ -61,7 +62,14 @@ async function listSalesOrders(status) {
       statusCode: 200,
     };
   }
-  const suffix = status ? `?status=${encodeURIComponent(status)}` : '';
+  const params = [];
+  if (status) {
+    params.push(`status=${encodeURIComponent(status)}`);
+  }
+  if (Number.isFinite(limit) && limit > 0) {
+    params.push(`limit=${encodeURIComponent(String(limit))}`);
+  }
+  const suffix = params.length ? `?${params.join('&')}` : '';
   return request({
     url: `/sales-orders${suffix}`,
     method: 'GET',

@@ -1,0 +1,104 @@
+<view class="page-shell">
+  <view class="hero-card todo-hero-card">
+    <view class="page-title">我的待办</view>
+    <view class="page-subtitle">统一查看当前角色的移动端待办入口与摘要。首批聚焦客户订单、运营侧异常摘要和仓库执行入口。</view>
+    <view class="pill-row todo-hero-meta">
+      <view class="version-pill">{{runtimeLabel}}</view>
+      <view wx:if="{{roleLabel}}" class="mode-pill">当前身份：{{roleLabel}}</view>
+    </view>
+  </view>
+
+  <view class="panel-card session-card">
+    <view class="section-title">当前会话</view>
+    <view class="section-desc">不同角色会展示不同的移动端入口与待办摘要。复杂审批和批量处理仍保留在管理后台。</view>
+    <view class="button-row">
+      <button class="secondary-btn" bindtap="onSwitchRole">切换角色</button>
+      <button class="danger-btn" bindtap="onLogout">退出当前身份</button>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="status-card">
+    <view class="status-card__title">待办加载中</view>
+    <view class="status-tip">正在读取当前身份和对应的待办摘要，请稍候。</view>
+  </view>
+
+  <view wx:elif="{{errorMessage}}" class="status-card error-card">
+    <view class="status-card__title">待办加载失败</view>
+    <view class="error-text">{{errorMessage}}</view>
+  </view>
+
+  <block wx:else>
+    <view wx:if="{{summaryCards.length}}" class="panel-card">
+      <view class="section-title">待办摘要</view>
+      <view class="section-desc" wx:if="{{snapshotTimeText}}">数据时间：{{snapshotTimeText}}</view>
+      <view wx:else class="section-desc">首批仅展示当前已开放业务链的摘要信息。</view>
+      <view class="todo-summary-grid">
+        <view wx:for="{{summaryCards}}" wx:key="key" class="todo-summary-card {{item.className}}">
+          <view class="todo-summary-card__label">{{item.label}}</view>
+          <view class="todo-summary-card__value">{{item.value}}</view>
+          <view class="todo-summary-card__desc">{{item.desc}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{quickActions.length}}" class="panel-card">
+      <view class="section-title">快捷入口</view>
+      <view class="section-desc">{{helperText}}</view>
+      <view class="todo-action-list">
+        <view wx:for="{{quickActions}}" wx:key="key" class="todo-action-card">
+          <view>
+            <view class="todo-action-card__title">{{item.title}}</view>
+            <view class="todo-action-card__desc">{{item.desc}}</view>
+          </view>
+          <button class="primary-btn todo-action-card__btn" data-url="{{item.url}}" bindtap="onOpenAction">{{item.actionLabel}}</button>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{todoItems.length}}" class="panel-card">
+      <view class="section-title">待处理列表</view>
+      <view class="section-desc">首批仅展示当前角色最需要优先处理的事项。</view>
+      <view class="todo-item-list">
+        <view wx:for="{{todoItems}}" wx:key="key" class="todo-item-card">
+          <view wx:if="{{item.orderNo}}">
+            <view class="todo-item-card__head">
+              <view>
+                <view class="todo-item-card__title">{{item.orderNo}}</view>
+                <view class="todo-item-card__meta">合同：{{item.contractNo}}</view>
+              </view>
+              <view class="status-pill {{item.statusClass}}">{{item.status}}</view>
+            </view>
+            <view class="todo-item-card__desc">油品：{{item.oilProductId}}，数量：{{item.qtyOrderedText}}</view>
+            <view class="card-caption">创建时间：{{item.createdAtText}}</view>
+            <view class="card-caption">提交时间：{{item.submittedAtText}}</view>
+            <view class="button-row todo-item-card__actions">
+              <button class="secondary-btn" data-url="{{item.actionUrl}}" bindtap="onOpenAction">{{item.actionLabel}}</button>
+            </view>
+          </view>
+          <view wx:else>
+            <view class="todo-item-card__head">
+              <view class="todo-item-card__title">{{item.title}}</view>
+              <view class="status-pill status-pill--delayed">{{item.value}} 项</view>
+            </view>
+            <view class="todo-item-card__desc">{{item.tip}}</view>
+            <view class="button-row todo-item-card__actions">
+              <button class="secondary-btn" data-url="/pages/report/index" bindtap="onOpenAction">{{item.actionLabel}}</button>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{!summaryCards.length && !quickActions.length && !todoItems.length}}" class="empty-card">
+      <view class="status-card__title">{{emptyTitle}}</view>
+      <view class="empty-text">{{emptyText}}</view>
+      <view wx:if="{{helperText}}" class="status-tip">{{helperText}}</view>
+    </view>
+
+    <view wx:elif="{{!todoItems.length}}" class="empty-card">
+      <view class="status-card__title">{{emptyTitle}}</view>
+      <view class="empty-text">{{emptyText}}</view>
+      <view wx:if="{{helperText}}" class="status-tip">{{helperText}}</view>
+    </view>
+  </block>
+</view>

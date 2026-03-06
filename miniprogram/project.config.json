@@ -65,6 +65,11 @@
           "query": ""
         },
         {
+          "name": "我的待办",
+          "pathName": "pages/todo/index",
+          "query": ""
+        },
+        {
           "name": "订单发起与查询",
           "pathName": "pages/order/index",
           "query": ""

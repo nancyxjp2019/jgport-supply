@@ -1,0 +1,117 @@
+.todo-hero-card {
+  padding: 28rpx;
+}
+
+.todo-hero-meta {
+  margin-top: 20rpx;
+}
+
+.todo-summary-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 20rpx;
+}
+
+.todo-summary-card {
+  width: calc((100% - 16rpx) / 2);
+  min-height: 184rpx;
+  padding: 20rpx;
+  border-radius: 24rpx;
+  color: #ffffff;
+}
+
+.todo-summary-card__label {
+  font-size: 24rpx;
+  opacity: 0.9;
+}
+
+.todo-summary-card__value {
+  margin-top: 18rpx;
+  font-size: 38rpx;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.todo-summary-card__desc {
+  margin-top: 14rpx;
+  font-size: 22rpx;
+  line-height: 1.6;
+  opacity: 0.88;
+}
+
+.todo-summary-card--info {
+  background: linear-gradient(160deg, #0f766e 0%, #0d9488 100%);
+}
+
+.todo-summary-card--pending {
+  background: linear-gradient(160deg, #c2410c 0%, #ea580c 100%);
+}
+
+.todo-summary-card--danger {
+  background: linear-gradient(160deg, #b91c1c 0%, #dc2626 100%);
+}
+
+.todo-summary-card--warning {
+  background: linear-gradient(160deg, #b45309 0%, #d97706 100%);
+}
+
+.todo-summary-card--success {
+  background: linear-gradient(160deg, #166534 0%, #15803d 100%);
+}
+
+.todo-action-list,
+.todo-item-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+  margin-top: 20rpx;
+}
+
+.todo-action-card,
+.todo-item-card {
+  padding: 22rpx;
+  border-radius: 24rpx;
+  border: 1rpx solid #eeeeee;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 16rpx 36rpx rgba(15, 118, 110, 0.06);
+}
+
+.todo-action-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.todo-action-card__title,
+.todo-item-card__title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #333333;
+}
+
+.todo-action-card__desc,
+.todo-item-card__desc,
+.todo-item-card__meta {
+  margin-top: 10rpx;
+  color: #999999;
+  font-size: 24rpx;
+  line-height: 1.7;
+}
+
+.todo-action-card__btn {
+  flex: 0 0 196rpx;
+  min-width: 196rpx;
+}
+
+.todo-item-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12rpx;
+}
+
+.todo-item-card__actions {
+  margin-top: 16rpx;
+}

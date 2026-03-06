@@ -41,9 +41,29 @@ function buildRoleCards() {
   return ROLE_CARD_CONFIG.map((item) => ({
     ...item,
     roleLabel: DEMO_ACTORS[item.roleCode].roleLabel,
-    accessText: canViewLightReport(item.roleCode) ? '快报可见' : '快报阻断',
-    accessClass: canViewLightReport(item.roleCode) ? 'status-pill--allow' : 'status-pill--deny',
+    accessText: resolveRoleAccessText(item.roleCode),
+    accessClass: resolveRoleAccessClass(item.roleCode),
   }));
+}
+
+function resolveRoleAccessText(roleCode) {
+  if (canViewLightReport(roleCode)) {
+    return '待办已开放';
+  }
+  if (roleCode === 'customer') {
+    return '订单入口已开放';
+  }
+  if (roleCode === 'warehouse') {
+    return '执行入口已开放';
+  }
+  return '边界验证';
+}
+
+function resolveRoleAccessClass(roleCode) {
+  if (roleCode === 'supplier') {
+    return 'status-pill--deny';
+  }
+  return 'status-pill--allow';
 }
 
 Page({
@@ -51,7 +71,7 @@ Page({
     runtimeMode: 'demo',
     runtimeLabel: '演示模式',
     currentRoleLabel: '',
-    currentHomeLabel: '进入经营快报',
+    currentHomeLabel: '进入我的待办',
     apiBaseUrl: '',
     bindingHint: '',
     debugOpenId: '',
@@ -65,7 +85,7 @@ Page({
       runtimeMode,
       runtimeLabel: getRuntimeModeLabel(runtimeMode),
       currentRoleLabel: currentUser ? currentUser.roleLabel : '',
-      currentHomeLabel: currentUser ? resolveHomeEntryLabel(currentUser.roleCode) : '进入经营快报',
+      currentHomeLabel: currentUser ? resolveHomeEntryLabel(currentUser.roleCode) : '进入我的待办',
       apiBaseUrl: getApiBaseUrl(),
       bindingHint: '',
       debugOpenId: '',
@@ -80,7 +100,7 @@ Page({
       runtimeMode: getRuntimeMode(),
       runtimeLabel: getRuntimeModeLabel(getRuntimeMode()),
       currentRoleLabel: '',
-      currentHomeLabel: '进入经营快报',
+      currentHomeLabel: '进入我的待办',
       apiBaseUrl: getApiBaseUrl(),
       bindingHint: '',
       debugOpenId: '',
@@ -128,14 +148,14 @@ Page({
     }
     this.setData({
       currentRoleLabel: actor ? actor.roleLabel : '',
-      currentHomeLabel: actor ? resolveHomeEntryLabel(actor.roleCode) : '进入经营快报',
+      currentHomeLabel: actor ? resolveHomeEntryLabel(actor.roleCode) : '进入我的待办',
       bindingHint: '',
       debugOpenId: '',
     });
     wx.reLaunch({ url: resolveHomePath(actor ? actor.roleCode : '') });
   },
 
-  onEnterReport() {
+  onEnterHome() {
     const currentUser = initializeSession();
     wx.reLaunch({ url: resolveHomePath(currentUser ? currentUser.roleCode : '') });
   },
@@ -144,7 +164,7 @@ Page({
     logoutSession();
     this.setData({
       currentRoleLabel: '',
-      currentHomeLabel: '进入经营快报',
+      currentHomeLabel: '进入我的待办',
       bindingHint: '',
       debugOpenId: '',
     });

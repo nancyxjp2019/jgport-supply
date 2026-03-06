@@ -1,0 +1,235 @@
+const { getRuntimeMode, getRuntimeModeLabel } = require('../../config/env');
+const { getAccessProfile, getLightReportOverview, listSalesOrders } = require('../../utils/api');
+const { formatDateTime, formatQty } = require('../../utils/format');
+const { getRoleLabel } = require('../../utils/light-report');
+const { getAccessToken, initializeSession, logoutSession, updateAccessProfile } = require('../../utils/session');
+const {
+  buildCustomerSummaryCards,
+  buildCustomerTodoItems,
+  buildOperatorSummaryCards,
+  buildOperatorTodoItems,
+  buildWarehouseQuickActions,
+  buildWarehouseSummaryCards,
+  resolveTodoMode,
+} = require('../../utils/todo');
+
+function buildInitialState() {
+  return {
+    loading: true,
+    errorMessage: '',
+    roleLabel: '',
+    runtimeLabel: '演示模式',
+    todoMode: 'unknown',
+    summaryCards: [],
+    todoItems: [],
+    quickActions: [],
+    emptyTitle: '当前暂无待办',
+    emptyText: '系统正在等待新的业务动作。',
+    helperText: '',
+    snapshotTimeText: '',
+  };
+}
+
+Page({
+  data: buildInitialState(),
+
+  onShow() {
+    this.loadPage();
+  },
+
+  onPullDownRefresh() {
+    this.loadPage();
+  },
+
+  async loadPage() {
+    const runtimeMode = getRuntimeMode();
+    let currentUser = initializeSession();
+    if (['local_api', 'wechat_auth'].includes(runtimeMode)) {
+      if (!getAccessToken() || !currentUser) {
+        this._redirectToLogin();
+        return;
+      }
+      try {
+        const response = await getAccessProfile();
+        currentUser = updateAccessProfile(response.data);
+      } catch (error) {
+        if (Number(error.statusCode || 0) === 401) {
+          logoutSession();
+          wx.showToast({ title: error.message || '登录状态已失效，请重新登录', icon: 'none' });
+          this._redirectToLogin();
+          return;
+        }
+        this.setData({
+          ...buildInitialState(),
+          loading: false,
+          errorMessage: error.message || '读取登录身份失败，请确认本地后端已启动',
+          roleLabel: currentUser ? currentUser.roleLabel : '',
+          runtimeLabel: getRuntimeModeLabel(runtimeMode),
+        });
+        wx.stopPullDownRefresh();
+        return;
+      }
+    }
+    if (!currentUser) {
+      this._redirectToLogin();
+      return;
+    }
+
+    const roleLabel = getRoleLabel(currentUser.roleCode);
+    const todoMode = resolveTodoMode(currentUser.roleCode);
+    this.setData({
+      ...buildInitialState(),
+      loading: true,
+      roleLabel,
+      runtimeLabel: getRuntimeModeLabel(runtimeMode),
+      todoMode,
+    });
+
+    try {
+      if (todoMode === 'customer') {
+        await this._loadCustomerTodo();
+      } else if (todoMode === 'operator') {
+        await this._loadOperatorTodo();
+      } else if (todoMode === 'warehouse') {
+        this._loadWarehouseTodo();
+      } else if (todoMode === 'supplier') {
+        this._loadSupplierTodo();
+      } else {
+        this._loadUnknownTodo();
+      }
+    } catch (error) {
+      if (Number(error.statusCode || 0) === 401) {
+        logoutSession();
+        wx.showToast({ title: error.message || '登录状态已失效，请重新登录', icon: 'none' });
+        this._redirectToLogin();
+        return;
+      }
+      this.setData({
+        loading: false,
+        errorMessage: error.message || '待办加载失败，请稍后重试',
+      });
+    }
+    wx.stopPullDownRefresh();
+  },
+
+  async _loadCustomerTodo() {
+    const response = await listSalesOrders('', { limit: 50 });
+    const orders = response.data.items || [];
+    const todoItems = buildCustomerTodoItems(orders).map((item) => ({
+      ...item,
+      qtyOrderedText: formatQty(item.qtyOrdered),
+      createdAtText: formatDateTime(item.createdAt),
+      submittedAtText: formatDateTime(item.submittedAt),
+    }));
+    this.setData({
+      loading: false,
+      summaryCards: buildCustomerSummaryCards(orders),
+      todoItems,
+      quickActions: [
+        {
+          key: 'create',
+          title: '发起新订单',
+          desc: '按合同和油品创建订单草稿，再提交审批。',
+          url: '/pages/order/index?tab=create',
+          actionLabel: '去发起',
+        },
+        {
+          key: 'query',
+          title: '查看全部订单',
+          desc: '查询当前公司订单状态和审批进度。',
+          url: '/pages/order/index?tab=query',
+          actionLabel: '去查看',
+        },
+      ],
+      emptyTitle: '当前暂无需要处理的订单',
+      emptyText: '如需继续业务，可直接发起新订单。',
+      helperText: '客户待办首批聚焦订单发起、补充和进度跟踪。',
+    });
+  },
+
+  async _loadOperatorTodo() {
+    const response = await getLightReportOverview();
+    const overview = response.data;
+    this.setData({
+      loading: false,
+      summaryCards: buildOperatorSummaryCards(overview),
+      todoItems: buildOperatorTodoItems(overview),
+      quickActions: [
+        {
+          key: 'report',
+          title: '查看经营快报',
+          desc: '查看当日实收实付、出入库和异常摘要。',
+          url: '/pages/report/index',
+          actionLabel: '去查看',
+        },
+      ],
+      emptyTitle: '当前暂无异常待办',
+      emptyText: '异常摘要为 0 时，表示当前无待补录和校验失败阻断。',
+      helperText: '小程序待办首批以异常摘要为主，详细处理动作仍在管理后台完成。',
+      snapshotTimeText: formatDateTime(overview.snapshot_time),
+    });
+  },
+
+  _loadWarehouseTodo() {
+    this.setData({
+      loading: false,
+      summaryCards: buildWarehouseSummaryCards(),
+      todoItems: [],
+      quickActions: buildWarehouseQuickActions(),
+      emptyTitle: '当前没有独立待办列表',
+      emptyText: '仓库角色当前通过执行回执页处理现场业务。',
+      helperText: '执行回执已开放正常回执和手工补录，两种入口都在下方。',
+    });
+  },
+
+  _loadSupplierTodo() {
+    this.setData({
+      loading: false,
+      summaryCards: [],
+      todoItems: [],
+      quickActions: [],
+      emptyTitle: '供应商移动待办尚未开放',
+      emptyText: '当前版本仅保留供应商角色边界验证，不开放真实业务待办。',
+      helperText: '后续在采购执行和附件回传模块接入供应商待办。',
+    });
+  },
+
+  _loadUnknownTodo() {
+    this.setData({
+      loading: false,
+      summaryCards: [],
+      todoItems: [],
+      quickActions: [],
+      emptyTitle: '当前身份暂无可用待办',
+      emptyText: '请切换到已开放的业务角色后重试。',
+      helperText: '若当前角色不正确，请先退出后重新登录。',
+    });
+  },
+
+  onOpenAction(event) {
+    const url = String(event.currentTarget.dataset.url || '').trim();
+    if (!url) {
+      return;
+    }
+    wx.navigateTo({ url });
+  },
+
+  onSwitchRole() {
+    wx.reLaunch({ url: '/pages/login/index' });
+  },
+
+  onLogout() {
+    logoutSession();
+    wx.reLaunch({ url: '/pages/login/index' });
+  },
+
+  _redirectToLogin() {
+    this.setData({
+      ...buildInitialState(),
+      loading: false,
+      runtimeLabel: getRuntimeModeLabel(getRuntimeMode()),
+    });
+    wx.stopPullDownRefresh();
+    wx.reLaunch({ url: '/pages/login/index' });
+  },
+});

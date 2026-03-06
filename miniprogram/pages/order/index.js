@@ -70,6 +70,18 @@ Page({
     emptyText: '暂无订单数据',
     editingOrderId: null,
     editingOrderNo: '',
+    pendingEditOrderId: null,
+  },
+
+  onLoad(options) {
+    const tab = String((options && options.tab) || '').trim();
+    const editOrderId = Number((options && options.editOrderId) || 0);
+    if (tab === 'create' || tab === 'query') {
+      this.setData({ activeTab: tab });
+    }
+    if (editOrderId > 0) {
+      this.setData({ pendingEditOrderId: editOrderId });
+    }
   },
 
   onShow() {
@@ -133,21 +145,26 @@ Page({
       ]);
       const contractOptions = adaptContractOptions(contractsResponse.data.items);
       const selection = resolveContractSelection(contractOptions, 0);
-      this.setData({
-        loading: false,
-        contractOptions,
-        oilOptions: selection.oilOptions,
-        selectedContractIndex: selection.selectedContractIndex,
-        selectedOilIndex: selection.selectedOilIndex,
-        form: {
-          ...buildInitialForm(),
-          salesContractId: selection.salesContractId,
-          oilProductId: selection.oilProductId,
-          unitPrice: selection.unitPrice,
+      this.setData(
+        {
+          loading: false,
+          contractOptions,
+          oilOptions: selection.oilOptions,
+          selectedContractIndex: selection.selectedContractIndex,
+          selectedOilIndex: selection.selectedOilIndex,
+          form: {
+            ...buildInitialForm(),
+            salesContractId: selection.salesContractId,
+            oilProductId: selection.oilProductId,
+            unitPrice: selection.unitPrice,
+          },
+          orders: this._decorateOrders(ordersResponse.data.items),
+          emptyText: contractsResponse.data.total ? '暂无订单数据' : '当前没有可用合同，请联系运营或财务确认合同状态',
         },
-        orders: this._decorateOrders(ordersResponse.data.items),
-        emptyText: contractsResponse.data.total ? '暂无订单数据' : '当前没有可用合同，请联系运营或财务确认合同状态',
-      });
+        () => {
+          this._applyPendingEdit();
+        },
+      );
     } catch (error) {
       this.setData({
         loading: false,
@@ -280,19 +297,7 @@ Page({
     if (!order || !canEditOrder(order.status)) {
       return;
     }
-    const editorState = buildOrderEditorState(order, this.data.contractOptions);
-    const selectedContract = this.data.contractOptions[editorState.selectedContractIndex] || null;
-    this.setData({
-      activeTab: 'create',
-      editingOrderId: editorState.editingOrderId,
-      editingOrderNo: order.order_no,
-      selectedContractIndex: editorState.selectedContractIndex,
-      selectedOilIndex: editorState.selectedOilIndex,
-      oilOptions: selectedContract ? selectedContract.items : [],
-      form: editorState.form,
-      errorMessage: '',
-      fieldErrors: {},
-    });
+    this._enterEditOrder(order);
   },
 
   onResetForm() {
@@ -320,9 +325,14 @@ Page({
     });
     try {
       const response = await listSalesOrders(this.data.statusFilter);
-      this.setData({
-        orders: this._decorateOrders(response.data.items),
-      });
+      this.setData(
+        {
+          orders: this._decorateOrders(response.data.items),
+        },
+        () => {
+          this._applyPendingEdit();
+        },
+      );
     } catch (error) {
       this.setData({
         listErrorMessage: error.message || '订单列表加载失败，请稍后重试',
@@ -362,6 +372,35 @@ Page({
       },
       fieldErrors: {},
       errorMessage: '',
+    });
+  },
+
+  _applyPendingEdit() {
+    if (!this.data.pendingEditOrderId) {
+      return;
+    }
+    const order = this.data.orders.find((item) => item.id === this.data.pendingEditOrderId);
+    if (!order || !canEditOrder(order.status)) {
+      this.setData({ pendingEditOrderId: null });
+      return;
+    }
+    this._enterEditOrder(order);
+    this.setData({ pendingEditOrderId: null });
+  },
+
+  _enterEditOrder(order) {
+    const editorState = buildOrderEditorState(order, this.data.contractOptions);
+    const selectedContract = this.data.contractOptions[editorState.selectedContractIndex] || null;
+    this.setData({
+      activeTab: 'create',
+      editingOrderId: editorState.editingOrderId,
+      editingOrderNo: order.order_no,
+      selectedContractIndex: editorState.selectedContractIndex,
+      selectedOilIndex: editorState.selectedOilIndex,
+      oilOptions: selectedContract ? selectedContract.items : [],
+      form: editorState.form,
+      errorMessage: '',
+      fieldErrors: {},
     });
   },
 

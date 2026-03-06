@@ -4,24 +4,14 @@ function normalizeRoleCode(roleCode) {
 
 function resolveHomePath(roleCode) {
   const normalized = normalizeRoleCode(roleCode);
-  if (normalized === 'warehouse') {
-    return '/pages/exec/index';
+  if (!normalized) {
+    return '/pages/login/index';
   }
-  if (normalized === 'customer') {
-    return '/pages/order/index';
-  }
-  return '/pages/report/index';
+  return '/pages/todo/index';
 }
 
 function resolveHomeEntryLabel(roleCode) {
-  const normalized = normalizeRoleCode(roleCode);
-  if (normalized === 'warehouse') {
-    return '进入仓库执行回执';
-  }
-  if (normalized === 'customer') {
-    return '进入订单发起与查询';
-  }
-  return '进入经营快报';
+  return normalizeRoleCode(roleCode) ? '进入我的待办' : '进入登录入口';
 }
 
 module.exports = {
