@@ -1,6 +1,7 @@
 const { DEMO_ACTORS, getApiBaseUrl, getRuntimeMode, getRuntimeModeLabel } = require('../../config/env');
 const { loginMiniprogramLocal, loginMiniprogramWechat } = require('../../utils/api');
 const { canViewLightReport } = require('../../utils/light-report');
+const { resolveHomeEntryLabel, resolveHomePath } = require('../../utils/navigation');
 const { initializeSession, loginAsDemoRole, logoutSession, saveAccessSession, setLoginRuntimeMode } = require('../../utils/session');
 
 const ROLE_CARD_CONFIG = [
@@ -31,7 +32,7 @@ const ROLE_CARD_CONFIG = [
   },
   {
     roleCode: 'warehouse',
-    description: '验证仓库角色仅保留移动执行能力边界。',
+    description: '进入仓库执行回执，提交正常回执或手工补录。',
     companyLabel: '归属：仓库公司',
   },
 ];
@@ -50,6 +51,7 @@ Page({
     runtimeMode: 'demo',
     runtimeLabel: '演示模式',
     currentRoleLabel: '',
+    currentHomeLabel: '进入经营快报',
     apiBaseUrl: '',
     bindingHint: '',
     debugOpenId: '',
@@ -63,6 +65,7 @@ Page({
       runtimeMode,
       runtimeLabel: getRuntimeModeLabel(runtimeMode),
       currentRoleLabel: currentUser ? currentUser.roleLabel : '',
+      currentHomeLabel: currentUser ? resolveHomeEntryLabel(currentUser.roleCode) : '进入经营快报',
       apiBaseUrl: getApiBaseUrl(),
       bindingHint: '',
       debugOpenId: '',
@@ -77,6 +80,7 @@ Page({
       runtimeMode: getRuntimeMode(),
       runtimeLabel: getRuntimeModeLabel(getRuntimeMode()),
       currentRoleLabel: '',
+      currentHomeLabel: '进入经营快报',
       apiBaseUrl: getApiBaseUrl(),
       bindingHint: '',
       debugOpenId: '',
@@ -124,20 +128,23 @@ Page({
     }
     this.setData({
       currentRoleLabel: actor ? actor.roleLabel : '',
+      currentHomeLabel: actor ? resolveHomeEntryLabel(actor.roleCode) : '进入经营快报',
       bindingHint: '',
       debugOpenId: '',
     });
-    wx.reLaunch({ url: '/pages/report/index' });
+    wx.reLaunch({ url: resolveHomePath(actor ? actor.roleCode : '') });
   },
 
   onEnterReport() {
-    wx.reLaunch({ url: '/pages/report/index' });
+    const currentUser = initializeSession();
+    wx.reLaunch({ url: resolveHomePath(currentUser ? currentUser.roleCode : '') });
   },
 
   onLogout() {
     logoutSession();
     this.setData({
       currentRoleLabel: '',
+      currentHomeLabel: '进入经营快报',
       bindingHint: '',
       debugOpenId: '',
     });

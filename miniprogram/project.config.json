@@ -58,6 +58,11 @@
           "name": "经营快报",
           "pathName": "pages/report/index",
           "query": ""
+        },
+        {
+          "name": "仓库执行回执",
+          "pathName": "pages/exec/index",
+          "query": ""
         }
       ]
     }

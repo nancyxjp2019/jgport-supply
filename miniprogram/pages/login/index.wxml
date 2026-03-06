@@ -21,7 +21,7 @@
 
   <view class="panel-card" wx:if="{{runtimeMode !== 'wechat_auth'}}">
     <view class="section-title">选择角色</view>
-    <view class="section-desc">运营、财务、管理员可查看经营快报；客户、供应商、仓库可验证页面阻断提示。</view>
+    <view class="section-desc">运营、财务、管理员可查看经营快报；仓库可进入执行回执；客户、供应商用于验证当前已开放页面的中文阻断提示。</view>
     <view class="role-grid">
       <view wx:for="{{roleCards}}" wx:key="roleCode" class="role-card">
         <view>
@@ -52,7 +52,7 @@
     <view class="section-title">当前会话</view>
     <view class="section-desc">当前已选择 <text class="meta-strong">{{currentRoleLabel}}</text> 身份，运行模式为 <text class="meta-strong">{{runtimeLabel}}</text>。</view>
     <view class="button-row" style="margin-top: 20rpx;">
-      <button class="secondary-btn" bindtap="onEnterReport">进入经营快报</button>
+      <button class="secondary-btn" bindtap="onEnterReport">{{currentHomeLabel}}</button>
       <button class="danger-btn" bindtap="onLogout">清除当前身份</button>
     </view>
   </view>

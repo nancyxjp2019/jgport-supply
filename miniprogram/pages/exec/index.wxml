@@ -1,0 +1,151 @@
+<view class="page-shell">
+  <view class="hero-card exec-hero-card">
+    <view class="page-title">仓库执行回执</view>
+    <view class="page-subtitle">面向仓库角色的移动执行页。支持正常回执和手工补录，并在提交后直接完成出库生效。</view>
+    <view class="pill-row exec-hero-meta">
+      <view class="version-pill">{{runtimeLabel}}</view>
+      <view wx:if="{{roleLabel}}" class="mode-pill">当前身份：{{roleLabel}}</view>
+    </view>
+  </view>
+
+  <view class="panel-card session-card">
+    <view class="section-title">当前会话</view>
+    <view class="section-desc">当前仅向仓库角色开放。若使用演示模式，提交结果仅生成本地模拟回执，不写入后端。</view>
+    <view class="button-row">
+      <button class="secondary-btn" bindtap="onSwitchRole">切换角色</button>
+      <button class="danger-btn" bindtap="onLogout">退出当前身份</button>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="status-card">
+    <view class="status-card__title">页面加载中</view>
+    <view class="status-tip">正在校验当前身份与执行权限，请稍候。</view>
+  </view>
+
+  <view wx:elif="{{!allowed}}" class="status-card forbidden-card">
+    <view class="status-card__title">当前角色暂不开放仓库执行回执</view>
+    <view class="forbidden-text">当前身份：{{roleLabel || '未登录'}}。该页面仅适用于仓库角色的小程序执行回执。</view>
+    <view class="button-row">
+      <button class="secondary-btn" bindtap="onOpenDefaultPage">返回默认工作页</button>
+      <button class="danger-btn" bindtap="onLogout">退出当前身份</button>
+    </view>
+  </view>
+
+  <block wx:else>
+    <view class="panel-card">
+      <view class="section-title">执行模式</view>
+      <view class="section-desc">正常回执用于仓库标准出库回传；手工补录用于异常补录，但仍需绑定销售合同、销售订单与油品。</view>
+      <view class="mode-switch">
+        <button class="mode-btn {{activeMode === 'system' ? 'mode-btn--active' : ''}}" data-mode="system" bindtap="onSwitchMode">正常回执</button>
+        <button class="mode-btn {{activeMode === 'manual' ? 'mode-btn--active' : ''}}" data-mode="manual" bindtap="onSwitchMode">手工补录</button>
+      </view>
+    </view>
+
+    <view class="panel-card">
+      <view class="section-title">{{activeMode === 'system' ? '正常回执信息' : '手工补录信息'}}</view>
+      <view class="section-desc" wx:if="{{activeMode === 'system'}}">提交后将调用“仓库回执 -> 出库单提交生效”两段接口，成功后直接进入已过账状态。</view>
+      <view class="section-desc" wx:else>手工补录会先创建手工出库单，再自动提交生效。若订单或油品不匹配，服务端会直接阻断。</view>
+
+      <view wx:if="{{activeMode === 'system'}}" class="field-list">
+        <view class="field-item">
+          <view class="field-label"><text class="field-required">*</text>销售合同ID</view>
+          <input class="field-input" type="number" value="{{systemForm.contractId}}" data-mode="system" data-field="contractId" bindinput="onFieldInput" placeholder="请输入销售合同ID" />
+          <view wx:if="{{fieldErrors.contractId}}" class="field-error">{{fieldErrors.contractId}}</view>
+        </view>
+        <view class="field-item">
+          <view class="field-label"><text class="field-required">*</text>销售订单ID</view>
+          <input class="field-input" type="number" value="{{systemForm.salesOrderId}}" data-mode="system" data-field="salesOrderId" bindinput="onFieldInput" placeholder="请输入销售订单ID" />
+          <view wx:if="{{fieldErrors.salesOrderId}}" class="field-error">{{fieldErrors.salesOrderId}}</view>
+        </view>
+        <view class="field-item">
+          <view class="field-label"><text class="field-required">*</text>仓库回执号</view>
+          <input class="field-input" value="{{systemForm.sourceTicketNo}}" data-mode="system" data-field="sourceTicketNo" bindinput="onFieldInput" placeholder="请输入仓库回执号" />
+          <view wx:if="{{fieldErrors.sourceTicketNo}}" class="field-error">{{fieldErrors.sourceTicketNo}}</view>
+        </view>
+        <view class="field-item">
+          <view class="field-label"><text class="field-required">*</text>实际出库数量</view>
+          <input class="field-input" type="digit" value="{{systemForm.actualQty}}" data-mode="system" data-field="actualQty" bindinput="onFieldInput" placeholder="请输入实际出库数量" />
+          <view wx:if="{{fieldErrors.actualQty}}" class="field-error">{{fieldErrors.actualQty}}</view>
+        </view>
+        <view class="field-item">
+          <view class="field-label"><text class="field-required">*</text>仓库ID</view>
+          <input class="field-input" value="{{systemForm.warehouseId}}" data-mode="system" data-field="warehouseId" bindinput="onFieldInput" placeholder="请输入仓库ID" />
+          <view wx:if="{{fieldErrors.warehouseId}}" class="field-error">{{fieldErrors.warehouseId}}</view>
+        </view>
+      </view>
+
+      <view wx:else class="field-list">
+        <view class="field-item">
+          <view class="field-label"><text class="field-required">*</text>销售合同ID</view>
+          <input class="field-input" type="number" value="{{manualForm.contractId}}" data-mode="manual" data-field="contractId" bindinput="onFieldInput" placeholder="请输入销售合同ID" />
+          <view wx:if="{{fieldErrors.contractId}}" class="field-error">{{fieldErrors.contractId}}</view>
+        </view>
+        <view class="field-item">
+          <view class="field-label"><text class="field-required">*</text>销售订单ID</view>
+          <input class="field-input" type="number" value="{{manualForm.salesOrderId}}" data-mode="manual" data-field="salesOrderId" bindinput="onFieldInput" placeholder="请输入销售订单ID" />
+          <view wx:if="{{fieldErrors.salesOrderId}}" class="field-error">{{fieldErrors.salesOrderId}}</view>
+        </view>
+        <view class="field-item">
+          <view class="field-label"><text class="field-required">*</text>油品ID</view>
+          <input class="field-input" value="{{manualForm.oilProductId}}" data-mode="manual" data-field="oilProductId" bindinput="onFieldInput" placeholder="请输入油品ID" />
+          <view wx:if="{{fieldErrors.oilProductId}}" class="field-error">{{fieldErrors.oilProductId}}</view>
+        </view>
+        <view class="field-item">
+          <view class="field-label"><text class="field-required">*</text>手工回执号</view>
+          <input class="field-input" value="{{manualForm.manualRefNo}}" data-mode="manual" data-field="manualRefNo" bindinput="onFieldInput" placeholder="请输入手工回执号" />
+          <view wx:if="{{fieldErrors.manualRefNo}}" class="field-error">{{fieldErrors.manualRefNo}}</view>
+        </view>
+        <view class="field-item">
+          <view class="field-label"><text class="field-required">*</text>实际出库数量</view>
+          <input class="field-input" type="digit" value="{{manualForm.actualQty}}" data-mode="manual" data-field="actualQty" bindinput="onFieldInput" placeholder="请输入实际出库数量" />
+          <view wx:if="{{fieldErrors.actualQty}}" class="field-error">{{fieldErrors.actualQty}}</view>
+        </view>
+        <view class="field-item">
+          <view class="field-label"><text class="field-required">*</text>仓库ID</view>
+          <input class="field-input" value="{{manualForm.warehouseId}}" data-mode="manual" data-field="warehouseId" bindinput="onFieldInput" placeholder="请输入仓库ID" />
+          <view wx:if="{{fieldErrors.warehouseId}}" class="field-error">{{fieldErrors.warehouseId}}</view>
+        </view>
+        <view class="field-item">
+          <view class="field-label"><text class="field-required">*</text>手工补录原因</view>
+          <textarea class="field-textarea" value="{{manualForm.reason}}" data-mode="manual" data-field="reason" bindinput="onFieldInput" maxlength="256" placeholder="请输入补录原因" auto-height />
+          <view wx:if="{{fieldErrors.reason}}" class="field-error">{{fieldErrors.reason}}</view>
+        </view>
+      </view>
+
+      <view class="button-row">
+        <button class="primary-btn" loading="{{submitting}}" bindtap="onSubmit">{{submitting ? '提交中' : '提交并生效'}}</button>
+        <button class="secondary-btn" bindtap="onReset">重置表单</button>
+      </view>
+
+      <view wx:if="{{errorMessage}}" class="inline-error-card">
+        <view class="status-card__title">提交失败</view>
+        <view class="error-text">{{errorMessage}}</view>
+      </view>
+    </view>
+
+    <view wx:if="{{latestResult}}" class="panel-card result-card">
+      <view class="section-title">最近一次处理结果</view>
+      <view class="section-desc">{{latestResult.message}}</view>
+      <view class="pill-row result-pill-row">
+        <view class="status-pill status-pill--normal">{{latestResult.status}}</view>
+        <view class="mode-pill">{{latestResult.doc_no}}</view>
+      </view>
+      <view class="result-list">
+        <view wx:for="{{latestSummary}}" wx:key="label" class="result-row">
+          <view class="result-row__label">{{item.label}}</view>
+          <view class="result-row__value">{{item.value}}</view>
+        </view>
+      </view>
+      <view class="footer-text">提交时间：{{latestSubmittedAtText}}</view>
+    </view>
+
+    <view class="panel-card hint-card">
+      <view class="section-title">执行提示</view>
+      <view class="hint-list">
+        <view class="hint-item">1. 正常回执与手工补录都必须绑定销售合同和销售订单。</view>
+        <view class="hint-item">2. 手工补录还必须绑定油品，并填写补录原因。</view>
+        <view class="hint-item">3. 若订单未进入执行状态、数量超阈值或合同已关闭，服务端会直接阻断。</view>
+      </view>
+    </view>
+  </block>
+</view>
