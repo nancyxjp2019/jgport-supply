@@ -3,7 +3,10 @@ from app.models.business_log import BusinessLog
 from app.models.contract import Contract
 from app.models.contract_effective_task import ContractEffectiveTask
 from app.models.contract_item import ContractItem
+from app.models.purchase_order import PurchaseOrder
 from app.models.role_company_binding import RoleCompanyBinding
+from app.models.sales_order import SalesOrder
+from app.models.sales_order_derivative_task import SalesOrderDerivativeTask
 from app.models.threshold_config_version import ThresholdConfigVersion
 
 __all__ = [
@@ -12,6 +15,9 @@ __all__ = [
     "Contract",
     "ContractEffectiveTask",
     "ContractItem",
+    "PurchaseOrder",
     "RoleCompanyBinding",
+    "SalesOrder",
+    "SalesOrderDerivativeTask",
     "ThresholdConfigVersion",
 ]

@@ -69,15 +69,28 @@ def auth_headers() -> Callable[..., dict[str, str]]:
         *,
         user_id: str = "CODEX-TEST-ADMIN",
         role_code: str = "admin",
+        company_id: str | None = None,
         company_type: str = "operator_company",
         client_type: str = "admin_web",
     ) -> dict[str, str]:
+        resolved_company_id = company_id or _default_company_id(company_type)
         return {
             "X-User-Id": user_id,
             "X-Role-Code": role_code,
+            "X-Company-Id": resolved_company_id,
             "X-Company-Type": company_type,
             "X-Client-Type": client_type,
             "X-Auth-Secret": TEST_AUTH_SECRET,
         }
 
     return build_headers
+
+
+def _default_company_id(company_type: str) -> str:
+    mapping = {
+        "operator_company": "CODEX-TEST-OPERATOR-COMPANY",
+        "customer_company": "CODEX-TEST-CUSTOMER-COMPANY",
+        "supplier_company": "CODEX-TEST-SUPPLIER-COMPANY",
+        "warehouse_company": "CODEX-TEST-WAREHOUSE-COMPANY",
+    }
+    return mapping.get(company_type, "CODEX-TEST-UNKNOWN-COMPANY")

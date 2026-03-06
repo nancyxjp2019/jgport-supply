@@ -14,6 +14,7 @@ ALLOWED_CLIENT_TYPES = {"admin_web", "miniprogram"}
 class AuthenticatedActor:
     user_id: str
     role_code: str
+    company_id: str | None
     company_type: str
     client_type: str
 
@@ -21,6 +22,7 @@ class AuthenticatedActor:
 def get_current_actor(
     x_user_id: str | None = Header(default=None, alias="X-User-Id"),
     x_role_code: str | None = Header(default=None, alias="X-Role-Code"),
+    x_company_id: str | None = Header(default=None, alias="X-Company-Id"),
     x_company_type: str | None = Header(default=None, alias="X-Company-Type"),
     x_client_type: str | None = Header(default=None, alias="X-Client-Type"),
     x_auth_secret: str | None = Header(default=None, alias="X-Auth-Secret"),
@@ -44,6 +46,7 @@ def get_current_actor(
     return AuthenticatedActor(
         user_id=x_user_id,
         role_code=x_role_code,
+        company_id=x_company_id,
         company_type=x_company_type,
         client_type=x_client_type,
     )

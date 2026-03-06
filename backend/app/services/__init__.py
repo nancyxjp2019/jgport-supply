@@ -13,6 +13,17 @@ from app.services.contract_service import (
     normalize_qty,
     submit_contract_for_approval,
 )
+from app.services.order_service import (
+    OrderServiceError,
+    SalesOrderServiceResult,
+    create_sales_order_draft,
+    finance_approve_sales_order,
+    get_purchase_order_or_raise,
+    get_sales_order_or_raise,
+    ops_approve_sales_order,
+    submit_sales_order,
+    update_sales_order,
+)
 from app.services.threshold_service import get_active_threshold_snapshot
 
 __all__ = [
@@ -24,11 +35,20 @@ __all__ = [
     "approve_contract",
     "build_contract_snapshot",
     "build_effective_tasks",
+    "create_sales_order_draft",
     "create_contract_draft",
+    "finance_approve_sales_order",
     "get_active_threshold_snapshot",
+    "get_purchase_order_or_raise",
     "get_contract_or_raise",
+    "get_sales_order_or_raise",
     "normalize_price",
     "normalize_qty",
+    "ops_approve_sales_order",
+    "OrderServiceError",
+    "SalesOrderServiceResult",
     "submit_contract_for_approval",
+    "submit_sales_order",
+    "update_sales_order",
     "write_audit_log_with_retry",
 ]

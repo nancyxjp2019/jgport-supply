@@ -3,7 +3,7 @@
 ## 1. 目的与门槛
 - 目的：验证需求是否被完整理解并可直接进入模块开发。
 - 门槛：
-  - 规则覆盖率 `100%`（规则1~36全部映射）。
+  - 规则覆盖率 `100%`（规则1~38全部映射）。
   - 规则冲突数 `0`。
   - 阻断级未决问题 `0`。
 
@@ -20,8 +20,8 @@
 | 7 | 数量单据中台化 | M5 | ADM-INBOUND-01/ADM-OUTBOUND-01 | `/inbound-docs/*` `/outbound-docs/*` | `inbound_docs`,`outbound_docs` | INV-001 |
 | 8 | 采购合同生效触发付款单+入库草稿 | M2+M4+M5 | 合同审批页 | `/contracts/{id}/approve` 写入下游待处理任务 | `contracts` + `contract_effective_tasks` + 付款单/入库单 | TRG-001 |
 | 9 | 销售合同生效触发收款单保证金 | M2+M4 | 合同审批页 | `/contracts/{id}/approve` 写入下游待处理任务 | `contracts` + `contract_effective_tasks` + 收款单 | TRG-002 |
-| 10 | 销售订单财务通过自动三单 + 订单关闭条件冻结 | M3+M4+M6 | ADM-ORDER-S-01/ADM-ORDER-P-01 | `/sales-orders/{id}/finance-approve` + 订单完成判定 | 销售/采购订单状态枚举 + 收付款单 + 出库累计 | TRG-003 |
-| 11 | 销售衍生采购订单付款=0无条件放行 | M3+M4 | ADM-ORDER-P-01 | `po_zero_pay_exception`触发 | `purchase_orders.zero_pay_exception_flag` | EXC-001 |
+| 10 | 销售订单财务通过自动三单 + 订单关闭条件冻结 | M3+M4+M6 | ADM-ORDER-S-01/ADM-ORDER-P-01 | `/sales-orders/{id}/finance-approve` + 订单完成判定 | `sales_orders` + `purchase_orders` + `sales_order_derivative_tasks` + 出库累计 | TRG-003 |
+| 11 | 销售衍生采购订单付款=0无条件放行 | M3+M4 | ADM-ORDER-P-01 | `po_zero_pay_exception`触发 | `purchase_orders.zero_pay_exception_flag` + `sales_order_derivative_tasks` | EXC-001 |
 | 12 | 出库双通道（系统+手工）+ 履约累计幂等防重 | M5+M6 | ADM-OUTBOUND-01 | `/outbound-docs/manual` + 仓库出库事件 + 生效累计任务 | `outbound_docs` + `contract_qty_effects` + `doc_relations` | INV-002 |
 | 13 | 双阈值模型与约束（系统级统一下发） | M1+M2+M6 | ADM-CONFIG-01 | `/system-configs/thresholds` + 合同生效写快照 | `system_configs` + `contracts.threshold_*_snapshot` | CFG-001 |
 | 14 | 零金额免凭证（规则14场景） | M4 | ADM-RECEIPT-01 | `/receipt-docs/{id}/confirm` | 收付款单免凭证字段 | EXC-002 |
@@ -47,6 +47,8 @@
 | 34 | 终端用户可见信息统一中文显示 | M8+M7 | `ADM-*` + `MINI-*` 全页面提示文案 | 前端消息映射层 + 表单校验提示 + 阻断提示渲染 | 前端文案资源与错误消息映射 | UXR-004 |
 | 35 | 管理后台Web登录边界与后端接口授权分层 | M1+M8 | 管理后台登录页 + 全接口鉴权链路 | 登录鉴权中间件 + 角色/公司范围校验 | 登录身份上下文 + 角色权限策略 | SEC-001 |
 | 36 | 合同早期状态机（草稿->待审批->生效中；驳回回草稿） | M2 | 合同创建页/审批页 | `/contracts/purchase` `/contracts/sales` `/contracts/{id}/submit` `/contracts/{id}/approve` | `contracts.status` + 合同审批审计 | CT-001 |
+| 37 | 销售订单审批状态机与驳回回退 | M3 | MINI-ORDER-01 / ADM-ORDER-S-01 | `/sales-orders` `/sales-orders/{id}` `/sales-orders/{id}/submit` `/sales-orders/{id}/ops-approve` `/sales-orders/{id}/finance-approve` | `sales_orders.status` + 订单审批审计 | ORD-001 |
+| 38 | 销售订单财务审批必须绑定采购合同 | M3 | ADM-ORDER-S-01 / ADM-ORDER-P-01 | `/sales-orders/{id}/finance-approve` | `purchase_orders.purchase_contract_id` + `sales_order_derivative_tasks` | ORD-002 |
 
 ## 3. 验收方式
 - 抽检方式：随机抽取任意10条规则，要求能在“模块/页面/API/数据/测试”5列中完整追溯。
