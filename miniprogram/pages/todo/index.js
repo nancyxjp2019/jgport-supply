@@ -127,6 +127,13 @@ Page({
       todoItems,
       quickActions: [
         {
+          key: 'message',
+          title: '查看消息中心',
+          desc: '统一查看订单提醒、异常消息和执行入口通知。',
+          url: '/pages/msg/index',
+          actionLabel: '去查看',
+        },
+        {
           key: 'create',
           title: '发起新订单',
           desc: '按合同和油品创建订单草稿，再提交审批。',
@@ -156,6 +163,13 @@ Page({
       todoItems: buildOperatorTodoItems(overview),
       quickActions: [
         {
+          key: 'message',
+          title: '查看消息中心',
+          desc: '统一查看异常提醒和首批状态通知。',
+          url: '/pages/msg/index',
+          actionLabel: '去查看',
+        },
+        {
           key: 'report',
           title: '查看经营快报',
           desc: '查看当日实收实付、出入库和异常摘要。',
@@ -175,10 +189,19 @@ Page({
       loading: false,
       summaryCards: buildWarehouseSummaryCards(),
       todoItems: [],
-      quickActions: buildWarehouseQuickActions(),
+      quickActions: [
+        ...buildWarehouseQuickActions(),
+        {
+          key: 'message',
+          title: '查看消息中心',
+          desc: '查看执行入口开放提醒与当前角色首批消息。',
+          url: '/pages/msg/index',
+          actionLabel: '去查看',
+        },
+      ],
       emptyTitle: '当前没有独立待办列表',
       emptyText: '仓库角色当前通过执行回执页处理现场业务。',
-      helperText: '执行回执已开放正常回执和手工补录，两种入口都在下方。',
+      helperText: '执行回执已开放正常回执和手工补录，同时可在消息中心查看首批提醒。',
     });
   },
 
@@ -187,7 +210,15 @@ Page({
       loading: false,
       summaryCards: [],
       todoItems: [],
-      quickActions: [],
+      quickActions: [
+        {
+          key: 'message',
+          title: '查看消息中心',
+          desc: '查看当前版本已开放的边界提示消息。',
+          url: '/pages/msg/index',
+          actionLabel: '去查看',
+        },
+      ],
       emptyTitle: '供应商移动待办尚未开放',
       emptyText: '当前版本仅保留供应商角色边界验证，不开放真实业务待办。',
       helperText: '后续在采购执行和附件回传模块接入供应商待办。',
@@ -199,7 +230,15 @@ Page({
       loading: false,
       summaryCards: [],
       todoItems: [],
-      quickActions: [],
+      quickActions: [
+        {
+          key: 'message',
+          title: '查看消息中心',
+          desc: '查看当前身份是否存在系统边界提示。',
+          url: '/pages/msg/index',
+          actionLabel: '去查看',
+        },
+      ],
       emptyTitle: '当前身份暂无可用待办',
       emptyText: '请切换到已开放的业务角色后重试。',
       helperText: '若当前角色不正确，请先退出后重新登录。',

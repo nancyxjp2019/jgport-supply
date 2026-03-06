@@ -2,7 +2,7 @@
 
 ## 当前状态
 - `miniprogram/` 已完成最小工程初始化，可直接在微信开发者工具中打开。
-- 当前已落地页面：`MINI-LOGIN-01 登录入口`、`MINI-TODO-01 我的待办`、`MINI-ORDER-01 订单发起与查询`、`MINI-REPORT-01 经营快报`、`MINI-EXEC-01 仓库执行回执`。
+- 当前已落地页面：`MINI-LOGIN-01 登录入口`、`MINI-TODO-01 我的待办`、`MINI-MSG-01 消息中心`、`MINI-ORDER-01 订单发起与查询`、`MINI-REPORT-01 经营快报`、`MINI-EXEC-01 仓库执行回执`。
 - 当前运行模式：支持 `演示模式`、`本地联调`、`微信登录`。
 - V5 小程序代码已归档至 `archive/v5/miniprogram/`，仅作为结构参考。
 
@@ -10,6 +10,7 @@
 - `app.js / app.json / app.wxss`：小程序应用入口与全局样式。
 - `pages/login/`：`MINI-LOGIN-01` 登录入口页。
 - `pages/todo/`：`MINI-TODO-01` 我的待办页。
+- `pages/msg/`：`MINI-MSG-01` 消息中心页。
 - `pages/order/`：`MINI-ORDER-01` 订单发起与查询页。
 - `pages/report/`：`MINI-REPORT-01` 轻量报表页。
 - `pages/exec/`：`MINI-EXEC-01` 仓库执行回执页。
@@ -21,8 +22,8 @@
 ## 当前能力边界
 - 首版已开放：客户（订单发起与查询）、运营/财务/管理员（轻量报表）、仓库（执行回执）。
 - 供应商不展示经营金额汇总，只显示禁止访问提示。
-- 当前已包含：登录入口、待办页、客户订单页、报表页登录守卫、仓库执行回执页、开发者工具本地后端联调、微信登录骨架。
-- 当前不包含：真机 HTTPS 联调、业务看板独立页、消息中心、供应商协同页。
+- 当前已包含：登录入口、待办页、消息中心、客户订单页、报表页登录守卫、仓库执行回执页、开发者工具本地后端联调、微信登录骨架。
+- 当前不包含：真机 HTTPS 联调、业务看板独立页、供应商协同页、服务端消息推送。
 
 ## 打开方式
 1. 使用微信开发者工具打开仓库下的 `miniprogram/`。
@@ -35,10 +36,10 @@
 
 ## 本地回归命令
 ```bash
-node --check app.js config/env.js mocks/order.js utils/api.js utils/format.js utils/light-report.js utils/navigation.js utils/order.js utils/request.js utils/session.js utils/todo.js utils/warehouse-exec.js pages/login/index.js pages/todo/index.js pages/order/index.js pages/report/index.js pages/exec/index.js
+node --check app.js config/env.js mocks/order.js utils/api.js utils/format.js utils/light-report.js utils/message.js utils/navigation.js utils/order.js utils/request.js utils/session.js utils/todo.js utils/warehouse-exec.js pages/login/index.js pages/todo/index.js pages/msg/index.js pages/order/index.js pages/report/index.js pages/exec/index.js
 node --test tests/*.test.js
 ```
 
 ## 后续计划
 1. 在补充 `AppSecret` 与实际微信账号绑定后完成真实微信登录联调。
-2. 在真实登录链路稳定后，再开放消息中心与供应商真实业务待办。
+2. 在真实登录链路稳定后，继续补消息推送与供应商真实业务待办。

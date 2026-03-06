@@ -1,0 +1,83 @@
+<view class="page-shell">
+  <view class="hero-card msg-hero-card">
+    <view class="page-title">消息中心</view>
+    <view class="page-subtitle">统一查看当前角色的消息提醒、异常提示和首批状态通知。消息读写首批仅保存在当前设备。</view>
+    <view class="pill-row todo-hero-meta">
+      <view class="version-pill">首批聚合消息</view>
+      <view class="mode-pill">{{runtimeLabel}}</view>
+      <view wx:if="{{roleLabel}}" class="mode-pill">当前身份：{{roleLabel}}</view>
+    </view>
+  </view>
+
+  <view class="panel-card session-card">
+    <view class="section-title">当前会话</view>
+    <view class="section-desc">当前消息中心优先聚合订单状态、异常摘要和执行提醒，不包含服务端消息配置。</view>
+    <view class="button-row">
+      <button class="secondary-btn" bindtap="onSwitchRole">切换角色</button>
+      <button class="secondary-btn" bindtap="onMarkAllRead">全部标记已读</button>
+      <button class="danger-btn" bindtap="onLogout">退出当前身份</button>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="status-card">
+    <view class="status-card__title">消息加载中</view>
+    <view class="status-tip">正在读取当前身份对应的首批消息提醒，请稍候。</view>
+  </view>
+
+  <view wx:elif="{{errorMessage}}" class="status-card error-card">
+    <view class="status-card__title">消息加载失败</view>
+    <view class="error-text">{{errorMessage}}</view>
+  </view>
+
+  <block wx:else>
+    <view class="panel-card">
+      <view class="section-title">消息摘要</view>
+      <view class="section-desc">当前共有 {{messages.length}} 条消息，其中未读 {{unreadCount}} 条。</view>
+      <view class="todo-summary-grid">
+        <view wx:for="{{summaryCards}}" wx:key="key" class="todo-summary-card {{item.className}}">
+          <view class="todo-summary-card__label">{{item.label}}</view>
+          <view class="todo-summary-card__value">{{item.value}}</view>
+          <view class="todo-summary-card__desc">{{item.desc}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="panel-card">
+      <view class="section-title">消息分类</view>
+      <view class="section-desc">支持查看全部、未读和已读消息。首批消息状态仅保存在当前设备。</view>
+      <view class="msg-tab-row">
+        <view class="msg-tab {{activeTab === 'all' ? 'msg-tab--active' : ''}}" data-tab="all" bindtap="onSwitchTab">全部</view>
+        <view class="msg-tab {{activeTab === 'unread' ? 'msg-tab--active' : ''}}" data-tab="unread" bindtap="onSwitchTab">未读</view>
+        <view class="msg-tab {{activeTab === 'read' ? 'msg-tab--active' : ''}}" data-tab="read" bindtap="onSwitchTab">已读</view>
+      </view>
+    </view>
+
+    <view wx:if="{{filteredMessages.length}}" class="panel-card">
+      <view class="section-title">消息列表</view>
+      <view class="section-desc">消息按时间倒序展示。可将单条消息标记为已读，也可直接跳转到对应页面。</view>
+      <view class="msg-list">
+        <view wx:for="{{filteredMessages}}" wx:key="key" class="msg-card {{item.read ? 'msg-card--read' : ''}}">
+          <view class="msg-card__head">
+            <view class="pill-row msg-card__tags">
+              <view class="status-pill {{item.read ? 'status-pill--normal' : 'status-pill--delayed'}}">{{item.statusText}}</view>
+              <view class="status-pill {{item.levelClass}}">{{item.level === 'danger' ? '高优先级' : item.level === 'warning' ? '重点关注' : item.level === 'success' ? '进展提醒' : '常规提醒'}}</view>
+            </view>
+            <view class="card-caption">{{item.timeText}}</view>
+          </view>
+          <view class="msg-card__title">{{item.title}}</view>
+          <view class="msg-card__summary">{{item.summary}}</view>
+          <view class="button-row msg-card__actions">
+            <button wx:if="{{!item.read}}" class="secondary-btn msg-card__btn" data-key="{{item.key}}" bindtap="onMarkRead">标记已读</button>
+            <button wx:if="{{item.actionLabel}}" class="primary-btn msg-card__btn" data-key="{{item.key}}" data-url="{{item.actionUrl}}" bindtap="onOpenMessage">{{item.actionLabel}}</button>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:else class="empty-card">
+      <view class="status-card__title">{{emptyTitle}}</view>
+      <view class="empty-text">{{emptyText}}</view>
+      <view wx:if="{{helperText}}" class="status-tip">{{helperText}}</view>
+    </view>
+  </block>
+</view>
