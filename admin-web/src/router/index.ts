@@ -114,6 +114,16 @@ const router = createRouter({
             summary: '异步导出任务、导出历史、结果下载与失败重试',
           },
         },
+        {
+          path: '/report-recompute-tasks',
+          name: 'report-recompute-tasks',
+          component: () => import('@/views/report-recompute-tasks/ReportRecomputeTasksView.vue'),
+          meta: {
+            requiresAuth: true,
+            title: '汇总重算任务中心',
+            summary: '汇总报表手工重算、快照历史回看与失败重试',
+          },
+        },
       ],
     },
   ],

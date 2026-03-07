@@ -45,6 +45,7 @@
           <ElButton type="primary" :loading="loading" @click="reloadReport">刷新报表</ElButton>
           <ElButton :disabled="!canExportMultiDim" :loading="exporting" @click="handleCreateExportTask">创建导出任务</ElButton>
           <ElButton :disabled="!canExportMultiDim" plain @click="router.push('/reports-export-tasks')">查看任务中心</ElButton>
+          <ElButton :disabled="!canViewRecompute" plain @click="router.push('/report-recompute-tasks')">汇总重算中心</ElButton>
         </div>
       </div>
     </section>
@@ -108,7 +109,7 @@
       <ElEmpty v-if="!loading && !(report?.rows.length)" description="当前筛选条件下暂无多维数据" />
       <p v-if="!canExportMultiDim" class="order-boundary-tip">当前角色仅可查看多维报表，暂无导出任务创建与任务中心权限。</p>
       <p class="order-boundary-tip">当前批次仅开放 `doc_status`、`refund_status` 汇总行钻取到资金单据列表；`contract_direction` 继续只做汇总回看。</p>
-      <p class="order-boundary-tip">当前批次已切换为“创建导出任务 -> 任务中心回看 -> 下载结果/失败重试”，不开放口径重算与跨报表批量编排。</p>
+      <p class="order-boundary-tip">当前批次已切换为“创建导出任务 -> 任务中心回看 -> 下载结果/失败重试”；汇总快照口径重算已迁入独立任务中心，不开放跨报表批量编排。</p>
     </section>
   </div>
 </template>
@@ -181,6 +182,12 @@ const router = useRouter()
 const authStore = useAuthStore()
 const currentRoleCode = computed(() => authStore.session?.roleCode ?? '')
 const canExportMultiDim = computed(() => canRoleExecuteAction(currentRoleCode.value, 'reports.multi_dim.export'))
+const canViewRecompute = computed(() =>
+  canRoleExecuteAction(currentRoleCode.value, 'reports.summary.recompute.view'),
+)
+const canManageRecompute = computed(() =>
+  canRoleExecuteAction(currentRoleCode.value, 'reports.summary.recompute'),
+)
 
 const groupByLabel = computed(() => groupByOptions.find((item) => item.value === groupBy.value)?.label ?? '多维')
 

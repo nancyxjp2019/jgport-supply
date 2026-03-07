@@ -127,3 +127,37 @@ class AdminMultiDimExportTaskCreateResponse(BaseModel):
 class AdminMultiDimExportTaskListResponse(BaseModel):
     items: list[AdminMultiDimExportTaskItem] = Field(default_factory=list)
     message: str
+
+
+class SummaryReportRecomputeTaskCreateRequest(BaseModel):
+    metric_version: str | None = Field(default=None, max_length=16)
+    report_codes: list[str] = Field(default_factory=list)
+    reason: str = Field(min_length=1, max_length=255)
+
+
+class SummaryReportRecomputeTaskItem(BaseModel):
+    id: int
+    task_name: str
+    status: str
+    metric_version: str
+    report_codes: list[str] = Field(default_factory=list)
+    reason: str
+    requested_by: str
+    requested_role_code: str
+    requested_company_id: str | None = None
+    retry_count: int
+    error_message: str | None = None
+    result_payload: dict[str, dict[str, str]] = Field(default_factory=dict)
+    finished_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class SummaryReportRecomputeTaskCreateResponse(BaseModel):
+    task: SummaryReportRecomputeTaskItem
+    message: str
+
+
+class SummaryReportRecomputeTaskListResponse(BaseModel):
+    items: list[SummaryReportRecomputeTaskItem] = Field(default_factory=list)
+    message: str

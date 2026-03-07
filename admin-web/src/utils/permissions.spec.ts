@@ -5,6 +5,8 @@ import { canRoleExecuteAction } from './permissions'
 describe('permissions utils', () => {
   it('运营仅可执行运营审批动作', () => {
     expect(canRoleExecuteAction('operations', 'orders.ops.approve')).toBe(true)
+    expect(canRoleExecuteAction('operations', 'reports.summary.recompute.view')).toBe(true)
+    expect(canRoleExecuteAction('operations', 'reports.summary.recompute')).toBe(false)
     expect(canRoleExecuteAction('operations', 'orders.finance.approve')).toBe(false)
     expect(canRoleExecuteAction('operations', 'funds.operate')).toBe(false)
   })
@@ -13,6 +15,8 @@ describe('permissions utils', () => {
     expect(canRoleExecuteAction('finance', 'orders.finance.approve')).toBe(true)
     expect(canRoleExecuteAction('finance', 'funds.operate')).toBe(true)
     expect(canRoleExecuteAction('finance', 'funds.reconcile.operate')).toBe(true)
+    expect(canRoleExecuteAction('finance', 'reports.summary.recompute.view')).toBe(true)
+    expect(canRoleExecuteAction('finance', 'reports.summary.recompute')).toBe(true)
     expect(canRoleExecuteAction('finance', 'orders.ops.approve')).toBe(false)
   })
 
@@ -20,5 +24,7 @@ describe('permissions utils', () => {
     expect(canRoleExecuteAction('admin', 'orders.ops.approve')).toBe(true)
     expect(canRoleExecuteAction('admin', 'orders.finance.approve')).toBe(true)
     expect(canRoleExecuteAction('admin', 'reports.multi_dim.export')).toBe(true)
+    expect(canRoleExecuteAction('admin', 'reports.summary.recompute.view')).toBe(true)
+    expect(canRoleExecuteAction('admin', 'reports.summary.recompute')).toBe(true)
   })
 })

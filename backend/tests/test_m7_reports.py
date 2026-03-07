@@ -21,9 +21,11 @@ from app.models.contract_qty_effect import ContractQtyEffect
 from app.models.inbound_doc import InboundDoc
 from app.models.outbound_doc import OutboundDoc
 from app.models.payment_doc import PaymentDoc
+from app.models.report_recompute_task import ReportRecomputeTask
 from app.models.receipt_doc import ReceiptDoc
 from app.models.report_export_task import ReportExportTask
 from app.models.report_snapshot import ReportSnapshot
+from app.services.report_recompute_service import create_summary_report_recompute_task
 from app.services.report_service import create_admin_multi_dim_export_task
 
 client = TestClient(app)
@@ -672,6 +674,199 @@ def test_admin_multi_dim_export_task_route_reuses_pending_task_without_requeue(
     assert duplicate_response.status_code == 202
     assert duplicate_response.json()["task"]["id"] == pending_dispatch.task.id
     assert executed_task_ids == []
+
+
+def test_summary_report_recompute_task_center_supports_create_list_and_retry(
+    auth_headers,
+) -> None:
+    dashboard_snapshot_count_before = _count_report_snapshots("dashboard_summary", "v1")
+    board_snapshot_count_before = _count_report_snapshots("board_tasks", "v1")
+
+    create_response = client.post(
+        "/api/v1/reports/recompute-tasks",
+        json={
+            "report_codes": ["dashboard_summary", "board_tasks"],
+            "reason": "CODEX-TEST-M8-27-汇总快照重算",
+        },
+        headers=_finance_headers(auth_headers, "CODEX-TEST-M8-27-RECOMPUTE-CREATE"),
+    )
+    assert create_response.status_code == 202
+    create_body = create_response.json()
+    task_id = create_body["task"]["id"]
+    assert create_body["message"] == "重算任务已创建，正在后台执行"
+
+    list_response = client.get(
+        "/api/v1/reports/recompute-tasks",
+        headers=_finance_headers(auth_headers, "CODEX-TEST-M8-27-RECOMPUTE-LIST"),
+    )
+    assert list_response.status_code == 200
+    list_body = list_response.json()
+    task_row = next(item for item in list_body["items"] if item["id"] == task_id)
+    assert task_row["status"] == "已完成"
+    assert task_row["metric_version"] == "v1"
+    assert task_row["reason"] == "CODEX-TEST-M8-27-汇总快照重算"
+    assert set(task_row["report_codes"]) == {"dashboard_summary", "board_tasks"}
+    assert "dashboard_summary" in task_row["result_payload"]
+    assert "board_tasks" in task_row["result_payload"]
+
+    ops_list_response = client.get(
+        "/api/v1/reports/recompute-tasks",
+        headers=_ops_admin_web_headers(
+            auth_headers, "CODEX-TEST-M8-27-RECOMPUTE-OPS-LIST"
+        ),
+    )
+    assert ops_list_response.status_code == 200
+    assert any(item["id"] == task_id for item in ops_list_response.json()["items"])
+
+    assert (
+        _count_report_snapshots("dashboard_summary", "v1")
+        > dashboard_snapshot_count_before
+    )
+    assert _count_report_snapshots("board_tasks", "v1") > board_snapshot_count_before
+
+    blocked_create_response = client.post(
+        "/api/v1/reports/recompute-tasks",
+        json={
+            "report_codes": ["dashboard_summary"],
+            "reason": "CODEX-TEST-M8-27-RECOMPUTE-BLOCKED",
+        },
+        headers=_ops_admin_web_headers(
+            auth_headers, "CODEX-TEST-M8-27-RECOMPUTE-BLOCKED"
+        ),
+    )
+    assert blocked_create_response.status_code == 403
+    assert blocked_create_response.json()["detail"] == "当前角色无权访问该接口"
+
+    blocked_retry_response = client.post(
+        f"/api/v1/reports/recompute-tasks/{task_id}/retry",
+        headers=_ops_admin_web_headers(
+            auth_headers, "CODEX-TEST-M8-27-RECOMPUTE-RETRY-BLOCKED"
+        ),
+    )
+    assert blocked_retry_response.status_code == 403
+    assert blocked_retry_response.json()["detail"] == "当前角色无权访问该接口"
+
+    _mark_report_recompute_task_failed_for_test(task_id)
+    retry_response = client.post(
+        f"/api/v1/reports/recompute-tasks/{task_id}/retry",
+        headers=_finance_headers(auth_headers, "CODEX-TEST-M8-27-RECOMPUTE-RETRY"),
+    )
+    assert retry_response.status_code == 202
+    assert retry_response.json()["message"] == "重算任务已重新发起，正在后台执行"
+
+    retried_task = _get_report_recompute_task(task_id)
+    assert retried_task is not None
+    assert retried_task.status == "已完成"
+    assert retried_task.retry_count == 1
+
+
+def test_summary_report_recompute_task_create_reuses_same_in_progress_task() -> None:
+    actor = AuthenticatedActor(
+        user_id="CODEX-TEST-M8-27-RECOMPUTE-IDEMPOTENT",
+        role_code="finance",
+        company_id="CODEX-TEST-OPERATOR-COMPANY",
+        company_type="operator_company",
+        client_type="admin_web",
+    )
+    db = SessionLocal()
+    try:
+        first_dispatch = create_summary_report_recompute_task(
+            db,
+            actor=actor,
+            metric_version="v1",
+            report_codes=["dashboard_summary", "board_tasks"],
+            reason="CODEX-TEST-M8-27-RECOMPUTE-IDEMPOTENT",
+        )
+        second_dispatch = create_summary_report_recompute_task(
+            db,
+            actor=actor,
+            metric_version="v1",
+            report_codes=["board_tasks", "dashboard_summary"],
+            reason="CODEX-TEST-M8-27-RECOMPUTE-IDEMPOTENT",
+        )
+        assert first_dispatch.should_enqueue is True
+        assert second_dispatch.should_enqueue is False
+        assert first_dispatch.task.id == second_dispatch.task.id
+    finally:
+        db.close()
+
+
+def test_summary_report_recompute_task_retry_blocks_pending_task(auth_headers) -> None:
+    actor = AuthenticatedActor(
+        user_id="CODEX-TEST-M8-27-RECOMPUTE-PENDING-RETRY",
+        role_code="finance",
+        company_id="CODEX-TEST-OPERATOR-COMPANY",
+        company_type="operator_company",
+        client_type="admin_web",
+    )
+    db = SessionLocal()
+    try:
+        pending_dispatch = create_summary_report_recompute_task(
+            db,
+            actor=actor,
+            metric_version="v1",
+            report_codes=["light_overview"],
+            reason="CODEX-TEST-M8-27-RECOMPUTE-PENDING-RETRY",
+        )
+    finally:
+        db.close()
+
+    retry_response = client.post(
+        f"/api/v1/reports/recompute-tasks/{pending_dispatch.task.id}/retry",
+        headers=_finance_headers(auth_headers, "CODEX-TEST-M8-27-PENDING-RETRY-API"),
+    )
+    assert retry_response.status_code == 409
+    assert retry_response.json()["detail"] == "当前重算任务不支持重试"
+
+
+def test_summary_report_recompute_task_retry_blocks_when_duplicate_pending_task_exists(
+    auth_headers,
+) -> None:
+    actor = AuthenticatedActor(
+        user_id="CODEX-TEST-M8-27-RECOMPUTE-DUPLICATE-RETRY",
+        role_code="finance",
+        company_id="CODEX-TEST-OPERATOR-COMPANY",
+        company_type="operator_company",
+        client_type="admin_web",
+    )
+    db = SessionLocal()
+    try:
+        failed_dispatch = create_summary_report_recompute_task(
+            db,
+            actor=actor,
+            metric_version="v1",
+            report_codes=["dashboard_summary"],
+            reason="CODEX-TEST-M8-27-RECOMPUTE-DUPLICATE-RETRY",
+        )
+    finally:
+        db.close()
+
+    _mark_report_recompute_task_failed_for_test(failed_dispatch.task.id)
+
+    db = SessionLocal()
+    try:
+        duplicate_dispatch = create_summary_report_recompute_task(
+            db,
+            actor=actor,
+            metric_version="v1",
+            report_codes=["dashboard_summary"],
+            reason="CODEX-TEST-M8-27-RECOMPUTE-DUPLICATE-RETRY",
+        )
+        assert duplicate_dispatch.should_enqueue is True
+    finally:
+        db.close()
+
+    retry_response = client.post(
+        f"/api/v1/reports/recompute-tasks/{failed_dispatch.task.id}/retry",
+        headers=_finance_headers(
+            auth_headers, "CODEX-TEST-M8-27-RECOMPUTE-DUPLICATE-RETRY-API"
+        ),
+    )
+    assert retry_response.status_code == 409
+    assert (
+        retry_response.json()["detail"]
+        == "已存在相同范围的未完成重算任务，请直接查看当前任务结果"
+    )
 
 
 def test_report_metric_version_must_exist(auth_headers) -> None:
@@ -1364,10 +1559,48 @@ def _latest_report_snapshot(report_code: str) -> ReportSnapshot | None:
         db.close()
 
 
+def _count_report_snapshots(report_code: str, version: str) -> int:
+    db = SessionLocal()
+    try:
+        return len(
+            db.scalars(
+                select(ReportSnapshot).where(
+                    ReportSnapshot.report_code == report_code,
+                    ReportSnapshot.version == version,
+                )
+            ).all()
+        )
+    finally:
+        db.close()
+
+
 def _get_report_export_task(task_id: int) -> ReportExportTask | None:
     db = SessionLocal()
     try:
         return db.get(ReportExportTask, task_id)
+    finally:
+        db.close()
+
+
+def _get_report_recompute_task(task_id: int) -> ReportRecomputeTask | None:
+    db = SessionLocal()
+    try:
+        return db.get(ReportRecomputeTask, task_id)
+    finally:
+        db.close()
+
+
+def _mark_report_recompute_task_failed_for_test(task_id: int) -> None:
+    db = SessionLocal()
+    try:
+        task = db.get(ReportRecomputeTask, task_id)
+        assert task is not None
+        task.status = "已失败"
+        task.idempotency_key = f"{task.idempotency_key}:failed:{task.id}"
+        task.error_message = "CODEX-TEST-M8-27-重算失败"
+        task.result_payload = {}
+        task.finished_at = datetime.now(UTC)
+        db.commit()
     finally:
         db.close()
 

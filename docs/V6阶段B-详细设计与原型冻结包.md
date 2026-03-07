@@ -112,6 +112,8 @@ purchase_payment_net =
 | 自动关闭校验任务 | 合同数量履约完成 | 按合同方向执行金额闭环校验；成功后自动关闭并终止剩余未终态草稿/待处理单据 | `contract_auto_close_check:{contract_id}:{version}` | 校验失败转授权手工关闭 |
 | 每日闭环扫描任务 | 当日首次报表请求触发应用内补偿扫描 | 扫描`数量履约完成且未关闭`合同并生成看板告警 | `contract_close_scan:{date}:{contract_id}` | 同日重复触发幂等跳过，写审计 |
 | 每日履约滞留扫描任务 | 当日首次报表请求触发应用内补偿扫描 | 扫描`生效中且履约长时间未变化`合同并告警 | `contract_fulfillment_scan:{date}:{contract_id}` | 同日重复触发幂等跳过，写审计 |
+| 汇总报表重算任务创建 | 管理后台 `finance/admin` 发起当前快照重算 | 写入重算任务并触发后台执行；同报表集合+口径版本+原因的未终态任务直接复用 | `report_recompute:{actor_id}:{fingerprint}` | 任务写入失败则整单回滚 |
+| 汇总报表重算后台执行 | 任务状态=`待处理/处理中` | 强制重建 `dashboard_summary`/`board_tasks`/`light_overview` 新快照并回填结果 | `report_recompute_execute:{task_id}:{retry_count}` | 失败写错误原因并转`已失败` |
 | 多维报表创建导出任务 | 管理后台 `finance/admin` 发起导出 | 写入导出任务记录并触发后台导出执行；同筛选快照的未终态任务直接复用原记录 | `admin_multi_dim_export:{actor_id}:{fingerprint}` | 任务写入失败则整单回滚 |
 | 导出任务后台执行 | 任务状态=`待处理/处理中` | 生成 CSV 文件、回填文件元数据并更新状态 | `report_export_execute:{task_id}:{retry_count}` | 失败写错误原因并转`已失败` |
 | 导出任务结果下载 | 任务状态=`已完成` 且文件存在 | 返回导出文件并累加下载次数 | `report_export_download:{task_id}:{download_count}` | 文件缺失转`已失败`并提示重试 |
@@ -309,6 +311,10 @@ purchase_payment_net =
 - 事件源：合同生效、订单审批、收付款确认、出入库生效、手工关闭。
 - 口径版本：报表查询必须带`metric_version`，默认返回当前生效版本。
 - 重算策略：仅对口径变更涉及范围执行重算并保留旧版本快照。
+- 汇总报表口径重算首批冻结补充：
+  - 首批仅开放 `dashboard_summary`、`board_tasks`、`light_overview` 三类汇总报表的当前时点强制重算。
+  - 重算任务创建/重试仅面向 `finance/admin + operator_company + admin_web` 开放；`operations` 仅保留任务历史回看能力，任务创建必须填写审计可读原因。
+  - 同一操作人、同一报表集合、同一 `metric_version`、同一原因命中未终态任务时，必须直接复用既有任务，避免并发重复重算。
 - 定时任务：每日执行合同闭环扫描与履约滞留扫描，任务幂等键防重复触发，任务结果落审计并推送看板告警。
 - 导出任务中心首批采用应用内后台任务执行 CSV 生成，并将结果持久化到本地导出目录；当前阶段不引入分布式队列与跨实例调度。
 

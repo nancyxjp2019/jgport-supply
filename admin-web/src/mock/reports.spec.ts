@@ -3,12 +3,15 @@ import { describe, expect, it } from 'vitest'
 import {
   buildDemoAdminMultiDimReportCsv,
   createDemoAdminMultiDimExportTask,
+  createDemoSummaryReportRecomputeTask,
   demoBoardTasks,
   demoDashboardSummary,
   downloadDemoAdminMultiDimExportTask,
   getDemoAdminMultiDimExportTasks,
   getDemoAdminMultiDimReport,
+  getDemoSummaryReportRecomputeTasks,
   retryDemoAdminMultiDimExportTask,
+  retryDemoSummaryReportRecomputeTask,
 } from '@/mock/reports'
 
 describe('多维报表演示数据', () => {
@@ -61,6 +64,24 @@ describe('多维报表演示数据', () => {
     await expect(blob.text()).resolves.toContain('维度,维度值,收款净额,付款净额,资金净流入')
 
     const retried = retryDemoAdminMultiDimExportTask(failedTask!.id)
+    expect(retried.task.status).toBe('已完成')
+    expect(retried.task.retry_count).toBeGreaterThan(1)
+  })
+
+  it('支持创建、查询与重试汇总报表重算任务', () => {
+    const created = createDemoSummaryReportRecomputeTask({
+      report_codes: ['dashboard_summary', 'light_overview'],
+      reason: '修正汇总快照后补刷',
+    })
+    expect(created.message).toBe('重算任务已创建，正在后台执行')
+    expect(created.task.status).toBe('已完成')
+
+    const list = getDemoSummaryReportRecomputeTasks({ status: '已完成' })
+    expect(list.items.some((item) => item.id === created.task.id)).toBe(true)
+
+    const failedTask = getDemoSummaryReportRecomputeTasks({ status: '已失败' }).items[0]
+    expect(failedTask).toBeDefined()
+    const retried = retryDemoSummaryReportRecomputeTask(failedTask!.id)
     expect(retried.task.status).toBe('已完成')
     expect(retried.task.retry_count).toBeGreaterThan(1)
   })

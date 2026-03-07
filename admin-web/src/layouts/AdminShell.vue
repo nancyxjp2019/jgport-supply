@@ -4,7 +4,7 @@
       <div class="brand-card">
         <p class="brand-card__eyebrow">运营驾驶舱</p>
         <h1>JGPORT V6</h1>
-        <p>报表口径与页面结构对齐 M7 原型说明，当前已落地经营首页、业务看板、订单处理台、资金处理台、库存执行跟踪台、合同关闭差异台、退款核销台、多维报表台与导出任务中心。</p>
+        <p>报表口径与页面结构对齐 M7 原型说明，当前已落地经营首页、业务看板、订单处理台、资金处理台、库存执行跟踪台、合同关闭差异台、退款核销台、多维报表台、导出任务中心与汇总重算任务中心。</p>
       </div>
 
       <nav class="shell__nav">
@@ -107,6 +107,12 @@ const navItems = computed(() => [
     label: '导出任务中心',
     summary: '异步导出任务、历史回看、结果下载与失败重试',
     hidden: !canRoleExecuteAction(authStore.session?.roleCode, 'reports.multi_dim.export'),
+  },
+  {
+    to: '/report-recompute-tasks',
+    label: '汇总重算任务中心',
+    summary: '汇总快照手工重算、历史回看与失败重试',
+    hidden: !canRoleExecuteAction(authStore.session?.roleCode, 'reports.summary.recompute.view'),
   },
 ].filter((item) => !item.hidden))
 

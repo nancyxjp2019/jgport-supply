@@ -4,14 +4,18 @@ export type AdminActionCode =
   | 'funds.operate'
   | 'funds.reconcile.operate'
   | 'reports.multi_dim.export'
+  | 'reports.summary.recompute.view'
+  | 'reports.summary.recompute'
 
 const ROLE_ACTIONS: Record<string, ReadonlyArray<AdminActionCode>> = {
-  operations: ['orders.ops.approve'],
+  operations: ['orders.ops.approve', 'reports.summary.recompute.view'],
   finance: [
     'orders.finance.approve',
     'funds.operate',
     'funds.reconcile.operate',
     'reports.multi_dim.export',
+    'reports.summary.recompute.view',
+    'reports.summary.recompute',
   ],
   admin: [
     'orders.ops.approve',
@@ -19,6 +23,8 @@ const ROLE_ACTIONS: Record<string, ReadonlyArray<AdminActionCode>> = {
     'funds.operate',
     'funds.reconcile.operate',
     'reports.multi_dim.export',
+    'reports.summary.recompute.view',
+    'reports.summary.recompute',
   ],
 }
 

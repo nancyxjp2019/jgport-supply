@@ -2,17 +2,21 @@ import type { BoardTasksResponse, DashboardSummaryResponse } from '@/stores/repo
 import {
   createDemoAdminMultiDimExportTask,
   buildDemoAdminMultiDimReportCsv,
+  createDemoSummaryReportRecomputeTask,
   downloadDemoAdminMultiDimExportTask,
   demoBoardTasks,
   demoDashboardSummary,
   getDemoAdminMultiDimExportTasks,
   getDemoAdminMultiDimReport,
+  getDemoSummaryReportRecomputeTasks,
   retryDemoAdminMultiDimExportTask,
+  retryDemoSummaryReportRecomputeTask,
 } from '@/mock/reports'
 
 import { httpClient, reportsMode } from './http'
 
 export type AdminMultiDimGroupBy = 'contract_direction' | 'doc_status' | 'refund_status'
+export type SummaryReportCode = 'dashboard_summary' | 'board_tasks' | 'light_overview'
 
 export interface AdminMultiDimReportQuery {
   metric_version?: string
@@ -50,6 +54,50 @@ export interface AdminMultiDimReportResponse {
 }
 
 export type ReportExportTaskStatus = '待处理' | '处理中' | '已完成' | '已失败'
+
+export interface SummaryReportRecomputeResult {
+  report_name: string
+  snapshot_time: string
+}
+
+export interface SummaryReportRecomputeTask {
+  id: number
+  task_name: string
+  status: ReportExportTaskStatus
+  metric_version: string
+  report_codes: SummaryReportCode[]
+  reason: string
+  requested_by: string
+  requested_role_code: string
+  requested_company_id: string | null
+  retry_count: number
+  error_message: string | null
+  result_payload: Record<string, SummaryReportRecomputeResult>
+  finished_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface SummaryReportRecomputeTaskCreatePayload {
+  metric_version?: string
+  report_codes: SummaryReportCode[]
+  reason: string
+}
+
+export interface SummaryReportRecomputeTaskCreateResponse {
+  task: SummaryReportRecomputeTask
+  message: string
+}
+
+export interface SummaryReportRecomputeTaskListQuery {
+  status?: ReportExportTaskStatus
+  limit?: number
+}
+
+export interface SummaryReportRecomputeTaskListResponse {
+  items: SummaryReportRecomputeTask[]
+  message: string
+}
 
 export interface AdminMultiDimExportTask {
   id: number
@@ -169,6 +217,44 @@ export async function retryAdminMultiDimExportTask(
   }
   const { data } = await httpClient.post<AdminMultiDimExportTaskCreateResponse>(
     `/reports/admin/multi-dim/export-tasks/${taskId}/retry`,
+  )
+  return data
+}
+
+export async function createSummaryReportRecomputeTask(
+  payload: SummaryReportRecomputeTaskCreatePayload,
+): Promise<SummaryReportRecomputeTaskCreateResponse> {
+  if (reportsMode === 'demo') {
+    return Promise.resolve(createDemoSummaryReportRecomputeTask(payload))
+  }
+  const { data } = await httpClient.post<SummaryReportRecomputeTaskCreateResponse>(
+    '/reports/recompute-tasks',
+    payload,
+  )
+  return data
+}
+
+export async function fetchSummaryReportRecomputeTasks(
+  query: SummaryReportRecomputeTaskListQuery = {},
+): Promise<SummaryReportRecomputeTaskListResponse> {
+  if (reportsMode === 'demo') {
+    return Promise.resolve(getDemoSummaryReportRecomputeTasks(query))
+  }
+  const { data } = await httpClient.get<SummaryReportRecomputeTaskListResponse>(
+    '/reports/recompute-tasks',
+    { params: query },
+  )
+  return data
+}
+
+export async function retrySummaryReportRecomputeTask(
+  taskId: number,
+): Promise<SummaryReportRecomputeTaskCreateResponse> {
+  if (reportsMode === 'demo') {
+    return Promise.resolve(retryDemoSummaryReportRecomputeTask(taskId))
+  }
+  const { data } = await httpClient.post<SummaryReportRecomputeTaskCreateResponse>(
+    `/reports/recompute-tasks/${taskId}/retry`,
   )
   return data
 }

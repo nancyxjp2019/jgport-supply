@@ -20,6 +20,16 @@ from app.schemas.report import (
     BoardTasksResponse,
     DashboardSummaryResponse,
     LightReportOverviewResponse,
+    SummaryReportRecomputeTaskCreateRequest,
+    SummaryReportRecomputeTaskCreateResponse,
+    SummaryReportRecomputeTaskItem,
+    SummaryReportRecomputeTaskListResponse,
+)
+from app.services.report_recompute_service import (
+    create_summary_report_recompute_task,
+    execute_summary_report_recompute_task,
+    list_summary_report_recompute_tasks,
+    retry_summary_report_recompute_task,
 )
 from app.services.report_service import (
     ReportServiceError,
@@ -386,4 +396,92 @@ def retry_admin_multi_dim_export_task_route(
     return AdminMultiDimExportTaskCreateResponse(
         task=AdminMultiDimExportTaskItem(**task.__dict__),
         message="导出任务已重新发起，正在后台生成文件",
+    )
+
+
+@router.post(
+    "/reports/recompute-tasks",
+    response_model=SummaryReportRecomputeTaskCreateResponse,
+    status_code=202,
+)
+def create_summary_report_recompute_task_route(
+    payload: SummaryReportRecomputeTaskCreateRequest,
+    background_tasks: BackgroundTasks,
+    actor: AuthenticatedActor = Depends(admin_report_export_dependency),
+    db: Session = Depends(get_db),
+) -> SummaryReportRecomputeTaskCreateResponse:
+    try:
+        dispatch_result = create_summary_report_recompute_task(
+            db,
+            actor=actor,
+            metric_version=payload.metric_version,
+            report_codes=payload.report_codes,
+            reason=payload.reason,
+        )
+    except ReportServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    if dispatch_result.should_enqueue:
+        background_tasks.add_task(
+            execute_summary_report_recompute_task,
+            dispatch_result.task.id,
+        )
+    return SummaryReportRecomputeTaskCreateResponse(
+        task=SummaryReportRecomputeTaskItem(**dispatch_result.task.__dict__),
+        message=(
+            "重算任务已创建，正在后台执行"
+            if dispatch_result.should_enqueue
+            else "命中相同报表范围的未完成重算任务，已直接复用现有任务"
+        ),
+    )
+
+
+@router.get(
+    "/reports/recompute-tasks",
+    response_model=SummaryReportRecomputeTaskListResponse,
+)
+def list_summary_report_recompute_tasks_route(
+    limit: int = Query(default=20, ge=1, le=100, description="返回条数上限"),
+    task_status: str | None = Query(
+        default=None,
+        alias="status",
+        pattern="^(待处理|处理中|已完成|已失败)$",
+        description="任务状态筛选",
+    ),
+    actor: AuthenticatedActor = Depends(admin_report_dependency),
+    db: Session = Depends(get_db),
+) -> SummaryReportRecomputeTaskListResponse:
+    try:
+        items = list_summary_report_recompute_tasks(
+            db,
+            actor=actor,
+            limit=limit,
+            task_status=task_status,
+        )
+    except ReportServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    return SummaryReportRecomputeTaskListResponse(
+        items=[SummaryReportRecomputeTaskItem(**item.__dict__) for item in items],
+        message="重算任务列表查询成功",
+    )
+
+
+@router.post(
+    "/reports/recompute-tasks/{task_id}/retry",
+    response_model=SummaryReportRecomputeTaskCreateResponse,
+    status_code=202,
+)
+def retry_summary_report_recompute_task_route(
+    task_id: int,
+    background_tasks: BackgroundTasks,
+    actor: AuthenticatedActor = Depends(admin_report_export_dependency),
+    db: Session = Depends(get_db),
+) -> SummaryReportRecomputeTaskCreateResponse:
+    try:
+        task = retry_summary_report_recompute_task(db, actor=actor, task_id=task_id)
+    except ReportServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    background_tasks.add_task(execute_summary_report_recompute_task, task.id)
+    return SummaryReportRecomputeTaskCreateResponse(
+        task=SummaryReportRecomputeTaskItem(**task.__dict__),
+        message="重算任务已重新发起，正在后台执行",
     )

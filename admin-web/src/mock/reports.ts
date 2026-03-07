@@ -7,6 +7,12 @@ import type {
   AdminMultiDimReportQuery,
   AdminMultiDimReportResponse,
   ReportExportTaskStatus,
+  SummaryReportCode,
+  SummaryReportRecomputeTask,
+  SummaryReportRecomputeTaskCreatePayload,
+  SummaryReportRecomputeTaskCreateResponse,
+  SummaryReportRecomputeTaskListQuery,
+  SummaryReportRecomputeTaskListResponse,
 } from '@/api/reports'
 
 export const demoDashboardSummary: DashboardSummaryResponse = {
@@ -489,5 +495,146 @@ export function retryDemoAdminMultiDimExportTask(
   return {
     task,
     message: '导出任务已重新发起，正在后台生成文件',
+  }
+}
+
+const summaryReportLabels: Record<SummaryReportCode, string> = {
+  dashboard_summary: '经营仪表盘',
+  board_tasks: '业务看板',
+  light_overview: '轻量报表',
+}
+
+let demoRecomputeTaskSeed = 1103
+
+const demoSummaryReportRecomputeTasks: SummaryReportRecomputeTask[] = [
+  {
+    id: 1101,
+    task_name: '汇总报表口径重算',
+    status: '已完成',
+    metric_version: 'v1',
+    report_codes: ['dashboard_summary', 'board_tasks'],
+    reason: '修正合同履约补录后刷新汇总快照',
+    requested_by: 'DEMO-FINANCE-01',
+    requested_role_code: 'finance',
+    requested_company_id: 'DEMO-OPERATOR-COMPANY',
+    retry_count: 0,
+    error_message: null,
+    result_payload: {
+      dashboard_summary: {
+        report_name: '经营仪表盘',
+        snapshot_time: '2026-03-07T10:35:00+08:00',
+      },
+      board_tasks: {
+        report_name: '业务看板',
+        snapshot_time: '2026-03-07T10:35:20+08:00',
+      },
+    },
+    finished_at: '2026-03-07T10:35:20+08:00',
+    created_at: '2026-03-07T10:34:50+08:00',
+    updated_at: '2026-03-07T10:35:20+08:00',
+  },
+  {
+    id: 1102,
+    task_name: '汇总报表口径重算',
+    status: '已失败',
+    metric_version: 'v1',
+    report_codes: ['light_overview'],
+    reason: '修正移动端经营金额后补刷轻量报表',
+    requested_by: 'DEMO-ADMIN-01',
+    requested_role_code: 'admin',
+    requested_company_id: 'DEMO-OPERATOR-COMPANY',
+    retry_count: 1,
+    error_message: '轻量报表快照重算失败，请稍后重试',
+    result_payload: {},
+    finished_at: '2026-03-07T11:05:00+08:00',
+    created_at: '2026-03-07T11:00:00+08:00',
+    updated_at: '2026-03-07T11:05:00+08:00',
+  },
+]
+
+function buildDemoSummaryReportResult(
+  reportCodes: SummaryReportCode[],
+  now: string,
+): Record<string, { report_name: string; snapshot_time: string }> {
+  return Object.fromEntries(
+    reportCodes.map((reportCode, index) => {
+      const snapshotTime = new Date(Date.now() + index * 1000).toISOString()
+      return [
+        reportCode,
+        {
+          report_name: summaryReportLabels[reportCode],
+          snapshot_time: index === 0 ? now : snapshotTime,
+        },
+      ]
+    }),
+  )
+}
+
+function getDemoSummaryReportRecomputeTaskOrThrow(taskId: number): SummaryReportRecomputeTask {
+  const task = demoSummaryReportRecomputeTasks.find((item) => item.id === taskId)
+  if (!task) {
+    throw new Error('重算任务不存在')
+  }
+  return task
+}
+
+export function getDemoSummaryReportRecomputeTasks(
+  query: SummaryReportRecomputeTaskListQuery = {},
+): SummaryReportRecomputeTaskListResponse {
+  const filtered = demoSummaryReportRecomputeTasks
+    .filter((item) => !query.status || item.status === query.status)
+    .slice(0, query.limit ?? 20)
+  return {
+    items: filtered,
+    message: '重算任务列表查询成功',
+  }
+}
+
+export function createDemoSummaryReportRecomputeTask(
+  payload: SummaryReportRecomputeTaskCreatePayload,
+): SummaryReportRecomputeTaskCreateResponse {
+  const now = new Date().toISOString()
+  const task: SummaryReportRecomputeTask = {
+    id: demoRecomputeTaskSeed,
+    task_name: '汇总报表口径重算',
+    status: '已完成',
+    metric_version: payload.metric_version ?? 'v1',
+    report_codes: payload.report_codes,
+    reason: payload.reason,
+    requested_by: 'DEMO-FINANCE-NEW',
+    requested_role_code: 'finance',
+    requested_company_id: 'DEMO-OPERATOR-COMPANY',
+    retry_count: 0,
+    error_message: null,
+    result_payload: buildDemoSummaryReportResult(payload.report_codes, now),
+    finished_at: now,
+    created_at: now,
+    updated_at: now,
+  }
+  demoRecomputeTaskSeed += 1
+  demoSummaryReportRecomputeTasks.unshift(task)
+  return {
+    task,
+    message: '重算任务已创建，正在后台执行',
+  }
+}
+
+export function retryDemoSummaryReportRecomputeTask(
+  taskId: number,
+): SummaryReportRecomputeTaskCreateResponse {
+  const task = getDemoSummaryReportRecomputeTaskOrThrow(taskId)
+  if (task.status !== '已失败') {
+    throw new Error('当前重算任务不支持重试')
+  }
+  const now = new Date().toISOString()
+  task.status = '已完成'
+  task.retry_count += 1
+  task.error_message = null
+  task.result_payload = buildDemoSummaryReportResult(task.report_codes, now)
+  task.finished_at = now
+  task.updated_at = now
+  return {
+    task,
+    message: '重算任务已重新发起，正在后台执行',
   }
 }
