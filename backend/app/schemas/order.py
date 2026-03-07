@@ -162,3 +162,33 @@ class SupplierPurchaseOrderResponse(BaseModel):
     zero_pay_exception_flag: bool
     message: str
     created_at: datetime | None = None
+
+
+class SupplierPurchaseOrderAttachmentCreateRequest(BaseModel):
+    biz_tag: str = Field(description="附件业务标签")
+    file_path: str = Field(description="附件路径")
+
+
+class SupplierPurchaseOrderAttachmentResponse(BaseModel):
+    id: int
+    owner_doc_type: str
+    owner_doc_id: int
+    biz_tag: str
+    file_path: str
+    created_at: datetime
+    message: str
+
+
+class SupplierPurchaseOrderAttachmentListItemResponse(BaseModel):
+    id: int
+    owner_doc_type: str
+    owner_doc_id: int
+    biz_tag: str
+    file_path: str
+    created_at: datetime
+
+
+class SupplierPurchaseOrderAttachmentListResponse(BaseModel):
+    items: list[SupplierPurchaseOrderAttachmentListItemResponse]
+    total: int
+    message: str

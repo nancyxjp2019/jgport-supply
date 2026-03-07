@@ -1,13 +1,22 @@
 const { getRuntimeMode, getRuntimeModeLabel } = require('../../config/env');
-const { getAccessProfile, getSupplierPurchaseOrderDetail, listSupplierPurchaseOrders } = require('../../utils/api');
+const {
+  createSupplierPurchaseOrderAttachment,
+  getAccessProfile,
+  getSupplierPurchaseOrderDetail,
+  listSupplierPurchaseOrderAttachments,
+  listSupplierPurchaseOrders,
+} = require('../../utils/api');
 const { formatDateTime, formatMoney, formatQty } = require('../../utils/format');
 const { getRoleLabel } = require('../../utils/light-report');
 const { resolveEntrySourceMeta, resolveHomePath } = require('../../utils/navigation');
 const { getAccessToken, initializeSession, logoutSession, updateAccessProfile } = require('../../utils/session');
 const {
   buildSupplierPreparationHints,
+  buildSupplierAttachmentItems,
   buildSupplierSummaryCards,
+  getSupplierAttachmentTagOptions,
   resolvePurchaseOrderStatusClass,
+  resolveSupplierAttachmentTagLabel,
 } = require('../../utils/supplier-purchase');
 
 function buildInitialState() {
@@ -25,6 +34,13 @@ function buildInitialState() {
     orders: [],
     selectedOrderId: 0,
     selectedOrder: null,
+    attachments: [],
+    attachmentLoading: false,
+    attachmentErrorMessage: '',
+    attachmentSubmitting: false,
+    attachmentBizTagOptions: getSupplierAttachmentTagOptions(),
+    attachmentBizTagIndex: 0,
+    attachmentFilePath: '',
     emptyText: '当前暂无可查看的采购订单。',
   };
 }
@@ -144,19 +160,101 @@ Page({
     wx.reLaunch({ url: '/pages/login/index' });
   },
 
+  onAttachmentTagChange(event) {
+    this.setData({ attachmentBizTagIndex: Number(event.detail.value || 0) });
+  },
+
+  onAttachmentFilePathInput(event) {
+    this.setData({ attachmentFilePath: String(event.detail.value || '').trim() });
+  },
+
+  onFillDemoAttachmentPath() {
+    const selectedOrder = this.data.selectedOrder;
+    const tag = this.data.attachmentBizTagOptions[this.data.attachmentBizTagIndex] || this.data.attachmentBizTagOptions[0];
+    const orderNo = selectedOrder ? selectedOrder.order_no : 'PO-DEMO';
+    const suffix = tag && tag.value === 'SUPPLIER_DELIVERY_RECEIPT' ? 'delivery-receipt' : 'stamped-doc';
+    this.setData({
+      attachmentFilePath: `CODEX-TEST-/${orderNo.toLowerCase()}-${suffix}.pdf`,
+    });
+  },
+
+  async onSubmitAttachment() {
+    const selectedOrder = this.data.selectedOrder;
+    if (!selectedOrder || !selectedOrder.id) {
+      wx.showToast({ title: '请先选择采购订单', icon: 'none' });
+      return;
+    }
+    const option = this.data.attachmentBizTagOptions[this.data.attachmentBizTagIndex] || this.data.attachmentBizTagOptions[0];
+    const filePath = String(this.data.attachmentFilePath || '').trim();
+    if (!option || !option.value) {
+      wx.showToast({ title: '请选择附件类型', icon: 'none' });
+      return;
+    }
+    if (!filePath) {
+      wx.showToast({ title: '请填写附件路径', icon: 'none' });
+      return;
+    }
+    this.setData({ attachmentSubmitting: true, attachmentErrorMessage: '' });
+    try {
+      const response = await createSupplierPurchaseOrderAttachment(selectedOrder.id, {
+        biz_tag: option.value,
+        file_path: filePath,
+      });
+      wx.showToast({ title: response.data.message || '附件上传成功', icon: 'success' });
+      this.setData({ attachmentFilePath: '' });
+      await this._loadAttachments(selectedOrder.id);
+    } catch (error) {
+      this.setData({ attachmentErrorMessage: error.message || '附件上传失败，请稍后重试' });
+    } finally {
+      this.setData({ attachmentSubmitting: false });
+    }
+  },
+
   async _loadDetail(orderId) {
-    this.setData({ detailLoading: true, detailErrorMessage: '' });
+    this.setData({
+      detailLoading: true,
+      detailErrorMessage: '',
+      attachmentErrorMessage: '',
+      attachmentLoading: false,
+      attachments: [],
+    });
     try {
       const response = await getSupplierPurchaseOrderDetail(orderId);
+      const selectedOrder = this._decorateDetail(response.data, this.data.attachments);
       this.setData({
         detailLoading: false,
-        selectedOrder: this._decorateDetail(response.data),
+        selectedOrder,
       });
+      await this._loadAttachments(orderId);
     } catch (error) {
       this.setData({
         detailLoading: false,
         selectedOrder: null,
+        attachments: [],
         detailErrorMessage: error.message || '采购订单详情加载失败，请稍后重试',
+      });
+    }
+  },
+
+  async _loadAttachments(orderId) {
+    this.setData({ attachmentLoading: true, attachmentErrorMessage: '' });
+    try {
+      const response = await listSupplierPurchaseOrderAttachments(orderId);
+      const attachments = buildSupplierAttachmentItems(response.data.items || []).map((item) => ({
+        ...item,
+        createdAtText: formatDateTime(item.created_at),
+      }));
+      this.setData({
+        attachmentLoading: false,
+        attachments,
+        selectedOrder: this._decorateDetail(this.data.selectedOrder, attachments),
+      });
+    } catch (error) {
+      this.setData({
+        attachmentLoading: false,
+        attachments: [],
+        attachmentErrorMessage: error.message || '附件摘要加载失败，请稍后重试',
+        selectedOrder: this._decorateDetail(this.data.selectedOrder, []),
       });
     }
   },
@@ -180,17 +278,25 @@ Page({
     }));
   },
 
-  _decorateDetail(item) {
+  _decorateDetail(item, attachments) {
     if (!item) {
       return null;
     }
+    const resolvedAttachments = Array.isArray(attachments) ? attachments : (Array.isArray(item.attachments) ? item.attachments : []);
     return {
       ...item,
+      attachments: resolvedAttachments,
       statusClass: resolvePurchaseOrderStatusClass(item.status),
       qtyOrderedText: formatQty(item.qty_ordered),
       payableAmountText: formatMoney(item.payable_amount),
       createdAtText: formatDateTime(item.created_at),
-      preparationHints: buildSupplierPreparationHints(item),
+      primaryAttachmentTagLabel: resolveSupplierAttachmentTagLabel(
+        resolvedAttachments.length ? resolvedAttachments[0].biz_tag : '',
+      ),
+      preparationHints: buildSupplierPreparationHints({
+        ...item,
+        attachments: resolvedAttachments,
+      }),
     };
   },
 

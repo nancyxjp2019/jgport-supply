@@ -1,7 +1,7 @@
 <view class="page-shell">
   <view class="hero-card supplier-hero-card">
     <view class="page-title">供应商采购进度</view>
-    <view class="page-subtitle">面向供应商角色的首批真实业务页。当前仅开放采购订单进度查看、发货准备信息回看与附件入口预留。</view>
+    <view class="page-subtitle">面向供应商角色的首批真实业务页。当前已开放采购订单进度查看、发货准备信息回看与首批附件回传。</view>
     <view class="pill-row supplier-hero-meta">
       <view class="version-pill">首批真实进度</view>
       <view class="mode-pill">{{runtimeLabel}}</view>
@@ -11,7 +11,7 @@
 
   <view class="panel-card session-card">
     <view class="section-title">当前会话</view>
-    <view class="section-desc">当前仅向供应商角色开放。付款确认、异常关闭和真实附件上传仍保留在后续迭代。</view>
+    <view class="section-desc">当前仅向供应商角色开放。付款确认、异常关闭和批量处理仍保留在后续迭代。</view>
     <view class="button-row">
       <button class="secondary-btn" bindtap="onSwitchRole">切换角色</button>
       <button class="danger-btn" bindtap="onLogout">退出当前身份</button>
@@ -58,7 +58,7 @@
 
     <view wx:if="{{orders.length}}" class="panel-card">
       <view class="section-title">采购订单列表</view>
-      <view class="section-desc">点击任意采购订单可查看当前进度、来源销售订单与发货准备提示。</view>
+      <view class="section-desc">点击任意采购订单可查看当前进度、来源销售订单、发货准备提示与附件摘要。</view>
       <view class="supplier-list">
         <view wx:for="{{orders}}" wx:key="id" class="supplier-card {{selectedOrderId === item.id ? 'supplier-card--active' : ''}}" data-order-id="{{item.id}}" bindtap="onOpenOrder">
           <view class="supplier-card__head">
@@ -103,7 +103,7 @@
 
     <view wx:elif="{{selectedOrder}}" class="panel-card detail-card">
       <view class="section-title">当前选中采购订单</view>
-      <view class="section-desc">附件能力首批仅开放入口预留，不展示真实上传结果。</view>
+      <view class="section-desc">当前已开放首批附件回传，仍不代表付款确认或发货审核已完成。</view>
       <view class="supplier-card__head detail-card__head">
         <view>
           <view class="supplier-card__title">{{selectedOrder.order_no}}</view>
@@ -142,9 +142,48 @@
         <view class="hint-list">
           <view wx:for="{{selectedOrder.preparationHints}}" wx:key="*this" class="hint-item">{{index + 1}}. {{item}}</view>
         </view>
-        <view class="button-row hint-card__actions">
-          <button class="secondary-btn" disabled>附件入口预留（暂未开放）</button>
+      </view>
+
+      <view class="hint-card attachment-card">
+        <view class="section-title">附件回传</view>
+        <view class="section-desc">当前采用受控路径登记方式回传附件，支持盖章发货指令单与供应商回单两类首批业务附件。</view>
+        <picker mode="selector" range="{{attachmentBizTagOptions}}" range-key="label" value="{{attachmentBizTagIndex}}" bindchange="onAttachmentTagChange">
+          <view class="form-field">
+            <view class="form-field__label">附件类型</view>
+            <view class="form-field__value">{{attachmentBizTagOptions[attachmentBizTagIndex].label}}</view>
+          </view>
+        </picker>
+        <view class="form-field">
+          <view class="form-field__label">附件路径</view>
+          <input
+            class="form-field__input"
+            type="text"
+            maxlength="512"
+            placeholder="请输入受控附件路径，如 CODEX-TEST-/po-demo-stamped-doc.pdf"
+            value="{{attachmentFilePath}}"
+            bindinput="onAttachmentFilePathInput"
+          />
         </view>
+        <view class="button-row hint-card__actions">
+          <button class="secondary-btn" bindtap="onFillDemoAttachmentPath">生成测试路径</button>
+          <button class="primary-btn" loading="{{attachmentSubmitting}}" bindtap="onSubmitAttachment">登记附件</button>
+        </view>
+        <view wx:if="{{attachmentErrorMessage}}" class="error-text">{{attachmentErrorMessage}}</view>
+      </view>
+
+      <view class="hint-card attachment-card">
+        <view class="section-title">附件摘要</view>
+        <view wx:if="{{attachmentLoading}}" class="status-tip">正在读取附件摘要，请稍候。</view>
+        <view wx:elif="{{attachments.length}}" class="hint-list">
+          <view wx:for="{{attachments}}" wx:key="id" class="attachment-item">
+            <view class="attachment-item__head">
+              <view class="attachment-item__title">{{item.bizTagLabel}}</view>
+              <view class="attachment-item__time">{{item.createdAtText}}</view>
+            </view>
+            <view class="attachment-item__path">{{item.file_path}}</view>
+          </view>
+        </view>
+        <view wx:else class="status-tip">当前暂无已登记附件，可先录入首批附件路径。</view>
       </view>
     </view>
 

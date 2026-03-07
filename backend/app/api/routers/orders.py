@@ -15,6 +15,10 @@ from app.schemas.order import (
     PurchaseOrderResponse,
     PurchaseOrderListItemResponse,
     PurchaseOrderListResponse,
+    SupplierPurchaseOrderAttachmentCreateRequest,
+    SupplierPurchaseOrderAttachmentListItemResponse,
+    SupplierPurchaseOrderAttachmentListResponse,
+    SupplierPurchaseOrderAttachmentResponse,
     SupplierPurchaseOrderResponse,
     SalesOrderListItemResponse,
     SalesOrderListResponse,
@@ -29,10 +33,12 @@ from app.schemas.order import (
 from app.services.order_service import (
     OrderServiceError,
     create_sales_order_draft,
+    create_supplier_purchase_order_attachment,
     finance_approve_sales_order,
     get_sales_order_detail_or_raise,
     get_purchase_order_or_raise,
     list_supplier_purchase_orders,
+    list_supplier_purchase_order_attachments,
     get_sales_order_or_raise,
     list_available_sales_contracts,
     list_sales_orders,
@@ -319,6 +325,61 @@ def get_supplier_purchase_order_detail(
     )
 
 
+@router.get(
+    "/supplier/purchase-orders/{purchase_order_id}/attachments",
+    response_model=SupplierPurchaseOrderAttachmentListResponse,
+)
+def list_supplier_purchase_order_attachments_route(
+    purchase_order_id: int,
+    actor: AuthenticatedActor = Depends(supplier_purchase_order_reader_dependency),
+    db: Session = Depends(get_db),
+) -> SupplierPurchaseOrderAttachmentListResponse:
+    supplier_company_id = _resolve_supplier_purchase_order_scope(actor)
+    try:
+        items = list_supplier_purchase_order_attachments(
+            db,
+            purchase_order_id=purchase_order_id,
+            supplier_company_id=supplier_company_id,
+        )
+    except OrderServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    return SupplierPurchaseOrderAttachmentListResponse(
+        items=[
+            _to_supplier_purchase_order_attachment_list_item(item) for item in items
+        ],
+        total=len(items),
+        message="供应商采购订单附件查询成功",
+    )
+
+
+@router.post(
+    "/supplier/purchase-orders/{purchase_order_id}/attachments",
+    response_model=SupplierPurchaseOrderAttachmentResponse,
+)
+def create_supplier_purchase_order_attachment_route(
+    purchase_order_id: int,
+    payload: SupplierPurchaseOrderAttachmentCreateRequest,
+    actor: AuthenticatedActor = Depends(supplier_purchase_order_reader_dependency),
+    db: Session = Depends(get_db),
+) -> SupplierPurchaseOrderAttachmentResponse:
+    supplier_company_id = _resolve_supplier_purchase_order_scope(actor)
+    try:
+        attachment = create_supplier_purchase_order_attachment(
+            db,
+            purchase_order_id=purchase_order_id,
+            supplier_company_id=supplier_company_id,
+            operator_id=actor.user_id,
+            biz_tag=payload.biz_tag,
+            file_path=payload.file_path,
+        )
+    except OrderServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    return _to_supplier_purchase_order_attachment_response(
+        attachment,
+        message="供应商采购订单附件上传成功",
+    )
+
+
 def _resolve_sales_order_creator_scope(actor: AuthenticatedActor) -> str | None:
     if (
         actor.role_code == "customer"
@@ -546,4 +607,33 @@ def _to_supplier_purchase_order_response(
         zero_pay_exception_flag=purchase_order.zero_pay_exception_flag,
         message=message,
         created_at=purchase_order.created_at,
+    )
+
+
+def _to_supplier_purchase_order_attachment_response(
+    attachment,
+    *,
+    message: str,
+) -> SupplierPurchaseOrderAttachmentResponse:
+    return SupplierPurchaseOrderAttachmentResponse(
+        id=attachment.id,
+        owner_doc_type=attachment.owner_doc_type,
+        owner_doc_id=attachment.owner_doc_id,
+        biz_tag=attachment.biz_tag,
+        file_path=attachment.path,
+        created_at=attachment.created_at,
+        message=message,
+    )
+
+
+def _to_supplier_purchase_order_attachment_list_item(
+    attachment,
+) -> SupplierPurchaseOrderAttachmentListItemResponse:
+    return SupplierPurchaseOrderAttachmentListItemResponse(
+        id=attachment.id,
+        owner_doc_type=attachment.owner_doc_type,
+        owner_doc_id=attachment.owner_doc_id,
+        biz_tag=attachment.biz_tag,
+        file_path=attachment.path,
+        created_at=attachment.created_at,
     )

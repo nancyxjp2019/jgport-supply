@@ -10,6 +10,11 @@ const STATUS_PRIORITY_MAP = {
   已完成: 7,
 };
 
+const SUPPLIER_ATTACHMENT_TAG_OPTIONS = [
+  { value: 'SUPPLIER_STAMPED_DOC', label: '盖章发货指令单' },
+  { value: 'SUPPLIER_DELIVERY_RECEIPT', label: '供应商回单' },
+];
+
 function normalizeStatus(status) {
   return String(status || '').trim();
 }
@@ -183,15 +188,37 @@ function buildSupplierPreparationHints(order) {
   if (Boolean(order.zero_pay_exception_flag)) {
     hints.push('当前命中零付款例外，仍需等待后续付款补录与执行推进。');
   } else {
-    hints.push('附件能力首批仅保留入口占位，真实上传待后续迭代开放。');
+    hints.push('当前已开放首批附件回传，可登记盖章发货指令单或供应商回单。');
+  }
+  if (Array.isArray(order.attachments) && order.attachments.length) {
+    hints.push(`当前已登记附件 ${order.attachments.length} 份，可继续补充回单留痕。`);
   }
   return hints;
 }
 
+function getSupplierAttachmentTagOptions() {
+  return SUPPLIER_ATTACHMENT_TAG_OPTIONS.map((item) => ({ ...item }));
+}
+
+function resolveSupplierAttachmentTagLabel(bizTag) {
+  const matched = SUPPLIER_ATTACHMENT_TAG_OPTIONS.find((item) => item.value === String(bizTag || '').trim().toUpperCase());
+  return matched ? matched.label : '未识别附件';
+}
+
+function buildSupplierAttachmentItems(items) {
+  return (Array.isArray(items) ? items : []).map((item) => ({
+    ...item,
+    bizTagLabel: resolveSupplierAttachmentTagLabel(item.biz_tag),
+  }));
+}
+
 module.exports = {
+  buildSupplierAttachmentItems,
   buildSupplierMessages,
   buildSupplierPreparationHints,
   buildSupplierSummaryCards,
   buildSupplierTodoItems,
+  getSupplierAttachmentTagOptions,
   resolvePurchaseOrderStatusClass,
+  resolveSupplierAttachmentTagLabel,
 };

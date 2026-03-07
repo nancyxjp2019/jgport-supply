@@ -89,6 +89,21 @@ const DEMO_PURCHASE_ORDERS = [
   },
 ];
 
+let demoPurchaseOrderAttachments = {
+  3001: [
+    {
+      id: 4001,
+      owner_doc_type: 'purchase_order',
+      owner_doc_id: 3001,
+      biz_tag: 'SUPPLIER_STAMPED_DOC',
+      file_path: 'CODEX-TEST-/demo-supplier-stamped-doc-001.pdf',
+      created_at: '2026-03-06T12:00:00+08:00',
+    },
+  ],
+  3002: [],
+};
+let demoPurchaseAttachmentIdSeed = 5000;
+
 function listDemoAvailableSalesContracts() {
   return DEMO_CONTRACTS.map((contract) => ({
     ...contract,
@@ -172,9 +187,49 @@ function getDemoSupplierPurchaseOrderDetail(orderId) {
   return { ...target };
 }
 
+function listDemoSupplierPurchaseOrderAttachments(orderId) {
+  const order = DEMO_PURCHASE_ORDERS.find((item) => item.id === Number(orderId));
+  if (!order) {
+    throw new Error('当前采购订单不存在，请刷新后重试');
+  }
+  return (demoPurchaseOrderAttachments[order.id] || []).map((item) => ({ ...item }));
+}
+
+function createDemoSupplierPurchaseOrderAttachment(orderId, payload) {
+  const order = DEMO_PURCHASE_ORDERS.find((item) => item.id === Number(orderId));
+  if (!order) {
+    throw new Error('当前采购订单不存在，请刷新后重试');
+  }
+  const bizTag = String((payload && payload.biz_tag) || '').trim().toUpperCase();
+  const filePath = String((payload && payload.file_path) || '').trim();
+  if (!['SUPPLIER_STAMPED_DOC', 'SUPPLIER_DELIVERY_RECEIPT'].includes(bizTag)) {
+    throw new Error('当前附件业务标签不在首批开放范围内');
+  }
+  if (!filePath) {
+    throw new Error('附件路径不能为空');
+  }
+  const currentItems = demoPurchaseOrderAttachments[order.id] || [];
+  if (currentItems.some((item) => item.biz_tag === bizTag && item.file_path === filePath)) {
+    throw new Error('当前附件已存在，请勿重复上传');
+  }
+  demoPurchaseAttachmentIdSeed += 1;
+  const attachment = {
+    id: demoPurchaseAttachmentIdSeed,
+    owner_doc_type: 'purchase_order',
+    owner_doc_id: order.id,
+    biz_tag: bizTag,
+    file_path: filePath,
+    created_at: new Date().toISOString(),
+  };
+  demoPurchaseOrderAttachments[order.id] = [attachment].concat(currentItems);
+  return { ...attachment };
+}
+
 module.exports = {
+  createDemoSupplierPurchaseOrderAttachment,
   createDemoSalesOrder,
   getDemoSupplierPurchaseOrderDetail,
+  listDemoSupplierPurchaseOrderAttachments,
   listDemoAvailableSalesContracts,
   listDemoSalesOrders,
   listDemoSupplierPurchaseOrders,

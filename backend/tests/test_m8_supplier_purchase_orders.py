@@ -3,7 +3,9 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 from uuid import uuid4
 
+from app.db.session import SessionLocal
 from app.main import app
+from app.models.doc_attachment import DocAttachment
 
 client = TestClient(app)
 
@@ -96,6 +98,183 @@ def test_non_supplier_cannot_access_supplier_purchase_orders(auth_headers) -> No
 
     assert response.status_code == 403
     assert response.json()["detail"] == "当前角色无权访问该接口"
+
+
+def test_supplier_can_upload_and_list_purchase_order_attachments(auth_headers) -> None:
+    purchase_order_id = _create_purchase_order(
+        auth_headers, supplier_id=SUPPLIER_COMPANY_ID
+    )
+
+    create_response = client.post(
+        f"/api/v1/supplier/purchase-orders/{purchase_order_id}/attachments",
+        json={
+            "biz_tag": "SUPPLIER_STAMPED_DOC",
+            "file_path": "CODEX-TEST-/supplier-stamped-doc-001.pdf",
+        },
+        headers=auth_headers(
+            user_id="CODEX-TEST-MINI-SUPPLIER-UPLOAD",
+            role_code="supplier",
+            company_id=SUPPLIER_COMPANY_ID,
+            company_type="supplier_company",
+            client_type="miniprogram",
+        ),
+    )
+
+    assert create_response.status_code == 200
+    create_body = create_response.json()
+    assert create_body["biz_tag"] == "SUPPLIER_STAMPED_DOC"
+    assert create_body["file_path"] == "CODEX-TEST-/supplier-stamped-doc-001.pdf"
+
+    list_response = client.get(
+        f"/api/v1/supplier/purchase-orders/{purchase_order_id}/attachments",
+        headers=auth_headers(
+            user_id="CODEX-TEST-MINI-SUPPLIER-UPLOAD-LIST",
+            role_code="supplier",
+            company_id=SUPPLIER_COMPANY_ID,
+            company_type="supplier_company",
+            client_type="miniprogram",
+        ),
+    )
+
+    assert list_response.status_code == 200
+    list_body = list_response.json()
+    assert list_body["total"] == 1
+    assert list_body["items"][0]["biz_tag"] == "SUPPLIER_STAMPED_DOC"
+    assert (
+        list_body["items"][0]["file_path"] == "CODEX-TEST-/supplier-stamped-doc-001.pdf"
+    )
+    assert _query_doc_attachments(purchase_order_id) == [
+        ("SUPPLIER_STAMPED_DOC", "CODEX-TEST-/supplier-stamped-doc-001.pdf")
+    ]
+
+
+def test_supplier_attachment_upload_respects_company_scope(auth_headers) -> None:
+    purchase_order_id = _create_purchase_order(
+        auth_headers, supplier_id=SUPPLIER_COMPANY_ID
+    )
+
+    response = client.post(
+        f"/api/v1/supplier/purchase-orders/{purchase_order_id}/attachments",
+        json={
+            "biz_tag": "SUPPLIER_STAMPED_DOC",
+            "file_path": "CODEX-TEST-/supplier-stamped-doc-002.pdf",
+        },
+        headers=auth_headers(
+            user_id="CODEX-TEST-MINI-SUPPLIER-UPLOAD-BLOCK",
+            role_code="supplier",
+            company_id="CODEX-TEST-SUPPLIER-OTHER-COMPANY",
+            company_type="supplier_company",
+            client_type="miniprogram",
+        ),
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "当前供应商无权查看该采购订单"
+
+
+def test_supplier_attachment_upload_blocks_invalid_biz_tag(auth_headers) -> None:
+    purchase_order_id = _create_purchase_order(
+        auth_headers, supplier_id=SUPPLIER_COMPANY_ID
+    )
+
+    response = client.post(
+        f"/api/v1/supplier/purchase-orders/{purchase_order_id}/attachments",
+        json={
+            "biz_tag": "PAYMENT_VOUCHER",
+            "file_path": "CODEX-TEST-/supplier-invalid-tag.pdf",
+        },
+        headers=auth_headers(
+            user_id="CODEX-TEST-MINI-SUPPLIER-UPLOAD-TAG",
+            role_code="supplier",
+            company_id=SUPPLIER_COMPANY_ID,
+            company_type="supplier_company",
+            client_type="miniprogram",
+        ),
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "当前附件业务标签不在首批开放范围内"
+
+
+def test_supplier_attachment_upload_blocks_empty_file_path(auth_headers) -> None:
+    purchase_order_id = _create_purchase_order(
+        auth_headers, supplier_id=SUPPLIER_COMPANY_ID
+    )
+
+    response = client.post(
+        f"/api/v1/supplier/purchase-orders/{purchase_order_id}/attachments",
+        json={
+            "biz_tag": "SUPPLIER_STAMPED_DOC",
+            "file_path": "   ",
+        },
+        headers=auth_headers(
+            user_id="CODEX-TEST-MINI-SUPPLIER-UPLOAD-EMPTY",
+            role_code="supplier",
+            company_id=SUPPLIER_COMPANY_ID,
+            company_type="supplier_company",
+            client_type="miniprogram",
+        ),
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "附件路径不能为空"
+
+
+def test_supplier_attachment_upload_blocks_overlong_file_path(auth_headers) -> None:
+    purchase_order_id = _create_purchase_order(
+        auth_headers, supplier_id=SUPPLIER_COMPANY_ID
+    )
+    overlong_path = "CODEX-TEST-/" + ("a" * 600) + ".pdf"
+
+    response = client.post(
+        f"/api/v1/supplier/purchase-orders/{purchase_order_id}/attachments",
+        json={
+            "biz_tag": "SUPPLIER_STAMPED_DOC",
+            "file_path": overlong_path,
+        },
+        headers=auth_headers(
+            user_id="CODEX-TEST-MINI-SUPPLIER-UPLOAD-LONG",
+            role_code="supplier",
+            company_id=SUPPLIER_COMPANY_ID,
+            company_type="supplier_company",
+            client_type="miniprogram",
+        ),
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "附件路径长度不能超过512个字符"
+
+
+def test_supplier_attachment_upload_blocks_duplicate_path(auth_headers) -> None:
+    purchase_order_id = _create_purchase_order(
+        auth_headers, supplier_id=SUPPLIER_COMPANY_ID
+    )
+    headers = auth_headers(
+        user_id="CODEX-TEST-MINI-SUPPLIER-UPLOAD-DUP",
+        role_code="supplier",
+        company_id=SUPPLIER_COMPANY_ID,
+        company_type="supplier_company",
+        client_type="miniprogram",
+    )
+    payload = {
+        "biz_tag": "SUPPLIER_DELIVERY_RECEIPT",
+        "file_path": "CODEX-TEST-/supplier-delivery-receipt-001.pdf",
+    }
+
+    first_response = client.post(
+        f"/api/v1/supplier/purchase-orders/{purchase_order_id}/attachments",
+        json=payload,
+        headers=headers,
+    )
+    duplicate_response = client.post(
+        f"/api/v1/supplier/purchase-orders/{purchase_order_id}/attachments",
+        json=payload,
+        headers=headers,
+    )
+
+    assert first_response.status_code == 200
+    assert duplicate_response.status_code == 409
+    assert duplicate_response.json()["detail"] == "当前附件已存在，请勿重复上传"
 
 
 def _create_purchase_order(auth_headers, *, supplier_id: str) -> int:
@@ -225,3 +404,17 @@ def _create_sales_order_in_pending_finance(
     )
     assert ops_response.status_code == 200
     return sales_order_id
+
+
+def _query_doc_attachments(purchase_order_id: int) -> list[tuple[str, str]]:
+    with SessionLocal() as db:
+        rows = (
+            db.query(DocAttachment)
+            .filter(
+                DocAttachment.owner_doc_type == "purchase_order",
+                DocAttachment.owner_doc_id == purchase_order_id,
+            )
+            .order_by(DocAttachment.id)
+            .all()
+        )
+        return [(row.biz_tag, row.path) for row in rows]

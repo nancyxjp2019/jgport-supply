@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.models.business_audit_log import BusinessAuditLog
 from app.models.contract import Contract
 from app.models.contract_item import ContractItem
+from app.models.doc_attachment import DocAttachment
 from app.models.purchase_order import PurchaseOrder
 from app.models.sales_order import SalesOrder
 from app.models.sales_order_derivative_task import SalesOrderDerivativeTask
@@ -35,6 +36,13 @@ SALES_ORDER_STATUS_REJECTED = "驳回"
 SALES_ORDER_STATUS_DERIVED = "已衍生采购订单"
 
 PURCHASE_ORDER_STATUS_CREATED = "已创建"
+
+ATTACHMENT_BIZ_TAG_SUPPLIER_STAMPED_DOC = "SUPPLIER_STAMPED_DOC"
+ATTACHMENT_BIZ_TAG_SUPPLIER_DELIVERY_RECEIPT = "SUPPLIER_DELIVERY_RECEIPT"
+SUPPLIER_ATTACHMENT_BIZ_TAGS = {
+    ATTACHMENT_BIZ_TAG_SUPPLIER_STAMPED_DOC,
+    ATTACHMENT_BIZ_TAG_SUPPLIER_DELIVERY_RECEIPT,
+}
 
 MONEY_PRECISION = Decimal("0.01")
 
@@ -508,6 +516,94 @@ def list_supplier_purchase_orders(
     ]
 
 
+def list_supplier_purchase_order_attachments(
+    db: Session,
+    *,
+    purchase_order_id: int,
+    supplier_company_id: str,
+) -> list[DocAttachment]:
+    _ = get_purchase_order_or_raise(
+        db,
+        purchase_order_id,
+        required_supplier_company_id=supplier_company_id,
+    )
+    statement = (
+        select(DocAttachment)
+        .where(
+            DocAttachment.owner_doc_type == "purchase_order",
+            DocAttachment.owner_doc_id == purchase_order_id,
+            DocAttachment.biz_tag.in_(tuple(SUPPLIER_ATTACHMENT_BIZ_TAGS)),
+        )
+        .order_by(DocAttachment.id.desc())
+    )
+    return list(db.scalars(statement).all())
+
+
+def create_supplier_purchase_order_attachment(
+    db: Session,
+    *,
+    purchase_order_id: int,
+    supplier_company_id: str,
+    operator_id: str,
+    biz_tag: str,
+    file_path: str,
+) -> DocAttachment:
+    purchase_order = get_purchase_order_or_raise(
+        db,
+        purchase_order_id,
+        required_supplier_company_id=supplier_company_id,
+    )
+    normalized_biz_tag = _normalize_supplier_attachment_biz_tag(biz_tag)
+    normalized_file_path = _normalize_attachment_file_path(file_path)
+    duplicate_statement = select(DocAttachment.id).where(
+        DocAttachment.owner_doc_type == "purchase_order",
+        DocAttachment.owner_doc_id == purchase_order.id,
+        DocAttachment.biz_tag == normalized_biz_tag,
+        DocAttachment.path == normalized_file_path,
+    )
+    if db.scalar(duplicate_statement) is not None:
+        raise OrderServiceError(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="当前附件已存在，请勿重复上传",
+        )
+    attachment = DocAttachment(
+        owner_doc_type="purchase_order",
+        owner_doc_id=purchase_order.id,
+        biz_tag=normalized_biz_tag,
+        path=normalized_file_path,
+    )
+    db.add(attachment)
+    try:
+        db.flush()
+    except IntegrityError as exc:
+        db.rollback()
+        raise OrderServiceError(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="当前附件已存在，请勿重复上传",
+        ) from exc
+    db.refresh(attachment)
+    db.add(
+        BusinessAuditLog(
+            event_code="M8-SUPPLIER-PO-ATTACHMENT-UPLOAD",
+            biz_type="purchase_order_attachment",
+            biz_id=f"purchase_order_attachment:{attachment.id}",
+            operator_id=operator_id,
+            before_json={},
+            after_json={
+                "purchase_order_id": purchase_order.id,
+                "biz_tag": attachment.biz_tag,
+                "file_path": attachment.path,
+            },
+            extra_json={
+                "owner_doc_type": attachment.owner_doc_type,
+                "owner_doc_id": attachment.owner_doc_id,
+            },
+        )
+    )
+    _commit_attachment_or_raise(db)
+    return attachment
+
+
 def get_sales_order_detail_or_raise(
     db: Session,
     *,
@@ -697,6 +793,31 @@ def _validate_purchase_contract(contract: Contract) -> None:
         )
 
 
+def _normalize_supplier_attachment_biz_tag(biz_tag: str) -> str:
+    normalized_biz_tag = str(biz_tag or "").strip().upper()
+    if normalized_biz_tag not in SUPPLIER_ATTACHMENT_BIZ_TAGS:
+        raise OrderServiceError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="当前附件业务标签不在首批开放范围内",
+        )
+    return normalized_biz_tag
+
+
+def _normalize_attachment_file_path(file_path: str) -> str:
+    normalized_file_path = str(file_path or "").strip()
+    if not normalized_file_path:
+        raise OrderServiceError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="附件路径不能为空",
+        )
+    if len(normalized_file_path) > 512:
+        raise OrderServiceError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="附件路径长度不能超过512个字符",
+        )
+    return normalized_file_path
+
+
 def _generate_doc_no(prefix: str) -> str:
     return f"{prefix}-{uuid4().hex[:12].upper()}"
 
@@ -715,4 +836,21 @@ def _commit_or_raise(db: Session, *, message: str) -> None:
         raise OrderServiceError(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=message,
+        ) from exc
+
+
+def _commit_attachment_or_raise(db: Session) -> None:
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise OrderServiceError(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="当前附件已存在，请勿重复上传",
+        ) from exc
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise OrderServiceError(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="供应商附件上传失败，请稍后重试",
         ) from exc

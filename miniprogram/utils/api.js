@@ -1,7 +1,9 @@
 const { getRuntimeMode } = require('../config/env');
 const {
+  createDemoSupplierPurchaseOrderAttachment,
   createDemoSalesOrder,
   getDemoSupplierPurchaseOrderDetail,
+  listDemoSupplierPurchaseOrderAttachments,
   listDemoAvailableSalesContracts,
   listDemoSalesOrders,
   listDemoSupplierPurchaseOrders,
@@ -172,6 +174,43 @@ async function getSupplierPurchaseOrderDetail(orderId) {
   });
 }
 
+async function listSupplierPurchaseOrderAttachments(orderId) {
+  if (getRuntimeMode() === 'demo') {
+    await sleep(120);
+    const items = listDemoSupplierPurchaseOrderAttachments(orderId);
+    return {
+      data: {
+        items,
+        total: items.length,
+        message: '演示模式：供应商采购订单附件查询成功',
+      },
+      statusCode: 200,
+    };
+  }
+  return request({
+    url: `/supplier/purchase-orders/${orderId}/attachments`,
+    method: 'GET',
+  });
+}
+
+async function createSupplierPurchaseOrderAttachment(orderId, payload) {
+  if (getRuntimeMode() === 'demo') {
+    await sleep(120);
+    return {
+      data: {
+        ...createDemoSupplierPurchaseOrderAttachment(orderId, payload),
+        message: '演示模式：供应商采购订单附件上传成功',
+      },
+      statusCode: 200,
+    };
+  }
+  return request({
+    url: `/supplier/purchase-orders/${orderId}/attachments`,
+    method: 'POST',
+    data: payload,
+  });
+}
+
 async function loginMiniprogramLocal(roleCode) {
   return request({
     url: '/mini-auth/dev-login',
@@ -246,6 +285,7 @@ async function completeManualOutbound(payload) {
 module.exports = {
   completeManualOutbound,
   completeWarehouseOutbound,
+  createSupplierPurchaseOrderAttachment,
   createSalesOrderDraft,
   getAvailableSalesContracts,
   getAccessProfile,
@@ -254,6 +294,7 @@ module.exports = {
   loginMiniprogramLocal,
   loginMiniprogramWechat,
   listSalesOrders,
+  listSupplierPurchaseOrderAttachments,
   listSupplierPurchaseOrders,
   submitSalesOrder,
   updateSalesOrderDraft,
