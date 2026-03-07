@@ -44,6 +44,16 @@ const router = createRouter({
             summary: '聚焦待补录金额、库存阻塞与合同待关闭',
           },
         },
+        {
+          path: '/orders',
+          name: 'orders',
+          component: () => import('@/views/orders/OrdersView.vue'),
+          meta: {
+            requiresAuth: true,
+            title: '运营订单处理台',
+            summary: '销售订单列表、详情与运营财务审批首批处理',
+          },
+        },
       ],
     },
   ],
