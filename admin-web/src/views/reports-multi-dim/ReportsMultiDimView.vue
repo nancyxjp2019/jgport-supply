@@ -7,7 +7,7 @@
         <div>
           <p class="panel-card__eyebrow">多维报表与导出编排首批</p>
           <h3>维度汇总 / 筛选 / 导出任务创建</h3>
-          <p>当前支持合同方向、单据状态、退款状态维度汇总，并将 CSV 导出升级为任务中心编排，不开放多维钻取与跨报表批量任务。</p>
+          <p>当前支持合同方向、单据状态、退款状态维度汇总，并将 CSV 导出升级为任务中心编排；首批仅开放资金单据明细钻取，不开放跨报表批量任务。</p>
         </div>
         <div class="reports-multi-dim-filter-actions">
           <ElSelect v-model="groupBy" class="reports-multi-dim-filter-select" @change="reloadReport">
@@ -91,11 +91,24 @@
         <ElTableColumn prop="payment_doc_count" label="付款单数" min-width="110" />
         <ElTableColumn prop="pending_supplement_count" label="待补录数量" min-width="120" />
         <ElTableColumn prop="refund_pending_review_count" label="待审核退款数量" min-width="140" />
+        <ElTableColumn label="明细钻取" min-width="240" fixed="right">
+          <template #default="scope">
+            <div class="reports-multi-dim-drill-actions">
+              <ElButton size="small" :disabled="!canDrill(scope.row, 'receipt')" @click="handleDrill(scope.row, 'receipt')">
+                收款单明细
+              </ElButton>
+              <ElButton size="small" :disabled="!canDrill(scope.row, 'payment')" @click="handleDrill(scope.row, 'payment')">
+                付款单明细
+              </ElButton>
+            </div>
+          </template>
+        </ElTableColumn>
       </ElTable>
 
       <ElEmpty v-if="!loading && !(report?.rows.length)" description="当前筛选条件下暂无多维数据" />
       <p v-if="!canExportMultiDim" class="order-boundary-tip">当前角色仅可查看多维报表，暂无导出任务创建与任务中心权限。</p>
-      <p class="order-boundary-tip">当前批次已切换为“创建导出任务 -> 任务中心回看 -> 下载结果/失败重试”，不开放多维钻取、口径重算与跨报表批量编排。</p>
+      <p class="order-boundary-tip">当前批次仅开放 `doc_status`、`refund_status` 汇总行钻取到资金单据列表；`contract_direction` 继续只做汇总回看。</p>
+      <p class="order-boundary-tip">当前批次已切换为“创建导出任务 -> 任务中心回看 -> 下载结果/失败重试”，不开放口径重算与跨报表批量编排。</p>
     </section>
   </div>
 </template>
@@ -118,9 +131,11 @@ import {
   createAdminMultiDimExportTask,
   fetchAdminMultiDimReport,
   type AdminMultiDimGroupBy,
+  type AdminMultiDimReportRow,
   type AdminMultiDimReportResponse,
 } from '@/api/reports'
 import { useAuthStore } from '@/stores/auth'
+import { buildMultiDimDrillRoute } from '@/utils/report-drill'
 import { formatDateTime, formatMoney } from '@/utils/formatters'
 import { canRoleExecuteAction } from '@/utils/permissions'
 import { useRouter } from 'vue-router'
@@ -206,6 +221,32 @@ async function handleCreateExportTask() {
     exporting.value = false
   }
 }
+
+function canDrill(row: AdminMultiDimReportRow, docType: 'payment' | 'receipt') {
+  if (groupBy.value !== 'doc_status' && groupBy.value !== 'refund_status') {
+    return false
+  }
+  return docType === 'payment' ? row.payment_doc_count > 0 : row.receipt_doc_count > 0
+}
+
+async function handleDrill(row: AdminMultiDimReportRow, docType: 'payment' | 'receipt') {
+  if (!canDrill(row, docType)) {
+    ElMessage.warning('当前维度行暂无可钻取的单据明细')
+    return
+  }
+  const targetRoute = buildMultiDimDrillRoute(groupBy.value, row, docType)
+  if (!targetRoute) {
+    ElMessage.warning('合同方向维度暂不支持首批明细钻取')
+    return
+  }
+  await router.push(targetRoute)
+}
+
+defineExpose({
+  groupBy,
+  handleDrill,
+  canDrill,
+})
 
 onMounted(async () => {
   await reloadReport()

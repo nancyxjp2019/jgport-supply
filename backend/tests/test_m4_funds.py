@@ -894,6 +894,74 @@ def test_payment_doc_refund_review_and_writeoff_flow(auth_headers) -> None:
     assert writeoff_response.json()["status"] == "已核销"
 
 
+def test_payment_doc_list_supports_refund_status_filter(auth_headers) -> None:
+    contract_id = _create_effective_purchase_contract(
+        auth_headers, supplier_id=SUPPLIER_COMPANY_ID
+    )
+    payment_doc = _query_payment_docs(contract_id=contract_id, doc_type="DEPOSIT")[0]
+
+    confirm_response = client.post(
+        f"/api/v1/payment-docs/{payment_doc.id}/confirm",
+        json={
+            "amount_actual": 4200.00,
+            "voucher_files": ["CODEX-TEST-/m8-25-payment-filter-confirm.png"],
+        },
+        headers=auth_headers(
+            user_id="CODEX-TEST-M8-25-PAY-CONFIRM",
+            role_code="finance",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+    assert confirm_response.status_code == 200
+
+    request_response = client.post(
+        f"/api/v1/payment-docs/{payment_doc.id}/refund-request",
+        json={"refund_amount": 1000.00, "reason": "CODEX-TEST-M8-25-付款退款申请"},
+        headers=auth_headers(
+            user_id="CODEX-TEST-M8-25-PAY-REFUND-REQUEST",
+            role_code="finance",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+    assert request_response.status_code == 200
+
+    list_response = client.get(
+        "/api/v1/payment-docs",
+        params={"refund_status": "待审核", "limit": 200},
+        headers=auth_headers(
+            user_id="CODEX-TEST-M8-25-PAY-LIST",
+            role_code="finance",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+    assert list_response.status_code == 200
+    list_body = list_response.json()
+    assert any(item["id"] == payment_doc.id for item in list_body["items"])
+    assert all(item["refund_status"] == "待审核" for item in list_body["items"])
+
+
+def test_payment_doc_list_rejects_invalid_refund_status_filter(auth_headers) -> None:
+    response = client.get(
+        "/api/v1/payment-docs",
+        params={"refund_status": "INVALID", "limit": 200},
+        headers=auth_headers(
+            user_id="CODEX-TEST-M8-25-PAY-LIST-INVALID",
+            role_code="finance",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "退款状态筛选值不合法"
+
+
 def test_receipt_doc_refund_review_reject_and_writeoff_guard(auth_headers) -> None:
     contract_id = _create_effective_sales_contract(
         auth_headers, customer_id=CUSTOMER_COMPANY_ID
@@ -975,6 +1043,74 @@ def test_receipt_doc_refund_review_reject_and_writeoff_guard(auth_headers) -> No
     reject_body = reject_response.json()
     assert reject_body["refund_status"] == "驳回"
     assert Decimal(str(reject_body["refund_amount"])) == Decimal("0.00")
+
+
+def test_receipt_doc_list_supports_refund_status_filter(auth_headers) -> None:
+    contract_id = _create_effective_sales_contract(
+        auth_headers, customer_id=CUSTOMER_COMPANY_ID
+    )
+    receipt_doc = _query_receipt_docs(contract_id=contract_id, doc_type="DEPOSIT")[0]
+
+    confirm_response = client.post(
+        f"/api/v1/receipt-docs/{receipt_doc.id}/confirm",
+        json={
+            "amount_actual": 4300.00,
+            "voucher_files": ["CODEX-TEST-/m8-25-receipt-filter-confirm.png"],
+        },
+        headers=auth_headers(
+            user_id="CODEX-TEST-M8-25-REC-CONFIRM",
+            role_code="finance",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+    assert confirm_response.status_code == 200
+
+    request_response = client.post(
+        f"/api/v1/receipt-docs/{receipt_doc.id}/refund-request",
+        json={"refund_amount": 800.00, "reason": "CODEX-TEST-M8-25-收款退款申请"},
+        headers=auth_headers(
+            user_id="CODEX-TEST-M8-25-REC-REFUND-REQUEST",
+            role_code="finance",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+    assert request_response.status_code == 200
+
+    list_response = client.get(
+        "/api/v1/receipt-docs",
+        params={"refund_status": "待审核", "limit": 200},
+        headers=auth_headers(
+            user_id="CODEX-TEST-M8-25-REC-LIST",
+            role_code="finance",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+    assert list_response.status_code == 200
+    list_body = list_response.json()
+    assert any(item["id"] == receipt_doc.id for item in list_body["items"])
+    assert all(item["refund_status"] == "待审核" for item in list_body["items"])
+
+
+def test_receipt_doc_list_rejects_invalid_refund_status_filter(auth_headers) -> None:
+    response = client.get(
+        "/api/v1/receipt-docs",
+        params={"refund_status": "INVALID", "limit": 200},
+        headers=auth_headers(
+            user_id="CODEX-TEST-M8-25-REC-LIST-INVALID",
+            role_code="finance",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "退款状态筛选值不合法"
 
 
 def _query_payment_docs(

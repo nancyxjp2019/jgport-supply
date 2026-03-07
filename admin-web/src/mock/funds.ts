@@ -1,5 +1,6 @@
 import type {
   FundDocConfirmPayload,
+  FundDocListQuery,
   PaymentDocDetailResponse,
   PaymentDocListResponse,
   PaymentDocSupplementPayload,
@@ -228,25 +229,41 @@ function getReceiptDocOrThrow(docId: number): DemoReceiptDoc {
   return target
 }
 
-export function listDemoPaymentDocs(status?: string): PaymentDocListResponse {
-  const normalizedStatus = String(status || '').trim()
-  const items = normalizedStatus
-    ? DEMO_PAYMENT_DOCS.filter((item) => item.status === normalizedStatus)
-    : DEMO_PAYMENT_DOCS
+export function listDemoPaymentDocs(query: FundDocListQuery = {}): PaymentDocListResponse {
+  const normalizedStatus = String(query.status || '').trim()
+  const normalizedRefundStatus = String(query.refund_status || '').trim()
+  const normalizedLimit = Number.isFinite(query.limit) ? Math.max(1, Number(query.limit)) : DEMO_PAYMENT_DOCS.length
+  const items = DEMO_PAYMENT_DOCS.filter((item) => {
+    if (normalizedStatus && item.status !== normalizedStatus) {
+      return false
+    }
+    if (normalizedRefundStatus && item.refund_status !== normalizedRefundStatus) {
+      return false
+    }
+    return true
+  })
   return {
-    items: items.map((item) => clonePaymentDoc(item)),
+    items: items.slice(0, normalizedLimit).map((item) => clonePaymentDoc(item)),
     total: items.length,
     message: '演示模式：付款单列表查询成功',
   }
 }
 
-export function listDemoReceiptDocs(status?: string): ReceiptDocListResponse {
-  const normalizedStatus = String(status || '').trim()
-  const items = normalizedStatus
-    ? DEMO_RECEIPT_DOCS.filter((item) => item.status === normalizedStatus)
-    : DEMO_RECEIPT_DOCS
+export function listDemoReceiptDocs(query: FundDocListQuery = {}): ReceiptDocListResponse {
+  const normalizedStatus = String(query.status || '').trim()
+  const normalizedRefundStatus = String(query.refund_status || '').trim()
+  const normalizedLimit = Number.isFinite(query.limit) ? Math.max(1, Number(query.limit)) : DEMO_RECEIPT_DOCS.length
+  const items = DEMO_RECEIPT_DOCS.filter((item) => {
+    if (normalizedStatus && item.status !== normalizedStatus) {
+      return false
+    }
+    if (normalizedRefundStatus && item.refund_status !== normalizedRefundStatus) {
+      return false
+    }
+    return true
+  })
   return {
-    items: items.map((item) => cloneReceiptDoc(item)),
+    items: items.slice(0, normalizedLimit).map((item) => cloneReceiptDoc(item)),
     total: items.length,
     message: '演示模式：收款单列表查询成功',
   }

@@ -22,6 +22,7 @@
           <ElButton type="primary" :loading="loading" @click="reloadDocs">刷新列表</ElButton>
         </div>
       </div>
+      <p v-if="drillEntryText" class="order-boundary-tip">{{ drillEntryText }}</p>
     </section>
 
     <section class="funds-reconcile-main-grid">
@@ -200,7 +201,7 @@ import {
   ElTableColumn,
   ElMessage,
 } from 'element-plus'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 
 import {
   approvePaymentRefund,
@@ -221,8 +222,10 @@ import {
   type ReceiptDocListItem,
 } from '@/api/funds'
 import { useAuthStore } from '@/stores/auth'
+import { parseFundsReconcileRouteQuery } from '@/utils/report-drill'
 import { formatDateTime, formatMoney } from '@/utils/formatters'
 import { canRoleExecuteAction } from '@/utils/permissions'
+import { useRoute } from 'vue-router'
 
 type FundDocType = 'payment' | 'receipt'
 type FundDocListItem = PaymentDocListItem | ReceiptDocListItem
@@ -289,6 +292,20 @@ const filteredDocList = computed(() =>
 const authStore = useAuthStore()
 const currentRoleCode = computed(() => authStore.session?.roleCode ?? '')
 const canOperateFundsReconcile = computed(() => canRoleExecuteAction(currentRoleCode.value, 'funds.reconcile.operate'))
+const route = useRoute()
+const drillEntryText = computed(() => {
+  const drillQuery = parseFundsReconcileRouteQuery(route.query)
+  const source = drillQuery.source
+  const drillGroup = drillQuery.drillGroup
+  const drillValue = drillQuery.drillValue
+  if (source !== 'reports-multi-dim' || !drillValue) {
+    return ''
+  }
+  const groupLabel = drillGroup === 'refund_status' ? '退款状态' : '维度'
+  return `当前从多维报表${groupLabel}“${drillValue}”钻取进入，已自动带入${currentDocTypeLabel.value}筛选。`
+})
+
+const listLimit = ref(200)
 
 function resolveDocRowClass(params: { row: FundDocListItem }) {
   return params.row.id === selectedDocId.value ? 'is-selected-order-row' : ''
@@ -308,8 +325,16 @@ async function loadDocs(preferredId?: number) {
   errorMessage.value = ''
   try {
     const response = docType.value === 'payment'
-      ? await fetchPaymentDocs(statusFilter.value || undefined)
-      : await fetchReceiptDocs(statusFilter.value || undefined)
+      ? await fetchPaymentDocs({
+        status: statusFilter.value || undefined,
+        refund_status: refundStatusFilter.value || undefined,
+        limit: listLimit.value,
+      })
+      : await fetchReceiptDocs({
+        status: statusFilter.value || undefined,
+        refund_status: refundStatusFilter.value || undefined,
+        limit: listLimit.value,
+      })
     docList.value = response.items
     const selectedSource = filteredDocList.value
     if (!selectedSource.length) {
@@ -493,7 +518,39 @@ async function submitWriteoff() {
   }
 }
 
-onMounted(async () => {
-  await loadDocs()
+async function syncRouteFilters() {
+  const drillQuery = parseFundsReconcileRouteQuery(route.query)
+  const nextDocType = drillQuery.docType
+  const nextStatusFilter = ''
+  const nextRefundStatusFilter = drillQuery.refundStatus
+  const nextLimit = drillQuery.limit
+  const shouldReload = docType.value !== nextDocType
+    || statusFilter.value !== nextStatusFilter
+    || refundStatusFilter.value !== nextRefundStatusFilter
+    || listLimit.value !== nextLimit
+    || !docList.value.length
+  docType.value = nextDocType
+  statusFilter.value = nextStatusFilter
+  refundStatusFilter.value = nextRefundStatusFilter
+  listLimit.value = nextLimit
+  if (shouldReload) {
+    await loadDocs()
+  }
+}
+
+defineExpose({
+  docType,
+  statusFilter,
+  refundStatusFilter,
+  listLimit,
+  syncRouteFilters,
 })
+
+watch(
+  () => route.fullPath,
+  async () => {
+    await syncRouteFilters()
+  },
+  { immediate: true },
+)
 </script>

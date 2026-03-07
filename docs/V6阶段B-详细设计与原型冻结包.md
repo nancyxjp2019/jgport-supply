@@ -4,7 +4,7 @@
 - 文档状态：`已冻结`
 - 目标：冻结实现口径，形成可开发规格，作为阶段C模块开发唯一输入。
 - 上游输入：
-  - `docs/需求方案.md`（当前规则 `1~55` 与“业务目标/角色权限”基线）
+- `docs/需求方案.md`（当前规则 `1~56` 与“业务目标/角色权限”基线）
   - `docs/V6阶段A-流程图状态机与UI原型清单.md`
 - 下游输出：阶段C模块任务拆分、接口开发、联调与测试用例。
 
@@ -164,8 +164,8 @@ purchase_payment_net =
 
 | 接口 | 方法 | 关键请求字段 | 关键校验 | 关键响应 |
 |---|---|---|---|---|
-| `/payment-docs` | `GET` | `status?`,`limit?` | 仅 `operations/finance/admin + operator_company + admin_web` 可查询 | 付款单列表（含退款状态） |
-| `/receipt-docs` | `GET` | `status?`,`limit?` | 仅 `operations/finance/admin + operator_company + admin_web` 可查询 | 收款单列表（含退款状态） |
+| `/payment-docs` | `GET` | `status?`,`refund_status?`,`limit?` | 仅 `operations/finance/admin + operator_company + admin_web` 可查询 | 付款单列表（含退款状态） |
+| `/receipt-docs` | `GET` | `status?`,`refund_status?`,`limit?` | 仅 `operations/finance/admin + operator_company + admin_web` 可查询 | 收款单列表（含退款状态） |
 | `/payment-docs/{id}` | `GET` | 无 | 仅 `operations/finance/admin + operator_company + admin_web` 可查询 | 付款单详情（含凭证路径） |
 | `/receipt-docs/{id}` | `GET` | 无 | 仅 `operations/finance/admin + operator_company + admin_web` 可查询 | 收款单详情（含凭证路径） |
 | `/payment-docs/supplement` | `POST` | `contract_id`,`purchase_order_id`,`amount_actual` | 手工补录必须同时绑定合同+采购订单 | `payment_doc_id` |
@@ -214,6 +214,15 @@ purchase_payment_net =
 | `/reports/admin/multi-dim/export-tasks` | `GET` | 查询导出任务历史（仅财务/管理员） | `T+0~T+1` |
 | `/reports/admin/multi-dim/export-tasks/{id}/download` | `GET` | 下载已完成导出文件（仅财务/管理员） | `T+0~T+1` |
 | `/reports/admin/multi-dim/export-tasks/{id}/retry` | `POST` | 重试失败或文件缺失的导出任务（仅财务/管理员） | `T+0~T+1` |
+
+## 5.5.3 多维报表钻取接口与承接补充
+
+| 接口/页面 | 方法/动作 | 关键输入 | 关键校验 | 关键输出 |
+|---|---|---|---|---|
+| `/reports/admin/multi-dim` 行钻取到 `/funds` | 页面路由跳转 | `group_by=doc_status`,`dimension_value`,`doc_type` | 仅允许 `doc_status` 维度触发；`doc_type` 限 `payment/receipt` | 资金处理台自动回填 `status` 与单据类型 |
+| `/reports/admin/multi-dim` 行钻取到 `/funds-reconcile` | 页面路由跳转 | `group_by=refund_status`,`dimension_value`,`doc_type` | 仅允许 `refund_status` 维度触发；`doc_type` 限 `payment/receipt` | 退款核销台自动回填 `refund_status` 与单据类型 |
+| `/payment-docs` | `GET` | `status?`,`refund_status?`,`limit?` | `refund_status` 仅允许既有枚举：`未退款/待审核/驳回/部分退款/已退款` | 付款单列表与筛选条件一致 |
+| `/receipt-docs` | `GET` | `status?`,`refund_status?`,`limit?` | `refund_status` 仅允许既有枚举：`未退款/待审核/驳回/部分退款/已退款` | 收款单列表与筛选条件一致 |
 
 ## 5.5.1 导出任务中心接口补充
 

@@ -7,6 +7,7 @@ import {
   createDemoPaymentSupplement,
   getDemoPaymentDocDetail,
   listDemoPaymentDocs,
+  listDemoReceiptDocs,
   rejectDemoPaymentRefund,
   requestDemoPaymentRefund,
   writeoffDemoPaymentDoc,
@@ -14,9 +15,19 @@ import {
 
 describe('财务资金处理台演示数据', () => {
   it('可按状态筛选付款单', () => {
-    const response = listDemoPaymentDocs('待补录金额')
+    const response = listDemoPaymentDocs({ status: '待补录金额' })
     expect(response.total).toBeGreaterThan(0)
     expect(response.items.every((item) => item.status === '待补录金额')).toBe(true)
+  })
+
+  it('可按退款状态筛选收付款单', () => {
+    const paymentResponse = listDemoPaymentDocs({ refund_status: '未退款' })
+    expect(paymentResponse.total).toBeGreaterThan(0)
+    expect(paymentResponse.items.every((item) => item.refund_status === '未退款')).toBe(true)
+
+    const receiptResponse = listDemoReceiptDocs({ refund_status: '未退款' })
+    expect(receiptResponse.total).toBeGreaterThan(0)
+    expect(receiptResponse.items.every((item) => item.refund_status === '未退款')).toBe(true)
   })
 
   it('可补录付款单并在详情中查询到', () => {

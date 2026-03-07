@@ -103,27 +103,35 @@ export interface FundRefundDecisionPayload {
   reason: string
 }
 
-export async function fetchPaymentDocs(status?: string): Promise<PaymentDocListResponse> {
+export interface FundDocListQuery {
+  status?: string
+  refund_status?: string
+  limit?: number
+}
+
+export async function fetchPaymentDocs(query: FundDocListQuery = {}): Promise<PaymentDocListResponse> {
   if (reportsMode === 'demo') {
-    return Promise.resolve(listDemoPaymentDocs(status))
+    return Promise.resolve(listDemoPaymentDocs(query))
   }
   const { data } = await httpClient.get<PaymentDocListResponse>('/payment-docs', {
     params: {
-      ...(status ? { status } : {}),
-      limit: 50,
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.refund_status ? { refund_status: query.refund_status } : {}),
+      limit: query.limit ?? 200,
     },
   })
   return data
 }
 
-export async function fetchReceiptDocs(status?: string): Promise<ReceiptDocListResponse> {
+export async function fetchReceiptDocs(query: FundDocListQuery = {}): Promise<ReceiptDocListResponse> {
   if (reportsMode === 'demo') {
-    return Promise.resolve(listDemoReceiptDocs(status))
+    return Promise.resolve(listDemoReceiptDocs(query))
   }
   const { data } = await httpClient.get<ReceiptDocListResponse>('/receipt-docs', {
     params: {
-      ...(status ? { status } : {}),
-      limit: 50,
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.refund_status ? { refund_status: query.refund_status } : {}),
+      limit: query.limit ?? 200,
     },
   })
   return data

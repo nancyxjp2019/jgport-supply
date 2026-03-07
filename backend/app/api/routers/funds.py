@@ -44,6 +44,14 @@ from app.services.funds_service import (
 
 router = APIRouter(tags=["funds"])
 
+ALLOWED_REFUND_STATUS_FILTERS = {
+    "未退款",
+    "待审核",
+    "驳回",
+    "部分退款",
+    "已退款",
+}
+
 fund_doc_write_dependency = require_actor(
     allowed_roles={"finance", "admin"},
     allowed_client_types={"admin_web"},
@@ -59,7 +67,8 @@ fund_doc_read_dependency = require_actor(
 @router.get("/payment-docs", response_model=PaymentDocListResponse)
 def list_payment_docs(
     status_filter: str | None = Query(default=None, alias="status"),
-    limit: int = Query(default=50, ge=1, le=200),
+    refund_status_filter: str | None = Query(default=None, alias="refund_status"),
+    limit: int = Query(default=200, ge=1, le=1000),
     _: AuthenticatedActor = Depends(fund_doc_read_dependency),
     db: Session = Depends(get_db),
 ) -> PaymentDocListResponse:
@@ -69,6 +78,18 @@ def list_payment_docs(
     normalized_status = status_filter.strip() if status_filter else ""
     if normalized_status:
         statement = statement.where(PaymentDoc.status == normalized_status)
+    normalized_refund_status = (
+        refund_status_filter.strip() if refund_status_filter else ""
+    )
+    if (
+        normalized_refund_status
+        and normalized_refund_status not in ALLOWED_REFUND_STATUS_FILTERS
+    ):
+        raise HTTPException(status_code=422, detail="退款状态筛选值不合法")
+    if normalized_refund_status:
+        statement = statement.where(
+            PaymentDoc.refund_status == normalized_refund_status
+        )
     payment_docs = list(db.scalars(statement.limit(limit)).all())
     return PaymentDocListResponse(
         items=[_to_payment_list_item(doc) for doc in payment_docs],
@@ -80,7 +101,8 @@ def list_payment_docs(
 @router.get("/receipt-docs", response_model=ReceiptDocListResponse)
 def list_receipt_docs(
     status_filter: str | None = Query(default=None, alias="status"),
-    limit: int = Query(default=50, ge=1, le=200),
+    refund_status_filter: str | None = Query(default=None, alias="refund_status"),
+    limit: int = Query(default=200, ge=1, le=1000),
     _: AuthenticatedActor = Depends(fund_doc_read_dependency),
     db: Session = Depends(get_db),
 ) -> ReceiptDocListResponse:
@@ -90,6 +112,18 @@ def list_receipt_docs(
     normalized_status = status_filter.strip() if status_filter else ""
     if normalized_status:
         statement = statement.where(ReceiptDoc.status == normalized_status)
+    normalized_refund_status = (
+        refund_status_filter.strip() if refund_status_filter else ""
+    )
+    if (
+        normalized_refund_status
+        and normalized_refund_status not in ALLOWED_REFUND_STATUS_FILTERS
+    ):
+        raise HTTPException(status_code=422, detail="退款状态筛选值不合法")
+    if normalized_refund_status:
+        statement = statement.where(
+            ReceiptDoc.refund_status == normalized_refund_status
+        )
     receipt_docs = list(db.scalars(statement.limit(limit)).all())
     return ReceiptDocListResponse(
         items=[_to_receipt_list_item(doc) for doc in receipt_docs],
