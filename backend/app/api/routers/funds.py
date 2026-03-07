@@ -50,7 +50,7 @@ fund_doc_write_dependency = require_actor(
     allowed_company_types={"operator_company"},
 )
 fund_doc_read_dependency = require_actor(
-    allowed_roles={"finance", "admin"},
+    allowed_roles={"operations", "finance", "admin"},
     allowed_client_types={"admin_web"},
     allowed_company_types={"operator_company"},
 )

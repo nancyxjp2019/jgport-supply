@@ -22,3 +22,17 @@ class AccessMeResponse(BaseModel):
     admin_web_allowed: bool
     miniprogram_allowed: bool
     message: str
+
+
+class AccessSessionRefreshResponse(BaseModel):
+    access_token: str
+    token_type: str
+    expires_in_seconds: int
+    user_id: str
+    role_code: str
+    company_id: str | None
+    company_type: str
+    client_type: str
+    admin_web_allowed: bool
+    miniprogram_allowed: bool
+    message: str

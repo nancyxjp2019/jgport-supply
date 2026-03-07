@@ -32,6 +32,11 @@ admin_report_dependency = require_actor(
     allowed_client_types={"admin_web"},
     allowed_company_types={"operator_company"},
 )
+admin_report_export_dependency = require_actor(
+    allowed_roles={"finance", "admin"},
+    allowed_client_types={"admin_web"},
+    allowed_company_types={"operator_company"},
+)
 mini_report_dependency = require_actor(
     allowed_roles={"operations", "finance", "admin"},
     allowed_client_types={"miniprogram"},
@@ -213,7 +218,7 @@ def export_admin_multi_dim_route(
     date_to: date | None = Query(
         default=None, description="创建日期结束（上海自然日）"
     ),
-    _: AuthenticatedActor = Depends(admin_report_dependency),
+    _: AuthenticatedActor = Depends(admin_report_export_dependency),
     db: Session = Depends(get_db),
 ) -> Response:
     try:

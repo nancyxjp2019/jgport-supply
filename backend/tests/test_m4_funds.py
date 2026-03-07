@@ -332,6 +332,52 @@ def test_finance_can_list_and_query_receipt_doc_detail(auth_headers) -> None:
     assert detail_body["voucher_file_paths"] == []
 
 
+def test_operations_can_read_fund_docs_but_cannot_write(auth_headers) -> None:
+    sales_contract_id = _create_effective_sales_contract(
+        auth_headers, customer_id=CUSTOMER_COMPANY_ID
+    )
+    purchase_contract_id = _create_effective_purchase_contract(
+        auth_headers, supplier_id=SUPPLIER_COMPANY_ID
+    )
+    receipt_doc = _query_receipt_docs(
+        contract_id=sales_contract_id, doc_type="DEPOSIT"
+    )[0]
+    payment_doc = _query_payment_docs(
+        contract_id=purchase_contract_id, doc_type="DEPOSIT"
+    )[0]
+
+    payment_list_response = client.get(
+        "/api/v1/payment-docs",
+        params={"status": "草稿", "limit": 50},
+        headers=_operations_headers(auth_headers, "CODEX-TEST-M8-23-OPS-READ-PAY"),
+    )
+    assert payment_list_response.status_code == 200
+    assert any(
+        item["id"] == payment_doc.id for item in payment_list_response.json()["items"]
+    )
+
+    receipt_list_response = client.get(
+        "/api/v1/receipt-docs",
+        params={"status": "草稿", "limit": 50},
+        headers=_operations_headers(auth_headers, "CODEX-TEST-M8-23-OPS-READ-REC"),
+    )
+    assert receipt_list_response.status_code == 200
+    assert any(
+        item["id"] == receipt_doc.id for item in receipt_list_response.json()["items"]
+    )
+
+    blocked_confirm_response = client.post(
+        f"/api/v1/payment-docs/{payment_doc.id}/confirm",
+        json={
+            "amount_actual": 1000.00,
+            "voucher_files": ["CODEX-TEST-/m8-23-ops-block-payment.png"],
+        },
+        headers=_operations_headers(auth_headers, "CODEX-TEST-M8-23-OPS-WRITE-BLOCK"),
+    )
+    assert blocked_confirm_response.status_code == 403
+    assert blocked_confirm_response.json()["detail"] == "当前角色无权访问该接口"
+
+
 def test_receipt_doc_supplement_requires_matching_contract_and_sales_order(
     auth_headers,
 ) -> None:
@@ -1158,3 +1204,13 @@ def _create_sales_order_in_pending_finance(
     )
     assert ops_response.status_code == 200
     return sales_order_id
+
+
+def _operations_headers(auth_headers, user_id: str) -> dict[str, str]:
+    return auth_headers(
+        user_id=user_id,
+        role_code="operations",
+        company_id="CODEX-TEST-OPERATOR-COMPANY",
+        company_type="operator_company",
+        client_type="admin_web",
+    )

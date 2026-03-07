@@ -3,7 +3,7 @@
 ## 1. 目的与门槛
 - 目的：验证需求是否被完整理解并可直接进入模块开发。
 - 门槛：
-  - 规则覆盖率 `100%`（规则1~53全部映射）。
+  - 规则覆盖率 `100%`（规则1~54全部映射）。
   - 规则冲突数 `0`。
   - 阻断级未决问题 `0`。
 
@@ -64,6 +64,7 @@
 | 51 | 退款核销与资金驳回台首批开放边界 | M8 | ADM-FUNDS-RECON-01 | `/payment-docs/{id}/refund-*` `/receipt-docs/{id}/refund-*` `/payment-docs/{id}/writeoff` `/receipt-docs/{id}/writeoff` + 退款核销台任务包 | `payment_docs`,`receipt_docs`,`business_audit_logs` | FIN-004 |
 | 52 | 多维报表与导出首批开放边界 | M8 | ADM-REPORT-MULTI-01 | `/reports/admin/multi-dim` `/reports/admin/multi-dim/export` + 多维报表任务包 | `report_snapshots`,`payment_docs`,`receipt_docs` | RPT-007 |
 | 53 | 管理后台按钮级权限首批开放边界 | M8 | ADM-PERM-BTN-01 | 管理后台关键动作按钮权限映射与页面收口 + 按钮权限任务包 | `auth_session`,`前端按钮权限映射` | SEC-002 |
+| 54 | 会话续期与后端细粒度鉴权首批开放边界 | M8 | MINI-LOGIN-01 / ADM-PERM-BTN-01 | `/access/session/refresh` + 报表导出/资金读写接口后端鉴权收口 | `auth_session`,`business_audit_logs`,`前后端权限映射` | SEC-003 |
 
 ## 3. 验收方式
 - 抽检方式：随机抽取任意10条规则，要求能在“模块/页面/API/数据/测试”5列中完整追溯。

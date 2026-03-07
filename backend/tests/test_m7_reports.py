@@ -346,12 +346,20 @@ def test_admin_multi_dim_report_and_export_support_filters(auth_headers) -> None
     filtered_body = filtered_response.json()
     assert any(row["dimension_value"] == "待审核" for row in filtered_body["rows"])
 
-    export_response = client.get(
+    blocked_export_response = client.get(
         "/api/v1/reports/admin/multi-dim/export",
         params={"group_by": "refund_status", "contract_direction": "purchase"},
         headers=_ops_admin_web_headers(
             auth_headers, "CODEX-TEST-M8-21-MULTI-DIM-EXPORT"
         ),
+    )
+    assert blocked_export_response.status_code == 403
+    assert blocked_export_response.json()["detail"] == "当前角色无权访问该接口"
+
+    export_response = client.get(
+        "/api/v1/reports/admin/multi-dim/export",
+        params={"group_by": "refund_status", "contract_direction": "purchase"},
+        headers=_finance_headers(auth_headers, "CODEX-TEST-M8-23-MULTI-DIM-EXPORT"),
     )
     assert export_response.status_code == 200
     assert export_response.headers["content-type"].startswith("text/csv")

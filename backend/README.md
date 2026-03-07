@@ -39,6 +39,7 @@
 - 端权限边界：
   - `GET /api/v1/access/me`
   - `POST /api/v1/access/check`
+  - `POST /api/v1/access/session/refresh`
 - 参数中心（双阈值）：
   - `GET /api/v1/system-configs/thresholds`
   - `PUT /api/v1/system-configs/thresholds`
@@ -100,6 +101,8 @@
 - `GET /api/v1/supplier/purchase-orders/{id}` 当前会补充供应商发货确认字段与付款校验结果只读提示，用于小程序回看，不下放资金确认权限。
 - `POST /api/v1/payment-docs/supplement` 仅允许 `finance/admin + operator_company + admin_web`。
 - `POST /api/v1/receipt-docs/supplement` 仅允许 `finance/admin + operator_company + admin_web`。
+- `GET /api/v1/payment-docs` 与 `GET /api/v1/receipt-docs` 允许 `operations/finance/admin + operator_company + admin_web`（只读）。
+- `GET /api/v1/payment-docs/{id}` 与 `GET /api/v1/receipt-docs/{id}` 允许 `operations/finance/admin + operator_company + admin_web`（只读）。
 - `POST /api/v1/payment-docs/{id}/confirm` 仅允许 `finance/admin + operator_company + admin_web`。
 - `POST /api/v1/receipt-docs/{id}/confirm` 仅允许 `finance/admin + operator_company + admin_web`。
 - `POST /api/v1/inbound-docs/{id}/submit` 允许：
@@ -117,7 +120,9 @@
 - `GET /api/v1/dashboard/summary` 仅允许 `operations/finance/admin + operator_company + admin_web`。
 - `GET /api/v1/boards/tasks` 仅允许 `operations/finance/admin + operator_company + admin_web`。
 - `GET /api/v1/reports/light/overview` 仅允许 `operations/finance/admin + operator_company + miniprogram`。
-- `GET /api/v1/reports/admin/multi-dim` 仅允许 `operations/finance/admin + operator_company + admin_web`，当前返回 `501` 表示尚未纳入首批实现。
+- `GET /api/v1/reports/admin/multi-dim` 仅允许 `operations/finance/admin + operator_company + admin_web`。
+- `GET /api/v1/reports/admin/multi-dim/export` 仅允许 `finance/admin + operator_company + admin_web`。
+- `POST /api/v1/access/session/refresh` 仅支持 Bearer 令牌续期，续期时会重新校验角色、公司归属与端权限。
 
 ## 6. 已实现接口（阶段C迭代3-M3）
 - 订单域：
@@ -206,14 +211,16 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
   - `GET /api/v1/dashboard/summary`
   - `GET /api/v1/boards/tasks`
   - `GET /api/v1/reports/light/overview`
-  - `GET /api/v1/reports/admin/multi-dim`（占位返回 `501`）
+  - `GET /api/v1/reports/admin/multi-dim`
+  - `GET /api/v1/reports/admin/multi-dim/export`
 - 当前实现约束：
   - 仪表盘首版四指标已按规则41固定：合同执行率、当日实收实付、库存周转、超阈值告警数。
   - 合同执行率仅统计 `生效中/数量履约完成/已关闭/手工关闭/已归档` 合同。
   - 报表“当日”口径统一按 `Asia/Shanghai` 自然日计算。
   - 小程序轻量报表首版仅向运营侧角色开放，不向客户/供应商/仓库暴露经营金额汇总。
   - 查询报表时会写入 `report_snapshots` 快照，版本固定为 `v1`，历史快照不覆盖。
-  - 当前仍未实现多维管理报表、每日扫描任务、事件触发增量刷新编排与报表导出。
+  - 后台多维报表已支持筛选汇总与 CSV 导出；导出接口仅开放财务/管理员角色。
+  - 当前仍未实现每日扫描任务与事件触发增量刷新编排。
 
 ## 13. 已实现接口（阶段C迭代8-M8-05）
 - 小程序开发者工具本地联调：
@@ -245,3 +252,12 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
   - 订单列表支持 `status` 状态筛选与 `limit` 条数限制，默认按 `id DESC` 返回。
   - 返回结果补充 `sales_contract_no` 与 `created_at`，用于小程序订单页展示与继续编辑。
   - 本轮只补查询接口，不新增小程序审批动作、附件上传与采购订单详情页。
+
+## 16. 已实现接口（阶段C迭代8-M8-23）
+- 会话续期与后端细粒度鉴权：
+  - `POST /api/v1/access/session/refresh`
+- 当前实现约束：
+  - 会话续期仅支持 Bearer 令牌，不支持代理头模式直接续期。
+  - 续期时会重新校验角色、公司归属、端权限；权限失效时拒绝续期。
+  - 资金单据列表与详情放开到 `operations/finance/admin` 只读访问，写动作仍仅 `finance/admin`。
+  - 多维报表导出后端权限收口为 `finance/admin`，运营仅保留查询权限。

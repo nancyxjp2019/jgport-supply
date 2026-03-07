@@ -4,7 +4,7 @@
 - 文档状态：`已冻结`
 - 目标：冻结实现口径，形成可开发规格，作为阶段C模块开发唯一输入。
 - 上游输入：
-  - `docs/需求方案.md`（当前规则 `1~53` 与“业务目标/角色权限”基线）
+  - `docs/需求方案.md`（当前规则 `1~54` 与“业务目标/角色权限”基线）
   - `docs/V6阶段A-流程图状态机与UI原型清单.md`
 - 下游输出：阶段C模块任务拆分、接口开发、联调与测试用例。
 
@@ -159,10 +159,10 @@ purchase_payment_net =
 
 | 接口 | 方法 | 关键请求字段 | 关键校验 | 关键响应 |
 |---|---|---|---|---|
-| `/payment-docs` | `GET` | `status?`,`limit?` | 仅 `finance/admin + operator_company + admin_web` 可查询 | 付款单列表（含退款状态） |
-| `/receipt-docs` | `GET` | `status?`,`limit?` | 仅 `finance/admin + operator_company + admin_web` 可查询 | 收款单列表（含退款状态） |
-| `/payment-docs/{id}` | `GET` | 无 | 仅 `finance/admin + operator_company + admin_web` 可查询 | 付款单详情（含凭证路径） |
-| `/receipt-docs/{id}` | `GET` | 无 | 仅 `finance/admin + operator_company + admin_web` 可查询 | 收款单详情（含凭证路径） |
+| `/payment-docs` | `GET` | `status?`,`limit?` | 仅 `operations/finance/admin + operator_company + admin_web` 可查询 | 付款单列表（含退款状态） |
+| `/receipt-docs` | `GET` | `status?`,`limit?` | 仅 `operations/finance/admin + operator_company + admin_web` 可查询 | 收款单列表（含退款状态） |
+| `/payment-docs/{id}` | `GET` | 无 | 仅 `operations/finance/admin + operator_company + admin_web` 可查询 | 付款单详情（含凭证路径） |
+| `/receipt-docs/{id}` | `GET` | 无 | 仅 `operations/finance/admin + operator_company + admin_web` 可查询 | 收款单详情（含凭证路径） |
 | `/payment-docs/supplement` | `POST` | `contract_id`,`purchase_order_id`,`amount_actual` | 手工补录必须同时绑定合同+采购订单 | `payment_doc_id` |
 | `/receipt-docs/supplement` | `POST` | `contract_id`,`sales_order_id`,`amount_actual` | 手工补录必须同时绑定合同+销售订单 | `receipt_doc_id` |
 | `/receipt-docs/{id}/confirm` | `POST` | `amount_actual`,`voucher_files[]` | 非0金额必须有凭证；0金额按规则14校验 | `status=已确认`或`待补录金额` |
@@ -204,7 +204,13 @@ purchase_payment_net =
 | `/boards/tasks` | `GET` | 待办、阻塞、超阈值告警；仅 `operations/finance/admin + operator_company + admin_web` | `T+0` |
 | `/reports/light/overview` | `GET` | 小程序轻量汇总报表；仅 `operations/finance/admin + operator_company + miniprogram` | `T+0` |
 | `/reports/admin/multi-dim` | `GET` | 后台多维管理报表 | `T+0~T+1` |
-| `/reports/admin/multi-dim/export` | `GET` | 后台多维报表CSV导出（按当前筛选） | `T+0~T+1` |
+| `/reports/admin/multi-dim/export` | `GET` | 后台多维报表CSV导出（按当前筛选，仅财务/管理员可导出） | `T+0~T+1` |
+
+## 5.5.1 会话与鉴权接口补充
+
+| 接口 | 方法 | 关键请求字段 | 关键校验 | 关键响应 |
+|---|---|---|---|---|
+| `/access/session/refresh` | `POST` | `Authorization: Bearer <token>` | 仅支持 Bearer 会话；角色、公司归属、端权限需仍然有效 | 新 `access_token` + 当前身份信息 |
 
 ## 5.6 参数中心接口（系统级阈值）
 
@@ -252,6 +258,7 @@ purchase_payment_net =
 - `生效出入库`：执行超量阈值校验，通过后过账。
 - `手工关闭`：执行五步处理顺序并写入差异记录。
 - `按钮权限收口`：按角色禁用或开放页面动作入口，禁止无权限角色直接触发关键业务动作。
+- `会话续期`：令牌过期后先续期再重试一次请求，续期失败清空会话并回到登录入口。
 
 ## 6.4 视觉与文案冻结（关键）
 - 采购订单0付款例外统一文案：`例外放行（需后补付款单）`。

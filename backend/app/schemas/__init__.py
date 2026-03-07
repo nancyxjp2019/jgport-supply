@@ -1,4 +1,9 @@
-from app.schemas.access import AccessCheckRequest, AccessCheckResponse
+from app.schemas.access import (
+    AccessCheckRequest,
+    AccessCheckResponse,
+    AccessMeResponse,
+    AccessSessionRefreshResponse,
+)
 from app.schemas.audit import AuditLogCreateRequest, AuditLogItem, AuditLogListResponse
 from app.schemas.contract import (
     ContractApproveRequest,
@@ -85,6 +90,8 @@ from app.schemas.wechat_auth import (
 __all__ = [
     "AccessCheckRequest",
     "AccessCheckResponse",
+    "AccessMeResponse",
+    "AccessSessionRefreshResponse",
     "AuditLogCreateRequest",
     "AuditLogItem",
     "AuditLogListResponse",
