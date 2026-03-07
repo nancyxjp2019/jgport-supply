@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
@@ -79,4 +79,44 @@ class AdminMultiDimReportResponse(BaseModel):
     total_payment_net_amount: Decimal
     total_net_cashflow: Decimal
     rows: list[AdminMultiDimReportRow] = Field(default_factory=list)
+    message: str
+
+
+class AdminMultiDimExportTaskCreateRequest(BaseModel):
+    metric_version: str | None = Field(default=None, max_length=16)
+    group_by: str = Field(default="contract_direction")
+    contract_direction: str | None = Field(default=None)
+    doc_status: str | None = Field(default=None, max_length=16)
+    refund_status: str | None = Field(default=None, max_length=16)
+    date_from: date | None = None
+    date_to: date | None = None
+
+
+class AdminMultiDimExportTaskItem(BaseModel):
+    id: int
+    report_code: str
+    report_name: str
+    status: str
+    export_format: str
+    metric_version: str
+    filters: dict[str, str | None]
+    file_name: str | None = None
+    requested_by: str
+    requested_role_code: str
+    requested_company_id: str | None = None
+    retry_count: int
+    download_count: int
+    error_message: str | None = None
+    finished_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class AdminMultiDimExportTaskCreateResponse(BaseModel):
+    task: AdminMultiDimExportTaskItem
+    message: str
+
+
+class AdminMultiDimExportTaskListResponse(BaseModel):
+    items: list[AdminMultiDimExportTaskItem] = Field(default_factory=list)
     message: str

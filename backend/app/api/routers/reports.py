@@ -3,12 +3,17 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps.auth import AuthenticatedActor, require_actor
 from app.db.session import get_db
 from app.schemas.report import (
+    AdminMultiDimExportTaskCreateRequest,
+    AdminMultiDimExportTaskCreateResponse,
+    AdminMultiDimExportTaskItem,
+    AdminMultiDimExportTaskListResponse,
     AdminMultiDimReportResponse,
     AdminMultiDimReportRow,
     BoardTaskItem,
@@ -19,10 +24,15 @@ from app.schemas.report import (
 from app.services.report_service import (
     ReportServiceError,
     build_admin_multi_dim_report_csv,
+    create_admin_multi_dim_export_task,
+    execute_admin_multi_dim_export_task,
     get_admin_multi_dim_report,
     get_board_tasks,
     get_dashboard_summary,
     get_light_overview,
+    list_admin_multi_dim_export_tasks,
+    prepare_admin_multi_dim_export_task_download,
+    retry_admin_multi_dim_export_task,
 )
 
 router = APIRouter(tags=["reports"])
@@ -243,4 +253,116 @@ def export_admin_multi_dim_route(
         headers={
             "Content-Disposition": f'attachment; filename="multi-dim-report-{file_suffix}.csv"'
         },
+    )
+
+
+@router.post(
+    "/reports/admin/multi-dim/export-tasks",
+    response_model=AdminMultiDimExportTaskCreateResponse,
+    status_code=202,
+)
+def create_admin_multi_dim_export_task_route(
+    payload: AdminMultiDimExportTaskCreateRequest,
+    background_tasks: BackgroundTasks,
+    actor: AuthenticatedActor = Depends(admin_report_export_dependency),
+    db: Session = Depends(get_db),
+) -> AdminMultiDimExportTaskCreateResponse:
+    try:
+        dispatch_result = create_admin_multi_dim_export_task(
+            db,
+            actor=actor,
+            metric_version=payload.metric_version,
+            group_by=payload.group_by,
+            contract_direction=payload.contract_direction,
+            doc_status=payload.doc_status,
+            refund_status=payload.refund_status,
+            date_from=payload.date_from,
+            date_to=payload.date_to,
+        )
+    except ReportServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    if dispatch_result.should_enqueue:
+        background_tasks.add_task(
+            execute_admin_multi_dim_export_task, dispatch_result.task.id
+        )
+    return AdminMultiDimExportTaskCreateResponse(
+        task=AdminMultiDimExportTaskItem(**dispatch_result.task.__dict__),
+        message=(
+            "导出任务已创建，正在后台生成文件"
+            if dispatch_result.should_enqueue
+            else "命中相同筛选快照的未完成任务，已直接复用现有任务"
+        ),
+    )
+
+
+@router.get(
+    "/reports/admin/multi-dim/export-tasks",
+    response_model=AdminMultiDimExportTaskListResponse,
+)
+def list_admin_multi_dim_export_tasks_route(
+    limit: int = Query(default=20, ge=1, le=100, description="返回条数上限"),
+    task_status: str | None = Query(
+        default=None,
+        alias="status",
+        pattern="^(待处理|处理中|已完成|已失败)$",
+        description="任务状态筛选",
+    ),
+    actor: AuthenticatedActor = Depends(admin_report_export_dependency),
+    db: Session = Depends(get_db),
+) -> AdminMultiDimExportTaskListResponse:
+    try:
+        items = list_admin_multi_dim_export_tasks(
+            db,
+            actor=actor,
+            limit=limit,
+            task_status=task_status,
+        )
+    except ReportServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    return AdminMultiDimExportTaskListResponse(
+        items=[AdminMultiDimExportTaskItem(**item.__dict__) for item in items],
+        message="导出任务列表查询成功",
+    )
+
+
+@router.get("/reports/admin/multi-dim/export-tasks/{task_id}/download")
+def download_admin_multi_dim_export_task_route(
+    task_id: int,
+    actor: AuthenticatedActor = Depends(admin_report_export_dependency),
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    try:
+        result = prepare_admin_multi_dim_export_task_download(
+            db,
+            actor=actor,
+            task_id=task_id,
+        )
+    except ReportServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    return FileResponse(
+        path=result.file_path,
+        media_type="text/csv",
+        filename=result.file_name,
+    )
+
+
+@router.post(
+    "/reports/admin/multi-dim/export-tasks/{task_id}/retry",
+    response_model=AdminMultiDimExportTaskCreateResponse,
+    status_code=202,
+)
+def retry_admin_multi_dim_export_task_route(
+    task_id: int,
+    background_tasks: BackgroundTasks,
+    actor: AuthenticatedActor = Depends(admin_report_export_dependency),
+    db: Session = Depends(get_db),
+) -> AdminMultiDimExportTaskCreateResponse:
+    try:
+        task = retry_admin_multi_dim_export_task(db, actor=actor, task_id=task_id)
+    except ReportServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    background_tasks.add_task(execute_admin_multi_dim_export_task, task.id)
+    return AdminMultiDimExportTaskCreateResponse(
+        task=AdminMultiDimExportTaskItem(**task.__dict__),
+        message="导出任务已重新发起，正在后台生成文件",
     )

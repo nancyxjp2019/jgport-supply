@@ -16,6 +16,7 @@
   - `0010_add_m7_reports`（M7：仪表盘、看板、轻量报表快照）
   - `0011_add_m8_wechat_auth`（M8-06：小程序微信登录绑定表）
   - `0012_m8_supplier_confirm`（M8-14：供应商发货确认留痕字段）
+  - `0013_add_m8_report_export_tasks`（M8-24：导出任务中心表）
 
 ## 2. 目录说明
 - `app/main.py`：应用入口
@@ -31,6 +32,7 @@
 - `alembic/`：迁移脚本
 - `tests/`：健康检查 + M1/M2/M3/M4/M5/M6/M7 接口与服务测试
 - `app/models/report_snapshot.py`：报表快照模型
+- `app/models/report_export_task.py`：报表导出任务模型
 - `app/services/report_service.py`：仪表盘、业务看板、轻量报表服务
 
 ## 3. 已实现接口（阶段C迭代1-M1）
@@ -122,6 +124,10 @@
 - `GET /api/v1/reports/light/overview` 仅允许 `operations/finance/admin + operator_company + miniprogram`。
 - `GET /api/v1/reports/admin/multi-dim` 仅允许 `operations/finance/admin + operator_company + admin_web`。
 - `GET /api/v1/reports/admin/multi-dim/export` 仅允许 `finance/admin + operator_company + admin_web`。
+- `POST /api/v1/reports/admin/multi-dim/export-tasks` 仅允许 `finance/admin + operator_company + admin_web`。
+- `GET /api/v1/reports/admin/multi-dim/export-tasks` 仅允许 `finance/admin + operator_company + admin_web`。
+- `GET /api/v1/reports/admin/multi-dim/export-tasks/{id}/download` 仅允许 `finance/admin + operator_company + admin_web`。
+- `POST /api/v1/reports/admin/multi-dim/export-tasks/{id}/retry` 仅允许 `finance/admin + operator_company + admin_web`。
 - `POST /api/v1/access/session/refresh` 仅支持 Bearer 令牌续期，续期时会重新校验角色、公司归属与端权限。
 
 ## 6. 已实现接口（阶段C迭代3-M3）

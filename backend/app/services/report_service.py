@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
+import os
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fastapi import status
@@ -12,11 +15,15 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.auth_actor import AuthenticatedActor
+from app.db.session import SessionLocal
+from app.models.business_audit_log import BusinessAuditLog
 from app.models.contract import Contract
 from app.models.inbound_doc import InboundDoc
 from app.models.outbound_doc import OutboundDoc
 from app.models.payment_doc import PaymentDoc
 from app.models.receipt_doc import ReceiptDoc
+from app.models.report_export_task import ReportExportTask
 from app.models.report_snapshot import ReportSnapshot
 
 SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
@@ -56,6 +63,29 @@ DOC_STATUS_POSTED = "已过账"
 REFUND_STATUS_PENDING_REVIEW = "待审核"
 SLA_STATUS_NORMAL = "正常"
 SLA_STATUS_DELAYED = "延迟"
+REPORT_EXPORT_DIR_ENV_KEY = "REPORT_EXPORT_DIR"
+REPORT_EXPORT_DEFAULT_DIR = (
+    Path(__file__).resolve().parents[2] / "data" / "report_exports"
+)
+REPORT_EXPORT_CODE_ADMIN_MULTI_DIM = "admin_multi_dim"
+REPORT_EXPORT_NAME_ADMIN_MULTI_DIM = "多维报表"
+REPORT_EXPORT_FORMAT_CSV = "csv"
+REPORT_EXPORT_STATUS_PENDING = "待处理"
+REPORT_EXPORT_STATUS_PROCESSING = "处理中"
+REPORT_EXPORT_STATUS_COMPLETED = "已完成"
+REPORT_EXPORT_STATUS_FAILED = "已失败"
+REPORT_EXPORT_STATUS_SCOPE = {
+    REPORT_EXPORT_STATUS_PENDING,
+    REPORT_EXPORT_STATUS_PROCESSING,
+    REPORT_EXPORT_STATUS_COMPLETED,
+    REPORT_EXPORT_STATUS_FAILED,
+}
+REPORT_EXPORT_AUDIT_CREATE = "REPORT_EXPORT_TASK_CREATED"
+REPORT_EXPORT_AUDIT_PROCESSING = "REPORT_EXPORT_TASK_PROCESSING"
+REPORT_EXPORT_AUDIT_COMPLETED = "REPORT_EXPORT_TASK_COMPLETED"
+REPORT_EXPORT_AUDIT_FAILED = "REPORT_EXPORT_TASK_FAILED"
+REPORT_EXPORT_AUDIT_DOWNLOADED = "REPORT_EXPORT_TASK_DOWNLOADED"
+REPORT_EXPORT_AUDIT_RETRIED = "REPORT_EXPORT_TASK_RETRIED"
 
 
 @dataclass(frozen=True)
@@ -90,6 +120,39 @@ class AdminMultiDimReportResult:
     total_payment_net_amount: Decimal
     total_net_cashflow: Decimal
     rows: list[AdminMultiDimRowResult]
+
+
+@dataclass(frozen=True)
+class ReportExportTaskResult:
+    id: int
+    report_code: str
+    report_name: str
+    status: str
+    export_format: str
+    metric_version: str
+    filters: dict[str, str | None]
+    file_name: str | None
+    requested_by: str
+    requested_role_code: str
+    requested_company_id: str | None
+    retry_count: int
+    download_count: int
+    error_message: str | None
+    finished_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+
+@dataclass(frozen=True)
+class ReportExportDownloadResult:
+    file_path: Path
+    file_name: str
+
+
+@dataclass(frozen=True)
+class ReportExportTaskDispatchResult:
+    task: ReportExportTaskResult
+    should_enqueue: bool
 
 
 class ReportServiceError(RuntimeError):
@@ -345,6 +408,530 @@ def build_admin_multi_dim_report_csv(report: AdminMultiDimReportResult) -> str:
             ]
         )
     return "\ufeff" + output.getvalue()
+
+
+def create_admin_multi_dim_export_task(
+    db: Session,
+    *,
+    actor: AuthenticatedActor,
+    metric_version: str | None,
+    group_by: str,
+    contract_direction: str | None,
+    doc_status: str | None,
+    refund_status: str | None,
+    date_from: date | None,
+    date_to: date | None,
+) -> ReportExportTaskDispatchResult:
+    version = _resolve_metric_version(metric_version)
+    _ensure_multi_dim_group_by(group_by)
+    _ensure_contract_direction_filter(contract_direction)
+    _resolve_optional_date_window_utc(date_from=date_from, date_to=date_to)
+    filters = _build_multi_dim_filters_payload(
+        group_by=group_by,
+        contract_direction=contract_direction,
+        doc_status=doc_status,
+        refund_status=refund_status,
+        date_from=date_from,
+        date_to=date_to,
+    )
+    request_fingerprint = _build_report_export_request_fingerprint(
+        report_code=REPORT_EXPORT_CODE_ADMIN_MULTI_DIM,
+        requested_by=actor.user_id,
+        requested_company_id=actor.company_id,
+        metric_version=version,
+        filters=filters,
+    )
+    existing_task = _find_in_progress_report_export_task(
+        db,
+        request_fingerprint=request_fingerprint,
+    )
+    if existing_task is not None:
+        return ReportExportTaskDispatchResult(
+            task=_serialize_report_export_task(existing_task),
+            should_enqueue=False,
+        )
+    task = ReportExportTask(
+        report_code=REPORT_EXPORT_CODE_ADMIN_MULTI_DIM,
+        report_name=REPORT_EXPORT_NAME_ADMIN_MULTI_DIM,
+        status=REPORT_EXPORT_STATUS_PENDING,
+        export_format=REPORT_EXPORT_FORMAT_CSV,
+        metric_version=version,
+        filter_payload=filters,
+        requested_by=actor.user_id,
+        requested_role_code=actor.role_code,
+        requested_company_id=actor.company_id,
+        idempotency_key=request_fingerprint,
+    )
+    try:
+        db.add(task)
+        db.flush()
+        _append_report_export_audit_log(
+            db,
+            task=task,
+            event_code=REPORT_EXPORT_AUDIT_CREATE,
+            operator_id=actor.user_id,
+            before_payload={},
+        )
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        existing_task = _find_in_progress_report_export_task(
+            db,
+            request_fingerprint=request_fingerprint,
+        )
+        if existing_task is not None:
+            return ReportExportTaskDispatchResult(
+                task=_serialize_report_export_task(existing_task),
+                should_enqueue=False,
+            )
+        raise ReportServiceError(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="导出任务创建失败，请稍后重试",
+        )
+    db.refresh(task)
+    return ReportExportTaskDispatchResult(
+        task=_serialize_report_export_task(task),
+        should_enqueue=True,
+    )
+
+
+def list_admin_multi_dim_export_tasks(
+    db: Session,
+    *,
+    actor: AuthenticatedActor,
+    limit: int,
+    task_status: str | None,
+) -> list[ReportExportTaskResult]:
+    if task_status and task_status not in REPORT_EXPORT_STATUS_SCOPE:
+        raise ReportServiceError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="导出任务状态不受支持",
+        )
+    query = (
+        select(ReportExportTask)
+        .where(
+            ReportExportTask.report_code == REPORT_EXPORT_CODE_ADMIN_MULTI_DIM,
+            ReportExportTask.requested_company_id == actor.company_id,
+        )
+        .order_by(ReportExportTask.created_at.desc(), ReportExportTask.id.desc())
+        .limit(limit)
+    )
+    if task_status:
+        query = query.where(ReportExportTask.status == task_status)
+    tasks = db.scalars(query).all()
+    return [_serialize_report_export_task(task) for task in tasks]
+
+
+def prepare_admin_multi_dim_export_task_download(
+    db: Session,
+    *,
+    actor: AuthenticatedActor,
+    task_id: int,
+) -> ReportExportDownloadResult:
+    task = _get_accessible_report_export_task(db, actor=actor, task_id=task_id)
+    if task.status != REPORT_EXPORT_STATUS_COMPLETED:
+        raise ReportServiceError(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="当前导出任务尚未生成可下载文件",
+        )
+    export_file_path = _resolve_report_export_file_path(task.file_path)
+    if export_file_path is None or not export_file_path.exists():
+        _mark_report_export_task_failed(
+            db,
+            task=task,
+            detail="导出文件不存在，请先重试生成后再下载",
+            operator_id=actor.user_id,
+        )
+        raise ReportServiceError(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="导出文件不存在，请先重试生成后再下载",
+        )
+    before_payload = _report_export_task_audit_payload(task)
+    task.download_count += 1
+    _append_report_export_audit_log(
+        db,
+        task=task,
+        event_code=REPORT_EXPORT_AUDIT_DOWNLOADED,
+        operator_id=actor.user_id,
+        before_payload=before_payload,
+    )
+    _commit_or_raise(db, detail="导出文件下载次数更新失败，请稍后重试")
+    return ReportExportDownloadResult(
+        file_path=export_file_path,
+        file_name=task.file_name or export_file_path.name,
+    )
+
+
+def retry_admin_multi_dim_export_task(
+    db: Session,
+    *,
+    actor: AuthenticatedActor,
+    task_id: int,
+) -> ReportExportTaskResult:
+    task = _get_accessible_report_export_task(db, actor=actor, task_id=task_id)
+    file_missing = (
+        task.status == REPORT_EXPORT_STATUS_COMPLETED
+        and not _has_report_export_file(task)
+    )
+    if task.status != REPORT_EXPORT_STATUS_FAILED and not file_missing:
+        raise ReportServiceError(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="当前导出任务不支持重试",
+        )
+    before_payload = _report_export_task_audit_payload(task)
+    export_file_path = _resolve_report_export_file_path(task.file_path)
+    if export_file_path and export_file_path.exists():
+        export_file_path.unlink()
+    task.idempotency_key = _build_report_export_request_fingerprint(
+        report_code=task.report_code,
+        requested_by=task.requested_by,
+        requested_company_id=task.requested_company_id,
+        metric_version=task.metric_version,
+        filters=task.filter_payload,
+    )
+    task.status = REPORT_EXPORT_STATUS_PENDING
+    task.error_message = None
+    task.file_name = None
+    task.file_path = None
+    task.finished_at = None
+    task.retry_count += 1
+    _append_report_export_audit_log(
+        db,
+        task=task,
+        event_code=REPORT_EXPORT_AUDIT_RETRIED,
+        operator_id=actor.user_id,
+        before_payload=before_payload,
+    )
+    _commit_or_raise(db, detail="导出任务重试失败，请稍后重试")
+    db.refresh(task)
+    return _serialize_report_export_task(task)
+
+
+def execute_admin_multi_dim_export_task(task_id: int) -> None:
+    db = SessionLocal()
+    try:
+        task = db.get(ReportExportTask, task_id)
+        if task is None:
+            return
+        before_payload = _report_export_task_audit_payload(task)
+        task.status = REPORT_EXPORT_STATUS_PROCESSING
+        task.error_message = None
+        task.finished_at = None
+        _append_report_export_audit_log(
+            db,
+            task=task,
+            event_code=REPORT_EXPORT_AUDIT_PROCESSING,
+            operator_id=task.requested_by,
+            before_payload=before_payload,
+        )
+        _commit_or_raise(db, detail="导出任务状态更新失败，请稍后重试")
+        db.refresh(task)
+
+        report = get_admin_multi_dim_report(
+            db,
+            metric_version=task.metric_version,
+            group_by=str(
+                task.filter_payload.get("group_by") or GROUP_BY_CONTRACT_DIRECTION
+            ),
+            contract_direction=_optional_filter_value(
+                task.filter_payload.get("contract_direction")
+            ),
+            doc_status=_optional_filter_value(task.filter_payload.get("doc_status")),
+            refund_status=_optional_filter_value(
+                task.filter_payload.get("refund_status")
+            ),
+            date_from=_parse_filter_date(task.filter_payload.get("date_from")),
+            date_to=_parse_filter_date(task.filter_payload.get("date_to")),
+        )
+        csv_content = build_admin_multi_dim_report_csv(report)
+        export_file_path, relative_file_path, file_name = (
+            _build_report_export_file_path(task.id)
+        )
+        export_file_path.parent.mkdir(parents=True, exist_ok=True)
+        export_file_path.write_text(csv_content, encoding="utf-8")
+
+        before_payload = _report_export_task_audit_payload(task)
+        task.idempotency_key = _build_report_export_history_key(task, "completed")
+        task.status = REPORT_EXPORT_STATUS_COMPLETED
+        task.file_name = file_name
+        task.file_path = relative_file_path
+        task.error_message = None
+        task.finished_at = datetime.now(UTC)
+        _append_report_export_audit_log(
+            db,
+            task=task,
+            event_code=REPORT_EXPORT_AUDIT_COMPLETED,
+            operator_id=task.requested_by,
+            before_payload=before_payload,
+        )
+        _commit_or_raise(db, detail="导出任务结果保存失败，请稍后重试")
+    except ReportServiceError as exc:
+        _safely_mark_report_export_task_failed(task_id, exc.detail)
+    except OSError:
+        _safely_mark_report_export_task_failed(task_id, "导出文件写入失败，请稍后重试")
+    except Exception:
+        _safely_mark_report_export_task_failed(task_id, "导出任务执行失败，请稍后重试")
+    finally:
+        db.close()
+
+
+def _build_multi_dim_filters_payload(
+    *,
+    group_by: str,
+    contract_direction: str | None,
+    doc_status: str | None,
+    refund_status: str | None,
+    date_from: date | None,
+    date_to: date | None,
+) -> dict[str, str | None]:
+    return {
+        "group_by": group_by,
+        "contract_direction": contract_direction,
+        "doc_status": doc_status,
+        "refund_status": refund_status,
+        "date_from": date_from.isoformat() if date_from else None,
+        "date_to": date_to.isoformat() if date_to else None,
+    }
+
+
+def _build_report_export_request_fingerprint(
+    *,
+    report_code: str,
+    requested_by: str,
+    requested_company_id: str | None,
+    metric_version: str,
+    filters: dict[str, str | None],
+) -> str:
+    fingerprint = hashlib.sha1(
+        (
+            f"{report_code}|{metric_version}|{requested_by}|"
+            f"{filters.get('group_by')}|{filters.get('contract_direction')}|"
+            f"{filters.get('doc_status')}|{filters.get('refund_status')}|"
+            f"{filters.get('date_from')}|{filters.get('date_to')}|"
+            f"{requested_company_id or 'no-company'}"
+        ).encode("utf-8")
+    ).hexdigest()
+    return f"{report_code}:{fingerprint}"
+
+
+def _build_report_export_idempotency_key(*, request_fingerprint: str) -> str:
+    return f"{request_fingerprint}:{datetime.now(UTC).strftime('%Y%m%d%H%M%S%f')}"
+
+
+def _build_report_export_history_key(task: ReportExportTask, suffix: str) -> str:
+    request_fingerprint = _build_report_export_request_fingerprint(
+        report_code=task.report_code,
+        requested_by=task.requested_by,
+        requested_company_id=task.requested_company_id,
+        metric_version=task.metric_version,
+        filters=task.filter_payload,
+    )
+    return _build_report_export_idempotency_key(
+        request_fingerprint=f"{request_fingerprint}:{suffix}:{task.id}"
+    )
+
+
+def _serialize_report_export_task(task: ReportExportTask) -> ReportExportTaskResult:
+    filters = {
+        key: _optional_filter_value(value)
+        for key, value in (task.filter_payload or {}).items()
+    }
+    return ReportExportTaskResult(
+        id=task.id,
+        report_code=task.report_code,
+        report_name=task.report_name,
+        status=task.status,
+        export_format=task.export_format,
+        metric_version=task.metric_version,
+        filters=filters,
+        file_name=task.file_name,
+        requested_by=task.requested_by,
+        requested_role_code=task.requested_role_code,
+        requested_company_id=task.requested_company_id,
+        retry_count=task.retry_count,
+        download_count=task.download_count,
+        error_message=task.error_message,
+        finished_at=task.finished_at,
+        created_at=task.created_at,
+        updated_at=task.updated_at,
+    )
+
+
+def _report_export_task_audit_payload(task: ReportExportTask) -> dict[str, object]:
+    return {
+        "status": task.status,
+        "file_name": task.file_name,
+        "file_path": task.file_path,
+        "retry_count": task.retry_count,
+        "download_count": task.download_count,
+        "error_message": task.error_message,
+        "finished_at": task.finished_at.isoformat() if task.finished_at else None,
+        "filters": task.filter_payload,
+    }
+
+
+def _append_report_export_audit_log(
+    db: Session,
+    *,
+    task: ReportExportTask,
+    event_code: str,
+    operator_id: str,
+    before_payload: dict[str, object],
+) -> None:
+    db.add(
+        BusinessAuditLog(
+            event_code=event_code,
+            biz_type="report_export_task",
+            biz_id=str(task.id),
+            operator_id=operator_id,
+            before_json=before_payload,
+            after_json=_report_export_task_audit_payload(task),
+            extra_json={
+                "report_code": task.report_code,
+                "report_name": task.report_name,
+                "requested_company_id": task.requested_company_id,
+            },
+        )
+    )
+
+
+def _commit_or_raise(db: Session, *, detail: str) -> None:
+    try:
+        db.commit()
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise ReportServiceError(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=detail,
+        ) from exc
+
+
+def _get_accessible_report_export_task(
+    db: Session, *, actor: AuthenticatedActor, task_id: int
+) -> ReportExportTask:
+    task = db.scalar(
+        select(ReportExportTask).where(
+            ReportExportTask.id == task_id,
+            ReportExportTask.report_code == REPORT_EXPORT_CODE_ADMIN_MULTI_DIM,
+            ReportExportTask.requested_company_id == actor.company_id,
+        )
+    )
+    if task is None:
+        raise ReportServiceError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="导出任务不存在或无权访问",
+        )
+    return task
+
+
+def _find_in_progress_report_export_task(
+    db: Session,
+    *,
+    request_fingerprint: str,
+) -> ReportExportTask | None:
+    return db.scalar(
+        select(ReportExportTask)
+        .where(
+            ReportExportTask.idempotency_key == request_fingerprint,
+            ReportExportTask.status.in_(
+                [REPORT_EXPORT_STATUS_PENDING, REPORT_EXPORT_STATUS_PROCESSING]
+            ),
+        )
+        .order_by(ReportExportTask.created_at.desc(), ReportExportTask.id.desc())
+        .limit(1)
+    )
+
+
+def _mark_report_export_task_failed(
+    db: Session,
+    *,
+    task: ReportExportTask,
+    detail: str,
+    operator_id: str,
+) -> None:
+    before_payload = _report_export_task_audit_payload(task)
+    task.idempotency_key = _build_report_export_history_key(task, "failed")
+    task.status = REPORT_EXPORT_STATUS_FAILED
+    task.error_message = _truncate_report_export_error(detail)
+    task.finished_at = datetime.now(UTC)
+    _append_report_export_audit_log(
+        db,
+        task=task,
+        event_code=REPORT_EXPORT_AUDIT_FAILED,
+        operator_id=operator_id,
+        before_payload=before_payload,
+    )
+    _commit_or_raise(db, detail="导出任务失败状态保存失败，请稍后重试")
+
+
+def _safely_mark_report_export_task_failed(task_id: int, detail: str) -> None:
+    db = SessionLocal()
+    try:
+        task = db.get(ReportExportTask, task_id)
+        if task is None:
+            return
+        _mark_report_export_task_failed(
+            db,
+            task=task,
+            detail=detail,
+            operator_id=task.requested_by,
+        )
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
+
+
+def _truncate_report_export_error(detail: str) -> str:
+    normalized = str(detail or "").strip() or "导出任务执行失败，请稍后重试"
+    return normalized[:255]
+
+
+def _optional_filter_value(value: object) -> str | None:
+    if value is None:
+        return None
+    normalized = str(value).strip()
+    return normalized or None
+
+
+def _parse_filter_date(value: object) -> date | None:
+    normalized = _optional_filter_value(value)
+    if normalized is None:
+        return None
+    try:
+        return date.fromisoformat(normalized)
+    except ValueError as exc:
+        raise ReportServiceError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="导出任务日期筛选无效",
+        ) from exc
+
+
+def _resolve_report_export_root_dir() -> Path:
+    configured_path = os.getenv(REPORT_EXPORT_DIR_ENV_KEY)
+    if configured_path:
+        return Path(configured_path).expanduser().resolve()
+    return REPORT_EXPORT_DEFAULT_DIR
+
+
+def _build_report_export_file_path(task_id: int) -> tuple[Path, str, str]:
+    export_root_dir = _resolve_report_export_root_dir()
+    file_suffix = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
+    file_name = f"multi-dim-report-task-{task_id}-{file_suffix}.csv"
+    relative_path = file_name
+    return export_root_dir / relative_path, relative_path, file_name
+
+
+def _resolve_report_export_file_path(file_path: str | None) -> Path | None:
+    normalized = _optional_filter_value(file_path)
+    if normalized is None:
+        return None
+    return (_resolve_report_export_root_dir() / normalized).resolve()
+
+
+def _has_report_export_file(task: ReportExportTask) -> bool:
+    export_file_path = _resolve_report_export_file_path(task.file_path)
+    return export_file_path is not None and export_file_path.exists()
 
 
 def _resolve_metric_version(metric_version: str | None) -> str:
@@ -728,6 +1315,20 @@ def _ensure_multi_dim_group_by(group_by: str) -> None:
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="多维报表分组维度不受支持",
         )
+
+
+def _ensure_contract_direction_filter(contract_direction: str | None) -> None:
+    if contract_direction in {
+        None,
+        "",
+        CONTRACT_DIRECTION_SALES,
+        CONTRACT_DIRECTION_PURCHASE,
+    }:
+        return
+    raise ReportServiceError(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        detail="合同方向筛选不受支持",
+    )
 
 
 def _resolve_optional_date_window_utc(

@@ -5,9 +5,9 @@
     <section class="panel-card reports-multi-dim-filter-card">
       <div class="reports-multi-dim-filter-row">
         <div>
-          <p class="panel-card__eyebrow">多维报表与导出首批</p>
-          <h3>维度汇总 / 筛选 / CSV 导出</h3>
-          <p>首批支持合同方向、单据状态、退款状态维度汇总与导出，不开放多维钻取重算与批量任务编排。</p>
+          <p class="panel-card__eyebrow">多维报表与导出编排首批</p>
+          <h3>维度汇总 / 筛选 / 导出任务创建</h3>
+          <p>当前支持合同方向、单据状态、退款状态维度汇总，并将 CSV 导出升级为任务中心编排，不开放多维钻取与跨报表批量任务。</p>
         </div>
         <div class="reports-multi-dim-filter-actions">
           <ElSelect v-model="groupBy" class="reports-multi-dim-filter-select" @change="reloadReport">
@@ -43,7 +43,8 @@
             @change="reloadReport"
           />
           <ElButton type="primary" :loading="loading" @click="reloadReport">刷新报表</ElButton>
-          <ElButton :disabled="!canExportMultiDim" :loading="exporting" @click="handleExport">导出 CSV</ElButton>
+          <ElButton :disabled="!canExportMultiDim" :loading="exporting" @click="handleCreateExportTask">创建导出任务</ElButton>
+          <ElButton :disabled="!canExportMultiDim" plain @click="router.push('/reports-export-tasks')">查看任务中心</ElButton>
         </div>
       </div>
     </section>
@@ -93,8 +94,8 @@
       </ElTable>
 
       <ElEmpty v-if="!loading && !(report?.rows.length)" description="当前筛选条件下暂无多维数据" />
-      <p v-if="!canExportMultiDim" class="order-boundary-tip">当前角色仅可查看多维报表，暂无导出按钮权限。</p>
-      <p class="order-boundary-tip">首批仅支持单页筛选与 CSV 导出，不开放多维钻取、口径重算与定时编排任务管理。</p>
+      <p v-if="!canExportMultiDim" class="order-boundary-tip">当前角色仅可查看多维报表，暂无导出任务创建与任务中心权限。</p>
+      <p class="order-boundary-tip">当前批次已切换为“创建导出任务 -> 任务中心回看 -> 下载结果/失败重试”，不开放多维钻取、口径重算与跨报表批量编排。</p>
     </section>
   </div>
 </template>
@@ -114,7 +115,7 @@ import {
 import { computed, onMounted, ref } from 'vue'
 
 import {
-  exportAdminMultiDimReportCsv,
+  createAdminMultiDimExportTask,
   fetchAdminMultiDimReport,
   type AdminMultiDimGroupBy,
   type AdminMultiDimReportResponse,
@@ -122,6 +123,7 @@ import {
 import { useAuthStore } from '@/stores/auth'
 import { formatDateTime, formatMoney } from '@/utils/formatters'
 import { canRoleExecuteAction } from '@/utils/permissions'
+import { useRouter } from 'vue-router'
 
 const groupByOptions: Array<{ label: string; value: AdminMultiDimGroupBy }> = [
   { label: '合同方向', value: 'contract_direction' },
@@ -160,6 +162,7 @@ const contractDirection = ref<'sales' | 'purchase' | ''>('')
 const docStatus = ref('')
 const refundStatus = ref('')
 const dateRange = ref<[string, string] | null>(null)
+const router = useRouter()
 const authStore = useAuthStore()
 const currentRoleCode = computed(() => authStore.session?.roleCode ?? '')
 const canExportMultiDim = computed(() => canRoleExecuteAction(currentRoleCode.value, 'reports.multi_dim.export'))
@@ -188,23 +191,17 @@ async function reloadReport() {
   }
 }
 
-async function handleExport() {
+async function handleCreateExportTask() {
   if (!canExportMultiDim.value) {
-    ElMessage.warning('当前角色无权执行多维报表导出动作')
+    ElMessage.warning('当前角色无权创建多维报表导出任务')
     return
   }
   exporting.value = true
   try {
-    const fileBlob = await exportAdminMultiDimReportCsv(requestQuery.value)
-    const objectUrl = URL.createObjectURL(fileBlob)
-    const anchor = document.createElement('a')
-    anchor.href = objectUrl
-    anchor.download = `multi-dim-report-${Date.now()}.csv`
-    anchor.click()
-    URL.revokeObjectURL(objectUrl)
-    ElMessage.success('CSV 导出已开始')
+    await createAdminMultiDimExportTask(requestQuery.value)
+    ElMessage.success('导出任务已创建，可前往任务中心回看结果')
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : 'CSV 导出失败')
+    ElMessage.error(error instanceof Error ? error.message : '导出任务创建失败')
   } finally {
     exporting.value = false
   }

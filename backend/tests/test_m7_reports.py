@@ -2,12 +2,16 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
+import os
+from pathlib import Path
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
+from app.api.routers import reports as reports_router
+from app.core.auth_actor import AuthenticatedActor
 from app.db.session import SessionLocal
 from app.main import app
 from app.models.contract import Contract
@@ -15,7 +19,9 @@ from app.models.inbound_doc import InboundDoc
 from app.models.outbound_doc import OutboundDoc
 from app.models.payment_doc import PaymentDoc
 from app.models.receipt_doc import ReceiptDoc
+from app.models.report_export_task import ReportExportTask
 from app.models.report_snapshot import ReportSnapshot
+from app.services.report_service import create_admin_multi_dim_export_task
 
 client = TestClient(app)
 
@@ -369,6 +375,243 @@ def test_admin_multi_dim_report_and_export_support_filters(auth_headers) -> None
     )
     assert "维度,维度值,收款净额,付款净额,资金净流入" in export_response.text
     assert "待审核" in export_response.text
+
+
+def test_admin_multi_dim_export_task_center_supports_create_list_download_and_retry(
+    auth_headers,
+) -> None:
+    sales_contract_id = _create_effective_sales_contract(
+        auth_headers,
+        qty_signed=Decimal("50.000"),
+    )
+    purchase_contract_id = _create_effective_purchase_contract(
+        auth_headers,
+        qty_signed=Decimal("50.000"),
+    )
+
+    receipt_doc = _query_receipt_doc(contract_id=sales_contract_id, doc_type="DEPOSIT")
+    payment_doc = _query_payment_doc(
+        contract_id=purchase_contract_id,
+        doc_type="DEPOSIT",
+    )
+    _confirm_receipt_doc(auth_headers, receipt_doc.id, Decimal("16000.00"))
+    _confirm_payment_doc(auth_headers, payment_doc.id, Decimal("12000.00"))
+
+    create_response = client.post(
+        "/api/v1/reports/admin/multi-dim/export-tasks",
+        json={
+            "group_by": "contract_direction",
+            "contract_direction": "purchase",
+            "date_from": date.today().isoformat(),
+            "date_to": date.today().isoformat(),
+        },
+        headers=_finance_headers(auth_headers, "CODEX-TEST-M8-24-EXPORT-CREATE"),
+    )
+    assert create_response.status_code == 202
+    create_body = create_response.json()
+    task_id = create_body["task"]["id"]
+    assert create_body["message"] == "导出任务已创建，正在后台生成文件"
+
+    blocked_create_response = client.post(
+        "/api/v1/reports/admin/multi-dim/export-tasks",
+        json={"group_by": "contract_direction"},
+        headers=_ops_admin_web_headers(auth_headers, "CODEX-TEST-M8-24-EXPORT-BLOCKED"),
+    )
+    assert blocked_create_response.status_code == 403
+    assert blocked_create_response.json()["detail"] == "当前角色无权访问该接口"
+
+    list_response = client.get(
+        "/api/v1/reports/admin/multi-dim/export-tasks",
+        headers=_finance_headers(auth_headers, "CODEX-TEST-M8-24-EXPORT-LIST"),
+    )
+    assert list_response.status_code == 200
+    list_body = list_response.json()
+    task_row = next(item for item in list_body["items"] if item["id"] == task_id)
+    assert task_row["status"] == "已完成"
+    assert task_row["filters"]["contract_direction"] == "purchase"
+    assert task_row["file_name"].endswith(".csv")
+
+    download_response = client.get(
+        f"/api/v1/reports/admin/multi-dim/export-tasks/{task_id}/download",
+        headers=_finance_headers(auth_headers, "CODEX-TEST-M8-24-EXPORT-DOWNLOAD"),
+    )
+    assert download_response.status_code == 200
+    assert download_response.headers["content-type"].startswith("text/csv")
+    assert task_row["file_name"] in download_response.headers["content-disposition"]
+    assert "维度,维度值,收款净额,付款净额,资金净流入" in download_response.text
+
+    task_after_download = _get_report_export_task(task_id)
+    assert task_after_download is not None
+    assert task_after_download.download_count == 1
+    assert task_after_download.file_path is not None
+
+    export_file_path = _resolve_report_export_task_file_path(
+        task_after_download.file_path
+    )
+    export_file_path.unlink()
+
+    missing_download_response = client.get(
+        f"/api/v1/reports/admin/multi-dim/export-tasks/{task_id}/download",
+        headers=_finance_headers(
+            auth_headers, "CODEX-TEST-M8-24-EXPORT-DOWNLOAD-MISSING"
+        ),
+    )
+    assert missing_download_response.status_code == 409
+    assert (
+        missing_download_response.json()["detail"]
+        == "导出文件不存在，请先重试生成后再下载"
+    )
+
+    retry_response = client.post(
+        f"/api/v1/reports/admin/multi-dim/export-tasks/{task_id}/retry",
+        headers=_finance_headers(auth_headers, "CODEX-TEST-M8-24-EXPORT-RETRY"),
+    )
+    assert retry_response.status_code == 202
+    assert retry_response.json()["message"] == "导出任务已重新发起，正在后台生成文件"
+
+    retried_task = _get_report_export_task(task_id)
+    assert retried_task is not None
+    assert retried_task.status == "已完成"
+    assert retried_task.retry_count == 1
+    assert retried_task.file_path is not None
+
+    blocked_list_response = client.get(
+        "/api/v1/reports/admin/multi-dim/export-tasks",
+        headers=_ops_admin_web_headers(
+            auth_headers, "CODEX-TEST-M8-24-EXPORT-LIST-BLOCKED"
+        ),
+    )
+    assert blocked_list_response.status_code == 403
+
+
+def test_admin_multi_dim_export_task_create_reuses_same_in_progress_task() -> None:
+    actor = AuthenticatedActor(
+        user_id="CODEX-TEST-M8-24-IDEMPOTENT",
+        role_code="finance",
+        company_id="CODEX-TEST-OPERATOR-COMPANY",
+        company_type="operator_company",
+        client_type="admin_web",
+    )
+    db = SessionLocal()
+    try:
+        first_dispatch = create_admin_multi_dim_export_task(
+            db,
+            actor=actor,
+            metric_version="v1",
+            group_by="contract_direction",
+            contract_direction="purchase",
+            doc_status="已确认",
+            refund_status=None,
+            date_from=date.today(),
+            date_to=date.today(),
+        )
+        second_dispatch = create_admin_multi_dim_export_task(
+            db,
+            actor=actor,
+            metric_version="v1",
+            group_by="contract_direction",
+            contract_direction="purchase",
+            doc_status="已确认",
+            refund_status=None,
+            date_from=date.today(),
+            date_to=date.today(),
+        )
+        assert first_dispatch.should_enqueue is True
+        assert second_dispatch.should_enqueue is False
+        assert first_dispatch.task.id == second_dispatch.task.id
+        matching_tasks = db.scalars(
+            select(ReportExportTask).where(
+                ReportExportTask.requested_by == actor.user_id,
+                ReportExportTask.status == "待处理",
+            )
+        ).all()
+        assert len(matching_tasks) == 1
+    finally:
+        db.close()
+
+
+def test_admin_multi_dim_export_task_retry_blocks_pending_task(auth_headers) -> None:
+    actor = AuthenticatedActor(
+        user_id="CODEX-TEST-M8-24-PENDING-RETRY",
+        role_code="finance",
+        company_id="CODEX-TEST-OPERATOR-COMPANY",
+        company_type="operator_company",
+        client_type="admin_web",
+    )
+    db = SessionLocal()
+    try:
+        pending_dispatch = create_admin_multi_dim_export_task(
+            db,
+            actor=actor,
+            metric_version="v1",
+            group_by="refund_status",
+            contract_direction="sales",
+            doc_status=None,
+            refund_status="未退款",
+            date_from=None,
+            date_to=None,
+        )
+    finally:
+        db.close()
+
+    retry_response = client.post(
+        f"/api/v1/reports/admin/multi-dim/export-tasks/{pending_dispatch.task.id}/retry",
+        headers=_finance_headers(auth_headers, "CODEX-TEST-M8-24-PENDING-RETRY-API"),
+    )
+    assert retry_response.status_code == 409
+    assert retry_response.json()["detail"] == "当前导出任务不支持重试"
+
+
+def test_admin_multi_dim_export_task_route_reuses_pending_task_without_requeue(
+    auth_headers,
+    monkeypatch,
+) -> None:
+    actor = AuthenticatedActor(
+        user_id="CODEX-TEST-M8-24-ROUTE-DEDUP",
+        role_code="finance",
+        company_id="CODEX-TEST-OPERATOR-COMPANY",
+        company_type="operator_company",
+        client_type="admin_web",
+    )
+    db = SessionLocal()
+    try:
+        pending_dispatch = create_admin_multi_dim_export_task(
+            db,
+            actor=actor,
+            metric_version="v1",
+            group_by="contract_direction",
+            contract_direction="purchase",
+            doc_status="已确认",
+            refund_status=None,
+            date_from=date.today(),
+            date_to=date.today(),
+        )
+    finally:
+        db.close()
+
+    executed_task_ids: list[int] = []
+
+    def fake_execute(task_id: int) -> None:
+        executed_task_ids.append(task_id)
+
+    monkeypatch.setattr(
+        reports_router, "execute_admin_multi_dim_export_task", fake_execute
+    )
+
+    duplicate_response = client.post(
+        "/api/v1/reports/admin/multi-dim/export-tasks",
+        json={
+            "group_by": "contract_direction",
+            "contract_direction": "purchase",
+            "doc_status": "已确认",
+            "date_from": date.today().isoformat(),
+            "date_to": date.today().isoformat(),
+        },
+        headers=_finance_headers(auth_headers, "CODEX-TEST-M8-24-ROUTE-DEDUP"),
+    )
+    assert duplicate_response.status_code == 202
+    assert duplicate_response.json()["task"]["id"] == pending_dispatch.task.id
+    assert executed_task_ids == []
 
 
 def test_report_metric_version_must_exist(auth_headers) -> None:
@@ -866,6 +1109,19 @@ def _latest_report_snapshot(report_code: str) -> ReportSnapshot | None:
         )
     finally:
         db.close()
+
+
+def _get_report_export_task(task_id: int) -> ReportExportTask | None:
+    db = SessionLocal()
+    try:
+        return db.get(ReportExportTask, task_id)
+    finally:
+        db.close()
+
+
+def _resolve_report_export_task_file_path(relative_path: str) -> Path:
+    export_root = Path(os.environ["REPORT_EXPORT_DIR"])
+    return (export_root / relative_path).resolve()
 
 
 def _finance_headers(auth_headers, user_id: str) -> dict[str, str]:

@@ -4,7 +4,7 @@
       <div class="brand-card">
         <p class="brand-card__eyebrow">运营驾驶舱</p>
         <h1>JGPORT V6</h1>
-        <p>报表口径与页面结构对齐 M7 原型说明，首批已落地经营首页、业务看板、订单处理台、资金处理台、库存执行跟踪台、合同关闭差异台、退款核销台与多维报表台。</p>
+        <p>报表口径与页面结构对齐 M7 原型说明，当前已落地经营首页、业务看板、订单处理台、资金处理台、库存执行跟踪台、合同关闭差异台、退款核销台、多维报表台与导出任务中心。</p>
       </div>
 
       <nav class="shell__nav">
@@ -55,12 +55,13 @@ import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 import { reportsMode } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
+import { canRoleExecuteAction } from '@/utils/permissions'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
-const navItems = [
+const navItems = computed(() => [
   {
     to: '/dashboard',
     label: '经营仪表盘',
@@ -99,9 +100,15 @@ const navItems = [
   {
     to: '/reports-multi-dim',
     label: '多维报表与导出台',
-    summary: '合同方向/单据状态/退款状态汇总与CSV导出',
+    summary: '合同方向/单据状态/退款状态汇总与导出任务创建',
   },
-]
+  {
+    to: '/reports-export-tasks',
+    label: '导出任务中心',
+    summary: '异步导出任务、历史回看、结果下载与失败重试',
+    hidden: !canRoleExecuteAction(authStore.session?.roleCode, 'reports.multi_dim.export'),
+  },
+].filter((item) => !item.hidden))
 
 const routeTitle = computed(() => (typeof route.meta.title === 'string' ? route.meta.title : '管理后台'))
 const routeSummary = computed(() =>

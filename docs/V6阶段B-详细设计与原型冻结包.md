@@ -4,7 +4,7 @@
 - 文档状态：`已冻结`
 - 目标：冻结实现口径，形成可开发规格，作为阶段C模块开发唯一输入。
 - 上游输入：
-  - `docs/需求方案.md`（当前规则 `1~54` 与“业务目标/角色权限”基线）
+  - `docs/需求方案.md`（当前规则 `1~55` 与“业务目标/角色权限”基线）
   - `docs/V6阶段A-流程图状态机与UI原型清单.md`
 - 下游输出：阶段C模块任务拆分、接口开发、联调与测试用例。
 
@@ -52,6 +52,7 @@
 | `business_audit_logs` | `id`,`event_code`,`biz_type`,`biz_id`,`operator_id`,`before_json`,`after_json`,`occurred_at` | 关闭、终止、阈值阻断必须落审计日志 | 审计日志 |
 | `system_configs` | `id`,`config_key`,`config_value`,`version`,`status` | 配置变更需版本化与审批留痕 | 参数中心 |
 | `report_snapshots` | `id`,`report_code`,`snapshot_time`,`metric_payload`,`version` | 按版本存档，不覆盖历史口径；首版固定 `version='v1'` | 报表快照与口径追溯 |
+| `report_export_tasks` | `id`,`report_code`,`report_name`,`status`,`export_format`,`metric_version`,`filter_payload`,`file_name`,`file_path`,`requested_by`,`requested_role_code`,`requested_company_id`,`retry_count`,`download_count`,`error_message`,`finished_at`,`idempotency_key` | `idempotency_key`唯一；未终态任务按“操作人+筛选快照”去重复用；仅允许当前操作公司内回看；任务创建后筛选快照不可变 | 报表导出任务中心首批 |
 
 ## 3.2 通用审计字段（所有业务单据）
 - 必填字段：`created_by`,`created_at`,`updated_by`,`updated_at`,`source_doc_id`,`source_event_id`,`biz_direction`。
@@ -111,6 +112,10 @@ purchase_payment_net =
 | 自动关闭校验任务 | 合同数量履约完成 | 按合同方向执行金额闭环校验；成功后自动关闭并终止剩余未终态草稿/待处理单据 | `contract_auto_close_check:{contract_id}:{version}` | 校验失败转授权手工关闭 |
 | 每日闭环扫描任务 | 每日定时触发 | 扫描`数量履约完成且未关闭`合同并生成看板告警 | `contract_close_scan:{date}:{contract_id}` | 重复触发幂等跳过，写审计 |
 | 每日履约滞留扫描任务 | 每日定时触发 | 扫描`生效中且履约长时间未变化`合同并告警 | `contract_fulfillment_scan:{date}:{contract_id}` | 重复触发幂等跳过，写审计 |
+| 多维报表创建导出任务 | 管理后台 `finance/admin` 发起导出 | 写入导出任务记录并触发后台导出执行；同筛选快照的未终态任务直接复用原记录 | `admin_multi_dim_export:{actor_id}:{fingerprint}` | 任务写入失败则整单回滚 |
+| 导出任务后台执行 | 任务状态=`待处理/处理中` | 生成 CSV 文件、回填文件元数据并更新状态 | `report_export_execute:{task_id}:{retry_count}` | 失败写错误原因并转`已失败` |
+| 导出任务结果下载 | 任务状态=`已完成` 且文件存在 | 返回导出文件并累加下载次数 | `report_export_download:{task_id}:{download_count}` | 文件缺失转`已失败`并提示重试 |
+| 导出任务失败重试 | 任务状态=`已失败` 或文件缺失 | 重置任务状态并重新触发后台导出执行 | `report_export_retry:{task_id}:{retry_count}` | 重试失败保留失败原因并写审计 |
 | 手工关闭执行 | 授权通过+原因必填 | 锁定、终止未生效、释放预占、差异记录、归档 | `contract_manual_close:{contract_id}` | 任一步失败回滚本事务并告警 |
 
 ## 4.2 幂等规则冻结
@@ -205,8 +210,21 @@ purchase_payment_net =
 | `/reports/light/overview` | `GET` | 小程序轻量汇总报表；仅 `operations/finance/admin + operator_company + miniprogram` | `T+0` |
 | `/reports/admin/multi-dim` | `GET` | 后台多维管理报表 | `T+0~T+1` |
 | `/reports/admin/multi-dim/export` | `GET` | 后台多维报表CSV导出（按当前筛选，仅财务/管理员可导出） | `T+0~T+1` |
+| `/reports/admin/multi-dim/export-tasks` | `POST` | 创建多维报表导出任务（仅财务/管理员） | `T+0~T+1` |
+| `/reports/admin/multi-dim/export-tasks` | `GET` | 查询导出任务历史（仅财务/管理员） | `T+0~T+1` |
+| `/reports/admin/multi-dim/export-tasks/{id}/download` | `GET` | 下载已完成导出文件（仅财务/管理员） | `T+0~T+1` |
+| `/reports/admin/multi-dim/export-tasks/{id}/retry` | `POST` | 重试失败或文件缺失的导出任务（仅财务/管理员） | `T+0~T+1` |
 
-## 5.5.1 会话与鉴权接口补充
+## 5.5.1 导出任务中心接口补充
+
+| 接口 | 方法 | 关键请求字段 | 关键校验 | 关键响应 |
+|---|---|---|---|---|
+| `/reports/admin/multi-dim/export-tasks` | `POST` | `group_by`,`contract_direction?`,`doc_status?`,`refund_status?`,`date_from?`,`date_to?`,`metric_version?` | 仅 `finance/admin + operator_company + admin_web`；筛选快照沿用多维报表校验；默认 `metric_version=v1` | `task_id`,`status=待处理`,`message` |
+| `/reports/admin/multi-dim/export-tasks` | `GET` | `limit?`,`status?` | 仅返回当前操作公司下的导出历史；状态仅允许 `待处理/处理中/已完成/已失败` | 导出任务列表 |
+| `/reports/admin/multi-dim/export-tasks/{id}/download` | `GET` | 无 | 仅允许下载 `已完成` 且文件存在的任务；文件缺失时转失败并提示重试 | `text/csv` 附件流 |
+| `/reports/admin/multi-dim/export-tasks/{id}/retry` | `POST` | 无 | 仅允许重试 `已失败` 或 `已完成但文件缺失` 任务；`待处理/处理中` 禁止重复排队；重试后重置错误原因并累加重试次数 | `status=待处理/处理中`,`message` |
+
+## 5.5.2 会话与鉴权接口补充
 
 | 接口 | 方法 | 关键请求字段 | 关键校验 | 关键响应 |
 |---|---|---|---|---|
@@ -236,7 +254,7 @@ purchase_payment_net =
 ## 6. 原型冻结包（页面/字段/动作）
 
 ## 6.1 页面冻结清单
-- 管理后台：`ADM-DASH-01`、`ADM-BOARD-01`、`ADM-CONTRACT-*`、`ADM-ORDER-*`、`ADM-PAYMENT-01`、`ADM-RECEIPT-01`、`ADM-INBOUND-01`、`ADM-OUTBOUND-01`、`ADM-TRACE-01`、`ADM-AUDIT-01`、`ADM-CONFIG-01`。
+- 管理后台：`ADM-DASH-01`、`ADM-BOARD-01`、`ADM-CONTRACT-*`、`ADM-ORDER-*`、`ADM-PAYMENT-01`、`ADM-RECEIPT-01`、`ADM-INBOUND-01`、`ADM-OUTBOUND-01`、`ADM-TRACE-01`、`ADM-AUDIT-01`、`ADM-CONFIG-01`、`ADM-REPORT-EXPORT-01`。
 - 小程序：`MINI-TODO-01`、`MINI-ORDER-01`、`MINI-EXEC-01`、`MINI-INOUT-01`、`MINI-SUPPLIER-PO-01`、`MINI-REPORT-01`、`MINI-MSG-01`。
 
 ## 6.2 关键字段字典冻结
@@ -247,6 +265,7 @@ purchase_payment_net =
 - 收付款单：业务类型、金额、凭证要求、免凭证原因、核销状态。
 - 出入库单：来源类型（系统/手工）、实际数量、仓库、阈值校验结果、过账状态。
 - 图谱：来源单据、目标单据、关系类型、触发事件ID。
+- 导出任务：报表名称、任务状态、筛选快照、文件名、文件路径、发起人、重试次数、下载次数、失败原因、完成时间。
 
 ## 6.3 交互动作字典冻结
 - `提交`：仅当必填字段与业务校验通过可执行。
@@ -258,6 +277,9 @@ purchase_payment_net =
 - `生效出入库`：执行超量阈值校验，通过后过账。
 - `手工关闭`：执行五步处理顺序并写入差异记录。
 - `按钮权限收口`：按角色禁用或开放页面动作入口，禁止无权限角色直接触发关键业务动作。
+- `创建导出任务`：固化当前筛选快照，写入任务后进入后台执行，不允许前端本地拼装导出结果。
+- `下载导出结果`：仅对已完成任务开放，下载成功后累计下载次数并保留审计留痕。
+- `重试导出任务`：仅允许失败或文件缺失任务重新进入后台执行，禁止绕过状态直接下载。
 - `会话续期`：令牌过期后先续期再重试一次请求，续期失败清空会话并回到登录入口。
 
 ## 6.4 视觉与文案冻结（关键）
@@ -266,6 +288,7 @@ purchase_payment_net =
 - 小程序仅展示审批驳回结果，不提供驳回动作入口。
 - 管理后台与小程序所有用户可见文案统一中文：系统提示、流程阻断提示、字段标签、状态描述、按钮文案、消息通知、空态与异常态提示均需中文显示。
 - API返回可保留英文错误码`code`，但对用户可见的错误消息`message`必须为中文，不得直接透传英文异常。
+- 导出任务中心状态文案统一中文：`待处理`、`处理中`、`已完成`、`已失败`；失败态必须展示中文失败原因与“重试导出”动作。
 
 ## 7. 报表实现策略冻结
 - 采用“事件触发增量更新 + 定时全量校准”混合模式。
@@ -273,6 +296,7 @@ purchase_payment_net =
 - 口径版本：报表查询必须带`metric_version`，默认返回当前生效版本。
 - 重算策略：仅对口径变更涉及范围执行重算并保留旧版本快照。
 - 定时任务：每日执行合同闭环扫描与履约滞留扫描，任务幂等键防重复触发，任务结果落审计并推送看板告警。
+- 导出任务中心首批采用应用内后台任务执行 CSV 生成，并将结果持久化到本地导出目录；当前阶段不引入分布式队列与跨实例调度。
 
 ## 8. 阶段B出口门槛
 - 数据模型、触发矩阵、API契约、原型冻结包完成联合评审。

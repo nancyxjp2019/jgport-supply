@@ -101,7 +101,17 @@ const router = createRouter({
           meta: {
             requiresAuth: true,
             title: '多维报表与导出台',
-            summary: '合同方向/单据状态/退款状态多维汇总与CSV导出',
+            summary: '合同方向/单据状态/退款状态多维汇总与导出任务创建',
+          },
+        },
+        {
+          path: '/reports-export-tasks',
+          name: 'reports-export-tasks',
+          component: () => import('@/views/report-export-tasks/ReportExportTasksView.vue'),
+          meta: {
+            requiresAuth: true,
+            title: '导出任务中心',
+            summary: '异步导出任务、导出历史、结果下载与失败重试',
           },
         },
       ],

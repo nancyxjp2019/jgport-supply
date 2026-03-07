@@ -1,9 +1,13 @@
 import type { BoardTasksResponse, DashboardSummaryResponse } from '@/stores/report'
 import {
+  createDemoAdminMultiDimExportTask,
   buildDemoAdminMultiDimReportCsv,
+  downloadDemoAdminMultiDimExportTask,
   demoBoardTasks,
   demoDashboardSummary,
+  getDemoAdminMultiDimExportTasks,
   getDemoAdminMultiDimReport,
+  retryDemoAdminMultiDimExportTask,
 } from '@/mock/reports'
 
 import { httpClient, reportsMode } from './http'
@@ -45,6 +49,43 @@ export interface AdminMultiDimReportResponse {
   message: string
 }
 
+export type ReportExportTaskStatus = '待处理' | '处理中' | '已完成' | '已失败'
+
+export interface AdminMultiDimExportTask {
+  id: number
+  report_code: string
+  report_name: string
+  status: ReportExportTaskStatus
+  export_format: string
+  metric_version: string
+  filters: Record<string, string | null>
+  file_name: string | null
+  requested_by: string
+  requested_role_code: string
+  requested_company_id: string | null
+  retry_count: number
+  download_count: number
+  error_message: string | null
+  finished_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AdminMultiDimExportTaskCreateResponse {
+  task: AdminMultiDimExportTask
+  message: string
+}
+
+export interface AdminMultiDimExportTaskListResponse {
+  items: AdminMultiDimExportTask[]
+  message: string
+}
+
+export interface AdminMultiDimExportTaskListQuery {
+  status?: ReportExportTaskStatus
+  limit?: number
+}
+
 export async function fetchDashboardSummary(): Promise<DashboardSummaryResponse> {
   if (reportsMode === 'demo') {
     return Promise.resolve(demoDashboardSummary)
@@ -82,4 +123,52 @@ export async function exportAdminMultiDimReportCsv(query: AdminMultiDimReportQue
     responseType: 'blob',
   })
   return data as Blob
+}
+
+export async function createAdminMultiDimExportTask(
+  query: AdminMultiDimReportQuery,
+): Promise<AdminMultiDimExportTaskCreateResponse> {
+  if (reportsMode === 'demo') {
+    return Promise.resolve(createDemoAdminMultiDimExportTask(query))
+  }
+  const { data } = await httpClient.post<AdminMultiDimExportTaskCreateResponse>(
+    '/reports/admin/multi-dim/export-tasks',
+    query,
+  )
+  return data
+}
+
+export async function fetchAdminMultiDimExportTasks(
+  query: AdminMultiDimExportTaskListQuery = {},
+): Promise<AdminMultiDimExportTaskListResponse> {
+  if (reportsMode === 'demo') {
+    return Promise.resolve(getDemoAdminMultiDimExportTasks(query))
+  }
+  const { data } = await httpClient.get<AdminMultiDimExportTaskListResponse>(
+    '/reports/admin/multi-dim/export-tasks',
+    { params: query },
+  )
+  return data
+}
+
+export async function downloadAdminMultiDimExportTask(taskId: number): Promise<Blob> {
+  if (reportsMode === 'demo') {
+    return Promise.resolve(downloadDemoAdminMultiDimExportTask(taskId))
+  }
+  const { data } = await httpClient.get(`/reports/admin/multi-dim/export-tasks/${taskId}/download`, {
+    responseType: 'blob',
+  })
+  return data as Blob
+}
+
+export async function retryAdminMultiDimExportTask(
+  taskId: number,
+): Promise<AdminMultiDimExportTaskCreateResponse> {
+  if (reportsMode === 'demo') {
+    return Promise.resolve(retryDemoAdminMultiDimExportTask(taskId))
+  }
+  const { data } = await httpClient.post<AdminMultiDimExportTaskCreateResponse>(
+    `/reports/admin/multi-dim/export-tasks/${taskId}/retry`,
+  )
+  return data
 }

@@ -1,5 +1,13 @@
 import type { BoardTasksResponse, DashboardSummaryResponse } from '@/stores/report'
-import type { AdminMultiDimReportQuery, AdminMultiDimReportResponse } from '@/api/reports'
+import type {
+  AdminMultiDimExportTask,
+  AdminMultiDimExportTaskCreateResponse,
+  AdminMultiDimExportTaskListQuery,
+  AdminMultiDimExportTaskListResponse,
+  AdminMultiDimReportQuery,
+  AdminMultiDimReportResponse,
+  ReportExportTaskStatus,
+} from '@/api/reports'
 
 export const demoDashboardSummary: DashboardSummaryResponse = {
   metric_version: 'v1',
@@ -281,4 +289,174 @@ export function buildDemoAdminMultiDimReportCsv(query: AdminMultiDimReportQuery)
     )
   })
   return `\ufeff${lines.join('\n')}`
+}
+
+function buildDemoExportTaskFilters(query: AdminMultiDimReportQuery): Record<string, string | null> {
+  return {
+    group_by: query.group_by ?? 'contract_direction',
+    contract_direction: query.contract_direction ?? null,
+    doc_status: query.doc_status ?? null,
+    refund_status: query.refund_status ?? null,
+    date_from: query.date_from ?? null,
+    date_to: query.date_to ?? null,
+  }
+}
+
+let demoExportTaskSeed = 903
+
+const demoExportTasks: AdminMultiDimExportTask[] = [
+  {
+    id: 901,
+    report_code: 'admin_multi_dim',
+    report_name: '多维报表',
+    status: '已完成',
+    export_format: 'csv',
+    metric_version: 'v1',
+    filters: {
+      group_by: 'contract_direction',
+      contract_direction: 'sales',
+      doc_status: null,
+      refund_status: null,
+      date_from: '2026-03-06',
+      date_to: '2026-03-06',
+    },
+    file_name: 'multi-dim-report-task-901.csv',
+    requested_by: 'DEMO-FINANCE-01',
+    requested_role_code: 'finance',
+    requested_company_id: 'DEMO-OPERATOR-COMPANY',
+    retry_count: 0,
+    download_count: 2,
+    error_message: null,
+    finished_at: '2026-03-06T15:42:00+08:00',
+    created_at: '2026-03-06T15:40:00+08:00',
+    updated_at: '2026-03-06T15:42:00+08:00',
+  },
+  {
+    id: 902,
+    report_code: 'admin_multi_dim',
+    report_name: '多维报表',
+    status: '已失败',
+    export_format: 'csv',
+    metric_version: 'v1',
+    filters: {
+      group_by: 'refund_status',
+      contract_direction: 'purchase',
+      doc_status: null,
+      refund_status: '待审核',
+      date_from: '2026-03-06',
+      date_to: '2026-03-06',
+    },
+    file_name: null,
+    requested_by: 'DEMO-ADMIN-01',
+    requested_role_code: 'admin',
+    requested_company_id: 'DEMO-OPERATOR-COMPANY',
+    retry_count: 1,
+    download_count: 0,
+    error_message: '导出文件生成失败，请重试导出',
+    finished_at: '2026-03-06T16:05:00+08:00',
+    created_at: '2026-03-06T16:00:00+08:00',
+    updated_at: '2026-03-06T16:05:00+08:00',
+  },
+]
+
+function createDemoExportTaskRecord(
+  query: AdminMultiDimReportQuery,
+  status: ReportExportTaskStatus,
+): AdminMultiDimExportTask {
+  const now = new Date().toISOString()
+  const nextId = demoExportTaskSeed
+  demoExportTaskSeed += 1
+  return {
+    id: nextId,
+    report_code: 'admin_multi_dim',
+    report_name: '多维报表',
+    status,
+    export_format: 'csv',
+    metric_version: query.metric_version ?? 'v1',
+    filters: buildDemoExportTaskFilters(query),
+    file_name: status === '已完成' ? `multi-dim-report-task-${nextId}.csv` : null,
+    requested_by: 'DEMO-FINANCE-NEW',
+    requested_role_code: 'finance',
+    requested_company_id: 'DEMO-OPERATOR-COMPANY',
+    retry_count: 0,
+    download_count: 0,
+    error_message: status === '已失败' ? '导出文件生成失败，请重试导出' : null,
+    finished_at: status === '已完成' || status === '已失败' ? now : null,
+    created_at: now,
+    updated_at: now,
+  }
+}
+
+function getDemoExportTaskOrThrow(taskId: number): AdminMultiDimExportTask {
+  const task = demoExportTasks.find((item) => item.id === taskId)
+  if (!task) {
+    throw new Error('导出任务不存在')
+  }
+  return task
+}
+
+export function getDemoAdminMultiDimExportTasks(
+  query: AdminMultiDimExportTaskListQuery = {},
+): AdminMultiDimExportTaskListResponse {
+  const filtered = demoExportTasks
+    .filter((item) => !query.status || item.status === query.status)
+    .slice(0, query.limit ?? 20)
+  return {
+    items: filtered,
+    message: '导出任务列表查询成功',
+  }
+}
+
+export function createDemoAdminMultiDimExportTask(
+  query: AdminMultiDimReportQuery,
+): AdminMultiDimExportTaskCreateResponse {
+  const task = createDemoExportTaskRecord(query, '已完成')
+  demoExportTasks.unshift(task)
+  return {
+    task,
+    message: '导出任务已创建，正在后台生成文件',
+  }
+}
+
+export function downloadDemoAdminMultiDimExportTask(taskId: number): Blob {
+  const task = getDemoExportTaskOrThrow(taskId)
+  if (task.status !== '已完成') {
+    throw new Error('当前导出任务尚未生成可下载文件')
+  }
+  task.download_count += 1
+  task.updated_at = new Date().toISOString()
+  return new Blob(
+    [
+      buildDemoAdminMultiDimReportCsv({
+        metric_version: task.metric_version,
+        group_by: (task.filters.group_by as AdminMultiDimReportQuery['group_by']) ?? 'contract_direction',
+        contract_direction: (task.filters.contract_direction as AdminMultiDimReportQuery['contract_direction']) ?? undefined,
+        doc_status: task.filters.doc_status ?? undefined,
+        refund_status: task.filters.refund_status ?? undefined,
+        date_from: task.filters.date_from ?? undefined,
+        date_to: task.filters.date_to ?? undefined,
+      }),
+    ],
+    { type: 'text/csv;charset=utf-8' },
+  )
+}
+
+export function retryDemoAdminMultiDimExportTask(
+  taskId: number,
+): AdminMultiDimExportTaskCreateResponse {
+  const task = getDemoExportTaskOrThrow(taskId)
+  if (task.status !== '已失败') {
+    throw new Error('当前导出任务不支持重试')
+  }
+  const now = new Date().toISOString()
+  task.status = '已完成'
+  task.retry_count += 1
+  task.error_message = null
+  task.file_name = `multi-dim-report-task-${task.id}-retry.csv`
+  task.finished_at = now
+  task.updated_at = now
+  return {
+    task,
+    message: '导出任务已重新发起，正在后台生成文件',
+  }
 }

@@ -12,6 +12,7 @@ from app.models.outbound_doc import OutboundDoc
 from app.models.payment_doc import PaymentDoc
 from app.models.purchase_order import PurchaseOrder
 from app.models.receipt_doc import ReceiptDoc
+from app.models.report_export_task import ReportExportTask
 from app.models.report_snapshot import ReportSnapshot
 from app.models.role_company_binding import RoleCompanyBinding
 from app.models.sales_order import SalesOrder
@@ -33,6 +34,7 @@ __all__ = [
     "PaymentDoc",
     "PurchaseOrder",
     "ReceiptDoc",
+    "ReportExportTask",
     "ReportSnapshot",
     "RoleCompanyBinding",
     "SalesOrder",

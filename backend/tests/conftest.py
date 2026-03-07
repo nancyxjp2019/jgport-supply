@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 import os
 from pathlib import Path
+import shutil
 import sys
 from uuid import uuid4
 
@@ -21,10 +22,16 @@ from app.core.config import get_settings
 TEST_AUTH_SECRET = "CODEX-TEST-AUTH-SECRET"
 BASE_DATABASE_URL = get_settings().database_url
 TEST_DATABASE_NAME = f"jgport_v6_test_{uuid4().hex[:8]}"
-TEST_DATABASE_URL = make_url(BASE_DATABASE_URL).set(database=TEST_DATABASE_NAME).render_as_string(hide_password=False)
+TEST_DATABASE_URL = (
+    make_url(BASE_DATABASE_URL)
+    .set(database=TEST_DATABASE_NAME)
+    .render_as_string(hide_password=False)
+)
+TEST_REPORT_EXPORT_DIR = BACKEND_DIR / f"CODEX-TEST-report-exports-{uuid4().hex[:8]}"
 
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 os.environ["AUTH_PROXY_SHARED_SECRET"] = TEST_AUTH_SECRET
+os.environ["REPORT_EXPORT_DIR"] = str(TEST_REPORT_EXPORT_DIR)
 get_settings.cache_clear()
 
 
@@ -33,20 +40,28 @@ def _build_admin_database_url(database_url: str) -> URL:
 
 
 def _create_test_database(database_url: str) -> None:
-    admin_engine = create_engine(_build_admin_database_url(database_url), isolation_level="AUTOCOMMIT")
+    admin_engine = create_engine(
+        _build_admin_database_url(database_url), isolation_level="AUTOCOMMIT"
+    )
     try:
         with admin_engine.connect() as connection:
-            connection.execute(text(f'DROP DATABASE IF EXISTS "{TEST_DATABASE_NAME}" WITH (FORCE)'))
+            connection.execute(
+                text(f'DROP DATABASE IF EXISTS "{TEST_DATABASE_NAME}" WITH (FORCE)')
+            )
             connection.execute(text(f'CREATE DATABASE "{TEST_DATABASE_NAME}"'))
     finally:
         admin_engine.dispose()
 
 
 def _drop_test_database(database_url: str) -> None:
-    admin_engine = create_engine(_build_admin_database_url(database_url), isolation_level="AUTOCOMMIT")
+    admin_engine = create_engine(
+        _build_admin_database_url(database_url), isolation_level="AUTOCOMMIT"
+    )
     try:
         with admin_engine.connect() as connection:
-            connection.execute(text(f'DROP DATABASE IF EXISTS "{TEST_DATABASE_NAME}" WITH (FORCE)'))
+            connection.execute(
+                text(f'DROP DATABASE IF EXISTS "{TEST_DATABASE_NAME}" WITH (FORCE)')
+            )
     finally:
         admin_engine.dispose()
 
@@ -61,6 +76,7 @@ def isolated_test_database() -> None:
 
     engine.dispose()
     _drop_test_database(BASE_DATABASE_URL)
+    shutil.rmtree(TEST_REPORT_EXPORT_DIR, ignore_errors=True)
 
 
 @pytest.fixture
