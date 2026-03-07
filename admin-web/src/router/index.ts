@@ -74,6 +74,16 @@ const router = createRouter({
             summary: '入库单与出库单追踪、校验失败回看与执行异常提示',
           },
         },
+        {
+          path: '/contract-close',
+          name: 'contract-close',
+          component: () => import('@/views/contract-close/ContractCloseView.vue'),
+          meta: {
+            requiresAuth: true,
+            title: '合同关闭差异台',
+            summary: '自动关闭回看、手工关闭入口与差异留痕回看',
+          },
+        },
       ],
     },
   ],

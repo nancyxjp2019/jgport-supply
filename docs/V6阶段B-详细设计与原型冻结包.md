@@ -4,7 +4,7 @@
 - 文档状态：`已冻结`
 - 目标：冻结实现口径，形成可开发规格，作为阶段C模块开发唯一输入。
 - 上游输入：
-  - `docs/需求方案.md`（当前规则 `1~49` 与“业务目标/角色权限”基线）
+  - `docs/需求方案.md`（当前规则 `1~50` 与“业务目标/角色权限”基线）
   - `docs/V6阶段A-流程图状态机与UI原型清单.md`
 - 下游输出：阶段C模块任务拆分、接口开发、联调与测试用例。
 
@@ -134,6 +134,7 @@ purchase_payment_net =
 | `/contracts/sales` | `POST` | `contract_no`,`customer_id`,`items[]` | 油品明细必填；系统阈值参数已生效 | `contract_id`,`status=草稿` |
 | `/contracts/{id}/submit` | `POST` | `comment` | 状态必须是`草稿` | `status=待审批` |
 | `/contracts/{id}/approve` | `POST` | `approval_result`,`comment` | 状态必须是`待审批` | `approval_result=true` 返回 `status=生效中`；`approval_result=false` 返回 `status=草稿` |
+| `/contracts` | `GET` | `status?`,`direction?`,`close_type?`,`limit?` | 仅 `operations/finance/admin + operator_company + admin_web` 可查询 | 合同列表（含关闭类型与差异留痕字段） |
 | `/contracts/{id}` | `GET` | 无 | 仅授权角色可读 | 合同头、明细、阈值快照、状态 |
 | `/contracts/{id}/manual-close` | `POST` | `reason`,`confirm_token` | 原因必填；权限校验；`confirm_token` 固定为 `MANUAL_CLOSE` | `status=手工关闭` |
 | `/contracts/{id}/graph` | `GET` | 无 | 仅授权角色可读 | 合同节点 + 当前待处理下游任务 + 已形成关系图谱 |

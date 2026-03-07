@@ -656,6 +656,136 @@ body::before {
   border-color: rgba(31, 95, 91, 0.2);
 }
 
+.contract-close-page {
+  gap: 18px;
+}
+
+.contract-close-filter-card,
+.contract-close-list-card,
+.contract-close-detail-card {
+  padding: 22px;
+}
+
+.contract-close-filter-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.contract-close-filter-row h3 {
+  margin: 0 0 8px;
+}
+
+.contract-close-filter-row p {
+  margin: 0;
+  color: var(--ink-regular);
+}
+
+.contract-close-filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.contract-close-filter-select {
+  width: 180px;
+}
+
+.contract-close-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.contract-close-list-card .el-table {
+  margin-top: 12px;
+}
+
+.contract-close-detail-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.contract-close-detail-grid .detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(31, 95, 91, 0.06);
+}
+
+.contract-close-detail-grid .detail-row span {
+  color: var(--ink-regular);
+}
+
+.contract-close-detail-grid .detail-row strong {
+  text-align: right;
+}
+
+.contract-close-diff-panel {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(31, 95, 91, 0.06);
+}
+
+.contract-close-diff-title {
+  margin: 0 0 8px;
+  color: var(--ink-regular);
+}
+
+.contract-close-alert-panel {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+}
+
+.contract-close-alert-title {
+  margin: 0 0 6px;
+  font-weight: 700;
+}
+
+.contract-close-alert-panel p {
+  margin: 0;
+}
+
+.contract-close-alert-panel.is-info {
+  background: rgba(44, 108, 131, 0.12);
+  border-color: rgba(44, 108, 131, 0.24);
+}
+
+.contract-close-alert-panel.is-warning {
+  background: rgba(196, 122, 44, 0.14);
+  border-color: rgba(196, 122, 44, 0.3);
+}
+
+.contract-close-alert-panel.is-danger {
+  background: rgba(197, 59, 28, 0.14);
+  border-color: rgba(197, 59, 28, 0.28);
+}
+
+.contract-close-alert-panel.is-success {
+  background: rgba(31, 95, 91, 0.14);
+  border-color: rgba(31, 95, 91, 0.28);
+}
+
+.contract-close-alert-panel.is-neutral {
+  background: rgba(31, 95, 91, 0.08);
+  border-color: rgba(31, 95, 91, 0.2);
+}
+
+.contract-close-action-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
 .signal-card--warning {
   background: linear-gradient(145deg, rgba(196, 122, 44, 0.16), rgba(255, 251, 244, 0.94));
 }
@@ -819,6 +949,10 @@ body::before {
   .inventory-main-grid {
     grid-template-columns: 1fr;
   }
+
+  .contract-close-main-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 960px) {
@@ -861,6 +995,10 @@ body::before {
   }
 
   .inventory-filter-row {
+    flex-direction: column;
+  }
+
+  .contract-close-filter-row {
     flex-direction: column;
   }
 }

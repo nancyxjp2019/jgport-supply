@@ -22,9 +22,15 @@ RECEIPT_VOUCHER = ["CODEX-TEST-/receipt-voucher-001.jpg"]
 PAYMENT_VOUCHER = ["CODEX-TEST-/payment-voucher-001.jpg"]
 
 
-def test_sales_contract_auto_closes_after_qty_done_and_receipt_closed(auth_headers) -> None:
-    sales_contract_id = _create_effective_sales_contract(auth_headers, qty_signed=Decimal("100.000"))
-    purchase_contract_id = _create_effective_purchase_contract(auth_headers, qty_signed=Decimal("100.000"))
+def test_sales_contract_auto_closes_after_qty_done_and_receipt_closed(
+    auth_headers,
+) -> None:
+    sales_contract_id = _create_effective_sales_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
+    purchase_contract_id = _create_effective_purchase_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
     sales_order_id = _create_sales_order_derived(
         auth_headers,
         sales_contract_id=sales_contract_id,
@@ -34,10 +40,22 @@ def test_sales_contract_auto_closes_after_qty_done_and_receipt_closed(auth_heade
         actual_pay_amount=Decimal("580080.00"),
     )
 
-    deposit_receipt_doc = _query_receipt_docs(contract_id=sales_contract_id, doc_type="DEPOSIT")[0]
-    normal_receipt_doc = _query_receipt_docs(contract_id=sales_contract_id, sales_order_id=sales_order_id, doc_type="NORMAL")[0]
-    _confirm_receipt_doc(auth_headers, receipt_doc_id=deposit_receipt_doc.id, amount_actual=Decimal("50000.00"))
-    _confirm_receipt_doc(auth_headers, receipt_doc_id=normal_receipt_doc.id, amount_actual=Decimal("600025.00"))
+    deposit_receipt_doc = _query_receipt_docs(
+        contract_id=sales_contract_id, doc_type="DEPOSIT"
+    )[0]
+    normal_receipt_doc = _query_receipt_docs(
+        contract_id=sales_contract_id, sales_order_id=sales_order_id, doc_type="NORMAL"
+    )[0]
+    _confirm_receipt_doc(
+        auth_headers,
+        receipt_doc_id=deposit_receipt_doc.id,
+        amount_actual=Decimal("50000.00"),
+    )
+    _confirm_receipt_doc(
+        auth_headers,
+        receipt_doc_id=normal_receipt_doc.id,
+        amount_actual=Decimal("600025.00"),
+    )
 
     outbound_doc_id = _create_system_outbound_doc(
         auth_headers,
@@ -61,9 +79,15 @@ def test_sales_contract_auto_closes_after_qty_done_and_receipt_closed(auth_heade
     assert contract.closed_by == "CODEX-TEST-M6-WH-SALES-AUTO-CLOSE"
 
 
-def test_purchase_contract_auto_closes_after_qty_done_and_payment_closed(auth_headers) -> None:
-    sales_contract_id = _create_effective_sales_contract(auth_headers, qty_signed=Decimal("100.000"))
-    purchase_contract_id = _create_effective_purchase_contract(auth_headers, qty_signed=Decimal("100.000"))
+def test_purchase_contract_auto_closes_after_qty_done_and_payment_closed(
+    auth_headers,
+) -> None:
+    sales_contract_id = _create_effective_sales_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
+    purchase_contract_id = _create_effective_purchase_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
     _create_sales_order_derived(
         auth_headers,
         sales_contract_id=sales_contract_id,
@@ -73,16 +97,30 @@ def test_purchase_contract_auto_closes_after_qty_done_and_payment_closed(auth_he
         actual_pay_amount=Decimal("580080.00"),
     )
 
-    deposit_payment_doc = _query_payment_docs(contract_id=purchase_contract_id, doc_type="DEPOSIT")[0]
-    normal_payment_doc = _query_payment_docs(contract_id=purchase_contract_id, doc_type="NORMAL")[0]
-    _confirm_payment_doc(auth_headers, payment_doc_id=deposit_payment_doc.id, amount_actual=Decimal("50000.00"))
-    _confirm_payment_doc(auth_headers, payment_doc_id=normal_payment_doc.id, amount_actual=Decimal("580080.00"))
+    deposit_payment_doc = _query_payment_docs(
+        contract_id=purchase_contract_id, doc_type="DEPOSIT"
+    )[0]
+    normal_payment_doc = _query_payment_docs(
+        contract_id=purchase_contract_id, doc_type="NORMAL"
+    )[0]
+    _confirm_payment_doc(
+        auth_headers,
+        payment_doc_id=deposit_payment_doc.id,
+        amount_actual=Decimal("50000.00"),
+    )
+    _confirm_payment_doc(
+        auth_headers,
+        payment_doc_id=normal_payment_doc.id,
+        amount_actual=Decimal("580080.00"),
+    )
 
     inbound_doc = _query_inbound_docs(contract_id=purchase_contract_id)[0]
     submit_response = client.post(
         f"/api/v1/inbound-docs/{inbound_doc.id}/submit",
         json={"actual_qty": 100, "warehouse_id": "CODEX-TEST-WH-001"},
-        headers=_warehouse_headers(auth_headers, "CODEX-TEST-M6-WH-PURCHASE-AUTO-CLOSE"),
+        headers=_warehouse_headers(
+            auth_headers, "CODEX-TEST-M6-WH-PURCHASE-AUTO-CLOSE"
+        ),
     )
 
     assert submit_response.status_code == 200
@@ -94,8 +132,12 @@ def test_purchase_contract_auto_closes_after_qty_done_and_payment_closed(auth_he
 
 
 def test_qty_done_without_amount_close_keeps_contract_in_qty_done(auth_headers) -> None:
-    sales_contract_id = _create_effective_sales_contract(auth_headers, qty_signed=Decimal("100.000"))
-    purchase_contract_id = _create_effective_purchase_contract(auth_headers, qty_signed=Decimal("100.000"))
+    sales_contract_id = _create_effective_sales_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
+    purchase_contract_id = _create_effective_purchase_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
     sales_order_id = _create_sales_order_derived(
         auth_headers,
         sales_contract_id=sales_contract_id,
@@ -105,10 +147,22 @@ def test_qty_done_without_amount_close_keeps_contract_in_qty_done(auth_headers) 
         actual_pay_amount=Decimal("580080.00"),
     )
 
-    deposit_receipt_doc = _query_receipt_docs(contract_id=sales_contract_id, doc_type="DEPOSIT")[0]
-    normal_receipt_doc = _query_receipt_docs(contract_id=sales_contract_id, sales_order_id=sales_order_id, doc_type="NORMAL")[0]
-    _confirm_receipt_doc(auth_headers, receipt_doc_id=deposit_receipt_doc.id, amount_actual=Decimal("50000.00"))
-    _confirm_receipt_doc(auth_headers, receipt_doc_id=normal_receipt_doc.id, amount_actual=Decimal("500000.00"))
+    deposit_receipt_doc = _query_receipt_docs(
+        contract_id=sales_contract_id, doc_type="DEPOSIT"
+    )[0]
+    normal_receipt_doc = _query_receipt_docs(
+        contract_id=sales_contract_id, sales_order_id=sales_order_id, doc_type="NORMAL"
+    )[0]
+    _confirm_receipt_doc(
+        auth_headers,
+        receipt_doc_id=deposit_receipt_doc.id,
+        amount_actual=Decimal("50000.00"),
+    )
+    _confirm_receipt_doc(
+        auth_headers,
+        receipt_doc_id=normal_receipt_doc.id,
+        amount_actual=Decimal("500000.00"),
+    )
 
     outbound_doc_id = _create_system_outbound_doc(
         auth_headers,
@@ -131,7 +185,9 @@ def test_qty_done_without_amount_close_keeps_contract_in_qty_done(auth_headers) 
 
 
 def test_manual_close_requires_qty_done(auth_headers) -> None:
-    sales_contract_id = _create_effective_sales_contract(auth_headers, qty_signed=Decimal("100.000"))
+    sales_contract_id = _create_effective_sales_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
     response = client.post(
         f"/api/v1/contracts/{sales_contract_id}/manual-close",
         json={"reason": "未完成数量前禁止关闭", "confirm_token": "MANUAL_CLOSE"},
@@ -148,9 +204,15 @@ def test_manual_close_requires_qty_done(auth_headers) -> None:
     assert response.json()["detail"] == "合同未达到数量履约完成，禁止手工关闭"
 
 
-def test_manual_close_terminates_open_docs_and_blocks_future_supplement(auth_headers) -> None:
-    sales_contract_id = _create_effective_sales_contract(auth_headers, qty_signed=Decimal("100.000"))
-    purchase_contract_id = _create_effective_purchase_contract(auth_headers, qty_signed=Decimal("100.000"))
+def test_manual_close_terminates_open_docs_and_blocks_future_supplement(
+    auth_headers,
+) -> None:
+    sales_contract_id = _create_effective_sales_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
+    purchase_contract_id = _create_effective_purchase_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
     sales_order_id = _create_sales_order_derived(
         auth_headers,
         sales_contract_id=sales_contract_id,
@@ -160,8 +222,14 @@ def test_manual_close_terminates_open_docs_and_blocks_future_supplement(auth_hea
         actual_pay_amount=Decimal("580080.00"),
     )
 
-    deposit_receipt_doc = _query_receipt_docs(contract_id=sales_contract_id, doc_type="DEPOSIT")[0]
-    _confirm_receipt_doc(auth_headers, receipt_doc_id=deposit_receipt_doc.id, amount_actual=Decimal("50000.00"))
+    deposit_receipt_doc = _query_receipt_docs(
+        contract_id=sales_contract_id, doc_type="DEPOSIT"
+    )[0]
+    _confirm_receipt_doc(
+        auth_headers,
+        receipt_doc_id=deposit_receipt_doc.id,
+        amount_actual=Decimal("50000.00"),
+    )
 
     outbound_doc_id = _create_system_outbound_doc(
         auth_headers,
@@ -179,7 +247,11 @@ def test_manual_close_terminates_open_docs_and_blocks_future_supplement(auth_hea
 
     draft_receipt_response = client.post(
         "/api/v1/receipt-docs/supplement",
-        json={"contract_id": sales_contract_id, "sales_order_id": sales_order_id, "amount_actual": 1.0},
+        json={
+            "contract_id": sales_contract_id,
+            "sales_order_id": sales_order_id,
+            "amount_actual": 1.0,
+        },
         headers=auth_headers(
             user_id="CODEX-TEST-M6-FINANCE-RECEIPT-DRAFT",
             role_code="finance",
@@ -222,7 +294,11 @@ def test_manual_close_terminates_open_docs_and_blocks_future_supplement(auth_hea
 
     blocked_response = client.post(
         "/api/v1/receipt-docs/supplement",
-        json={"contract_id": sales_contract_id, "sales_order_id": sales_order_id, "amount_actual": 2.0},
+        json={
+            "contract_id": sales_contract_id,
+            "sales_order_id": sales_order_id,
+            "amount_actual": 2.0,
+        },
         headers=auth_headers(
             user_id="CODEX-TEST-M6-FINANCE-RECEIPT-BLOCK",
             role_code="finance",
@@ -237,8 +313,12 @@ def test_manual_close_terminates_open_docs_and_blocks_future_supplement(auth_hea
 
 
 def test_auto_close_terminates_open_draft_docs(auth_headers) -> None:
-    sales_contract_id = _create_effective_sales_contract(auth_headers, qty_signed=Decimal("100.000"))
-    purchase_contract_id = _create_effective_purchase_contract(auth_headers, qty_signed=Decimal("100.000"))
+    sales_contract_id = _create_effective_sales_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
+    purchase_contract_id = _create_effective_purchase_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
     sales_order_id = _create_sales_order_derived(
         auth_headers,
         sales_contract_id=sales_contract_id,
@@ -250,7 +330,11 @@ def test_auto_close_terminates_open_draft_docs(auth_headers) -> None:
 
     draft_receipt_response = client.post(
         "/api/v1/receipt-docs/supplement",
-        json={"contract_id": sales_contract_id, "sales_order_id": sales_order_id, "amount_actual": 1.0},
+        json={
+            "contract_id": sales_contract_id,
+            "sales_order_id": sales_order_id,
+            "amount_actual": 1.0,
+        },
         headers=auth_headers(
             user_id="CODEX-TEST-M6-FINANCE-RECEIPT-DRAFT-AUTO",
             role_code="finance",
@@ -262,10 +346,22 @@ def test_auto_close_terminates_open_draft_docs(auth_headers) -> None:
     assert draft_receipt_response.status_code == 200
     draft_receipt_doc_id = draft_receipt_response.json()["id"]
 
-    deposit_receipt_doc = _query_receipt_docs(contract_id=sales_contract_id, doc_type="DEPOSIT")[0]
-    normal_receipt_doc = _query_receipt_docs(contract_id=sales_contract_id, sales_order_id=sales_order_id, doc_type="NORMAL")[0]
-    _confirm_receipt_doc(auth_headers, receipt_doc_id=deposit_receipt_doc.id, amount_actual=Decimal("50000.00"))
-    _confirm_receipt_doc(auth_headers, receipt_doc_id=normal_receipt_doc.id, amount_actual=Decimal("600025.00"))
+    deposit_receipt_doc = _query_receipt_docs(
+        contract_id=sales_contract_id, doc_type="DEPOSIT"
+    )[0]
+    normal_receipt_doc = _query_receipt_docs(
+        contract_id=sales_contract_id, sales_order_id=sales_order_id, doc_type="NORMAL"
+    )[0]
+    _confirm_receipt_doc(
+        auth_headers,
+        receipt_doc_id=deposit_receipt_doc.id,
+        amount_actual=Decimal("50000.00"),
+    )
+    _confirm_receipt_doc(
+        auth_headers,
+        receipt_doc_id=normal_receipt_doc.id,
+        amount_actual=Decimal("600025.00"),
+    )
 
     outbound_doc_id = _create_system_outbound_doc(
         auth_headers,
@@ -285,8 +381,12 @@ def test_auto_close_terminates_open_draft_docs(auth_headers) -> None:
 
 
 def test_manual_close_requires_valid_confirm_token(auth_headers) -> None:
-    sales_contract_id = _create_effective_sales_contract(auth_headers, qty_signed=Decimal("100.000"))
-    purchase_contract_id = _create_effective_purchase_contract(auth_headers, qty_signed=Decimal("100.000"))
+    sales_contract_id = _create_effective_sales_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
+    purchase_contract_id = _create_effective_purchase_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
     sales_order_id = _create_sales_order_derived(
         auth_headers,
         sales_contract_id=sales_contract_id,
@@ -295,8 +395,14 @@ def test_manual_close_requires_valid_confirm_token(auth_headers) -> None:
         actual_receipt_amount=Decimal("500000.00"),
         actual_pay_amount=Decimal("580080.00"),
     )
-    deposit_receipt_doc = _query_receipt_docs(contract_id=sales_contract_id, doc_type="DEPOSIT")[0]
-    _confirm_receipt_doc(auth_headers, receipt_doc_id=deposit_receipt_doc.id, amount_actual=Decimal("50000.00"))
+    deposit_receipt_doc = _query_receipt_docs(
+        contract_id=sales_contract_id, doc_type="DEPOSIT"
+    )[0]
+    _confirm_receipt_doc(
+        auth_headers,
+        receipt_doc_id=deposit_receipt_doc.id,
+        amount_actual=Decimal("50000.00"),
+    )
     outbound_doc_id = _create_system_outbound_doc(
         auth_headers,
         contract_id=sales_contract_id,
@@ -325,6 +431,164 @@ def test_manual_close_requires_valid_confirm_token(auth_headers) -> None:
 
     assert response.status_code == 422
     assert response.json()["detail"] == "手工关闭确认口令不正确"
+
+
+def test_operations_can_list_close_tracking_contracts_and_query_detail(
+    auth_headers,
+) -> None:
+    sales_contract_id_auto = _create_effective_sales_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
+    purchase_contract_id_auto = _create_effective_purchase_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
+    sales_order_id_auto = _create_sales_order_derived(
+        auth_headers,
+        sales_contract_id=sales_contract_id_auto,
+        purchase_contract_id=purchase_contract_id_auto,
+        qty=Decimal("100.000"),
+        actual_receipt_amount=Decimal("600025.00"),
+        actual_pay_amount=Decimal("580080.00"),
+    )
+    deposit_receipt_doc_auto = _query_receipt_docs(
+        contract_id=sales_contract_id_auto, doc_type="DEPOSIT"
+    )[0]
+    normal_receipt_doc_auto = _query_receipt_docs(
+        contract_id=sales_contract_id_auto,
+        sales_order_id=sales_order_id_auto,
+        doc_type="NORMAL",
+    )[0]
+    _confirm_receipt_doc(
+        auth_headers,
+        receipt_doc_id=deposit_receipt_doc_auto.id,
+        amount_actual=Decimal("50000.00"),
+    )
+    _confirm_receipt_doc(
+        auth_headers,
+        receipt_doc_id=normal_receipt_doc_auto.id,
+        amount_actual=Decimal("600025.00"),
+    )
+    outbound_doc_id_auto = _create_system_outbound_doc(
+        auth_headers,
+        contract_id=sales_contract_id_auto,
+        sales_order_id=sales_order_id_auto,
+        source_ticket_no="CODEX-TEST-M8-CLOSE-AUTO-001",
+        actual_qty=Decimal("100.000"),
+    )
+    auto_submit_response = client.post(
+        f"/api/v1/outbound-docs/{outbound_doc_id_auto}/submit",
+        json={"actual_qty": 100, "warehouse_id": "CODEX-TEST-WH-001"},
+        headers=_warehouse_headers(auth_headers, "CODEX-TEST-M8-WH-CLOSE-AUTO"),
+    )
+    assert auto_submit_response.status_code == 200
+
+    sales_contract_id_qty_done = _create_effective_sales_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
+    purchase_contract_id_qty_done = _create_effective_purchase_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
+    sales_order_id_qty_done = _create_sales_order_derived(
+        auth_headers,
+        sales_contract_id=sales_contract_id_qty_done,
+        purchase_contract_id=purchase_contract_id_qty_done,
+        qty=Decimal("100.000"),
+        actual_receipt_amount=Decimal("500000.00"),
+        actual_pay_amount=Decimal("580080.00"),
+    )
+    deposit_receipt_doc_qty_done = _query_receipt_docs(
+        contract_id=sales_contract_id_qty_done, doc_type="DEPOSIT"
+    )[0]
+    normal_receipt_doc_qty_done = _query_receipt_docs(
+        contract_id=sales_contract_id_qty_done,
+        sales_order_id=sales_order_id_qty_done,
+        doc_type="NORMAL",
+    )[0]
+    _confirm_receipt_doc(
+        auth_headers,
+        receipt_doc_id=deposit_receipt_doc_qty_done.id,
+        amount_actual=Decimal("50000.00"),
+    )
+    _confirm_receipt_doc(
+        auth_headers,
+        receipt_doc_id=normal_receipt_doc_qty_done.id,
+        amount_actual=Decimal("500000.00"),
+    )
+    outbound_doc_id_qty_done = _create_system_outbound_doc(
+        auth_headers,
+        contract_id=sales_contract_id_qty_done,
+        sales_order_id=sales_order_id_qty_done,
+        source_ticket_no="CODEX-TEST-M8-CLOSE-QTY-DONE-001",
+        actual_qty=Decimal("100.000"),
+    )
+    qty_done_submit_response = client.post(
+        f"/api/v1/outbound-docs/{outbound_doc_id_qty_done}/submit",
+        json={"actual_qty": 100, "warehouse_id": "CODEX-TEST-WH-001"},
+        headers=_warehouse_headers(auth_headers, "CODEX-TEST-M8-WH-CLOSE-QTY-DONE"),
+    )
+    assert qty_done_submit_response.status_code == 200
+
+    operations_headers = auth_headers(
+        user_id="CODEX-TEST-M8-OPS-CLOSE-TRACK",
+        role_code="operations",
+        company_id="CODEX-TEST-OPERATOR-COMPANY",
+        company_type="operator_company",
+        client_type="admin_web",
+    )
+
+    list_response = client.get(
+        "/api/v1/contracts",
+        params={"direction": "sales", "limit": 50},
+        headers=operations_headers,
+    )
+    assert list_response.status_code == 200
+    list_body = list_response.json()
+    list_contract_ids = {item["id"] for item in list_body["items"]}
+    assert sales_contract_id_auto in list_contract_ids
+    assert sales_contract_id_qty_done in list_contract_ids
+
+    auto_list_response = client.get(
+        "/api/v1/contracts",
+        params={
+            "status": "已关闭",
+            "close_type": "AUTO",
+            "direction": "sales",
+            "limit": 50,
+        },
+        headers=operations_headers,
+    )
+    assert auto_list_response.status_code == 200
+    auto_list_body = auto_list_response.json()
+    assert any(item["id"] == sales_contract_id_auto for item in auto_list_body["items"])
+    assert all(item["close_type"] == "AUTO" for item in auto_list_body["items"])
+
+    qty_done_list_response = client.get(
+        "/api/v1/contracts",
+        params={"status": "数量履约完成", "direction": "sales", "limit": 50},
+        headers=operations_headers,
+    )
+    assert qty_done_list_response.status_code == 200
+    qty_done_list_body = qty_done_list_response.json()
+    assert any(
+        item["id"] == sales_contract_id_qty_done for item in qty_done_list_body["items"]
+    )
+
+    detail_auto_response = client.get(
+        f"/api/v1/contracts/{sales_contract_id_auto}", headers=operations_headers
+    )
+    assert detail_auto_response.status_code == 200
+    detail_auto_body = detail_auto_response.json()
+    assert detail_auto_body["status"] == "已关闭"
+    assert detail_auto_body["close_type"] == "AUTO"
+
+    detail_qty_done_response = client.get(
+        f"/api/v1/contracts/{sales_contract_id_qty_done}",
+        headers=operations_headers,
+    )
+    assert detail_qty_done_response.status_code == 200
+    detail_qty_done_body = detail_qty_done_response.json()
+    assert detail_qty_done_body["status"] == "数量履约完成"
+    assert detail_qty_done_body["close_type"] is None
 
 
 def _query_contract(contract_id: int) -> Contract | None:
@@ -360,7 +624,9 @@ def _query_payment_docs(
         if contract_id is not None:
             statement = statement.where(PaymentDoc.contract_id == contract_id)
         if purchase_order_id is not None:
-            statement = statement.where(PaymentDoc.purchase_order_id == purchase_order_id)
+            statement = statement.where(
+                PaymentDoc.purchase_order_id == purchase_order_id
+            )
         if doc_type is not None:
             statement = statement.where(PaymentDoc.doc_type == doc_type)
         return list(db.scalars(statement.order_by(PaymentDoc.id)).all())
@@ -382,11 +648,17 @@ def _query_outbound_doc(outbound_doc_id: int) -> OutboundDoc:
 
 def _query_inbound_docs(*, contract_id: int) -> list[InboundDoc]:
     with SessionLocal() as db:
-        statement = select(InboundDoc).where(InboundDoc.contract_id == contract_id).order_by(InboundDoc.id)
+        statement = (
+            select(InboundDoc)
+            .where(InboundDoc.contract_id == contract_id)
+            .order_by(InboundDoc.id)
+        )
         return list(db.scalars(statement).all())
 
 
-def _confirm_receipt_doc(auth_headers, *, receipt_doc_id: int, amount_actual: Decimal) -> None:
+def _confirm_receipt_doc(
+    auth_headers, *, receipt_doc_id: int, amount_actual: Decimal
+) -> None:
     response = client.post(
         f"/api/v1/receipt-docs/{receipt_doc_id}/confirm",
         json={"amount_actual": float(amount_actual), "voucher_files": RECEIPT_VOUCHER},
@@ -401,7 +673,9 @@ def _confirm_receipt_doc(auth_headers, *, receipt_doc_id: int, amount_actual: De
     assert response.status_code == 200
 
 
-def _confirm_payment_doc(auth_headers, *, payment_doc_id: int, amount_actual: Decimal) -> None:
+def _confirm_payment_doc(
+    auth_headers, *, payment_doc_id: int, amount_actual: Decimal
+) -> None:
     response = client.post(
         f"/api/v1/payment-docs/{payment_doc_id}/confirm",
         json={"amount_actual": float(amount_actual), "voucher_files": PAYMENT_VOUCHER},
@@ -428,7 +702,13 @@ def _create_effective_sales_contract(
         json={
             "contract_no": f"CODEX-TEST-M6-SALES-{uuid4().hex[:10]}",
             "customer_id": customer_id,
-            "items": [{"oil_product_id": "OIL-92", "qty_signed": float(qty_signed), "unit_price": float(unit_price)}],
+            "items": [
+                {
+                    "oil_product_id": "OIL-92",
+                    "qty_signed": float(qty_signed),
+                    "unit_price": float(unit_price),
+                }
+            ],
         },
         headers=auth_headers(
             user_id="CODEX-TEST-M6-FINANCE-CREATE-SALES",
@@ -468,7 +748,13 @@ def _create_effective_purchase_contract(
         json={
             "contract_no": f"CODEX-TEST-M6-PURCHASE-{uuid4().hex[:10]}",
             "supplier_id": SUPPLIER_COMPANY_ID,
-            "items": [{"oil_product_id": "OIL-92", "qty_signed": float(qty_signed), "unit_price": float(unit_price)}],
+            "items": [
+                {
+                    "oil_product_id": "OIL-92",
+                    "qty_signed": float(qty_signed),
+                    "unit_price": float(unit_price),
+                }
+            ],
         },
         headers=auth_headers(
             user_id="CODEX-TEST-M6-FINANCE-CREATE-PURCHASE",

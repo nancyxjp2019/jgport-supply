@@ -4,7 +4,7 @@
       <div class="brand-card">
         <p class="brand-card__eyebrow">运营驾驶舱</p>
         <h1>JGPORT V6</h1>
-        <p>报表口径与页面结构对齐 M7 原型说明，首批已落地经营首页、业务看板、订单处理台、资金处理台与库存执行跟踪台。</p>
+        <p>报表口径与页面结构对齐 M7 原型说明，首批已落地经营首页、业务看板、订单处理台、资金处理台、库存执行跟踪台与合同关闭差异台。</p>
       </div>
 
       <nav class="shell__nav">
@@ -85,6 +85,11 @@ const navItems = [
     to: '/inventory',
     label: '库存执行跟踪台',
     summary: '入库出库追踪、校验失败回看与执行异常提示',
+  },
+  {
+    to: '/contract-close',
+    label: '合同关闭差异台',
+    summary: '自动关闭回看、手工关闭入口与差异留痕回看',
   },
 ]
 

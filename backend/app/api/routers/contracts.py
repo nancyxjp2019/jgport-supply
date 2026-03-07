@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps.auth import AuthenticatedActor, require_actor
@@ -11,12 +12,17 @@ from app.schemas.contract import (
     ContractEffectiveTaskResponse,
     ContractGraphResponse,
     ContractManualCloseRequest,
+    ContractListItemResponse,
+    ContractListResponse,
     ContractResponse,
     ContractSubmitRequest,
     PurchaseContractCreateRequest,
     SalesContractCreateRequest,
 )
-from app.services.contract_close_service import ContractCloseServiceError, manual_close_contract
+from app.services.contract_close_service import (
+    ContractCloseServiceError,
+    manual_close_contract,
+)
 from app.services.contract_service import (
     CONTRACT_DIRECTION_PURCHASE,
     CONTRACT_DIRECTION_SALES,
@@ -130,6 +136,35 @@ def approve_contract(
     )
 
 
+@router.get("", response_model=ContractListResponse)
+def list_contracts_route(
+    status_filter: str | None = Query(default=None, alias="status"),
+    direction_filter: str | None = Query(default=None, alias="direction"),
+    close_type_filter: str | None = Query(default=None, alias="close_type"),
+    limit: int = Query(default=50, ge=1, le=200),
+    _: AuthenticatedActor = Depends(contract_read_dependency),
+    db: Session = Depends(get_db),
+) -> ContractListResponse:
+    statement = select(Contract).order_by(
+        Contract.created_at.desc(), Contract.id.desc()
+    )
+    normalized_status = status_filter.strip() if status_filter else ""
+    if normalized_status:
+        statement = statement.where(Contract.status == normalized_status)
+    normalized_direction = direction_filter.strip().lower() if direction_filter else ""
+    if normalized_direction:
+        statement = statement.where(Contract.direction == normalized_direction)
+    normalized_close_type = close_type_filter.strip() if close_type_filter else ""
+    if normalized_close_type:
+        statement = statement.where(Contract.close_type == normalized_close_type)
+    contracts = list(db.scalars(statement.limit(limit)).all())
+    return ContractListResponse(
+        items=[_to_contract_list_item(contract) for contract in contracts],
+        total=len(contracts),
+        message="合同列表查询成功",
+    )
+
+
 @router.get("/{contract_id}", response_model=ContractResponse)
 def get_contract_detail(
     contract_id: int,
@@ -192,6 +227,26 @@ def manual_close_contract_route(
     return _to_contract_response(contract, message=result.message)
 
 
+def _to_contract_list_item(contract: Contract) -> ContractListItemResponse:
+    return ContractListItemResponse(
+        id=contract.id,
+        contract_no=contract.contract_no,
+        direction=contract.direction,
+        status=contract.status,
+        supplier_id=contract.supplier_id,
+        customer_id=contract.customer_id,
+        close_type=contract.close_type,
+        closed_by=contract.closed_by,
+        closed_at=contract.closed_at,
+        manual_close_reason=contract.manual_close_reason,
+        manual_close_by=contract.manual_close_by,
+        manual_close_at=contract.manual_close_at,
+        manual_close_diff_amount=contract.manual_close_diff_amount,
+        manual_close_diff_qty_json=contract.manual_close_diff_qty_json,
+        created_at=contract.created_at,
+    )
+
+
 def _to_contract_response(
     contract: Contract,
     *,
@@ -231,6 +286,8 @@ def _to_contract_response(
             }
             for item in contract.items
         ],
-        generated_task_count=generated_task_count if generated_task_count is not None else len(contract.effective_tasks),
+        generated_task_count=generated_task_count
+        if generated_task_count is not None
+        else len(contract.effective_tasks),
         message=message,
     )

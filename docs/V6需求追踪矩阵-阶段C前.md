@@ -3,7 +3,7 @@
 ## 1. 目的与门槛
 - 目的：验证需求是否被完整理解并可直接进入模块开发。
 - 门槛：
-  - 规则覆盖率 `100%`（规则1~49全部映射）。
+  - 规则覆盖率 `100%`（规则1~50全部映射）。
   - 规则冲突数 `0`。
   - 阻断级未决问题 `0`。
 
@@ -60,6 +60,7 @@
 | 47 | 运营订单处理台首批开放边界 | M8 | ADM-ORDER-OPS-01 | `/sales-orders` `/sales-orders/{id}` `/sales-orders/{id}/ops-approve` `/sales-orders/{id}/finance-approve` | 销售订单审批字段 + 处理台页面 | ORD-003 |
 | 48 | 财务资金处理台首批开放边界 | M8 | ADM-FUNDS-01 | `/payment-docs/*` `/receipt-docs/*` + 资金处理台任务包 | `payment_docs`,`receipt_docs`,`doc_attachments` | FIN-003 |
 | 49 | 库存执行跟踪台首批开放边界 | M8 | ADM-INVENTORY-01 | `/inbound-docs` `/inbound-docs/{id}` `/outbound-docs` `/outbound-docs/{id}` + 跟踪台任务包 | `inbound_docs`,`outbound_docs` | INV-005 |
+| 50 | 合同关闭差异台首批开放边界 | M8 | ADM-CONTRACT-CLOSE-02 | `/contracts` `/contracts/{id}` `/contracts/{id}/manual-close` + 差异台任务包 | `contracts`,`contract_items`,`contract_effective_tasks` | CLS-006 |
 
 ## 3. 验收方式
 - 抽检方式：随机抽取任意10条规则，要求能在“模块/页面/API/数据/测试”5列中完整追溯。
