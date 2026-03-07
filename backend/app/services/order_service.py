@@ -36,6 +36,8 @@ SALES_ORDER_STATUS_REJECTED = "驳回"
 SALES_ORDER_STATUS_DERIVED = "已衍生采购订单"
 
 PURCHASE_ORDER_STATUS_CREATED = "已创建"
+PURCHASE_ORDER_STATUS_PENDING_SUPPLIER_CONFIRM = "待供应商确认"
+PURCHASE_ORDER_STATUS_SUPPLIER_CONFIRMED = "供应商已确认"
 
 ATTACHMENT_BIZ_TAG_SUPPLIER_STAMPED_DOC = "SUPPLIER_STAMPED_DOC"
 ATTACHMENT_BIZ_TAG_SUPPLIER_DELIVERY_RECEIPT = "SUPPLIER_DELIVERY_RECEIPT"
@@ -60,6 +62,12 @@ class OrderServiceError(RuntimeError):
         super().__init__(detail)
         self.status_code = status_code
         self.detail = detail
+
+
+@dataclass(frozen=True)
+class PurchaseOrderConfirmResult:
+    purchase_order_id: int
+    message: str
 
 
 def create_sales_order_draft(
@@ -356,7 +364,7 @@ def finance_approve_sales_order(
         oil_product_id=sales_order.oil_product_id,
         qty_ordered=sales_order.qty_ordered,
         payable_amount=normalized_pay_amount,
-        status=PURCHASE_ORDER_STATUS_CREATED,
+        status=PURCHASE_ORDER_STATUS_PENDING_SUPPLIER_CONFIRM,
         zero_pay_exception_flag=normalized_pay_amount == Decimal("0.00"),
         created_by=operator_id,
         updated_by=operator_id,
@@ -604,6 +612,60 @@ def create_supplier_purchase_order_attachment(
     return attachment
 
 
+def confirm_supplier_purchase_order_delivery(
+    db: Session,
+    *,
+    purchase_order_id: int,
+    supplier_company_id: str,
+    operator_id: str,
+    comment: str,
+) -> PurchaseOrderConfirmResult:
+    statement = (
+        select(PurchaseOrder)
+        .where(PurchaseOrder.id == purchase_order_id)
+        .with_for_update()
+    )
+    purchase_order = db.scalar(statement)
+    if purchase_order is None:
+        raise OrderServiceError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="采购订单不存在",
+        )
+    if purchase_order.supplier_id != supplier_company_id:
+        raise OrderServiceError(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="当前供应商无权查看该采购订单",
+        )
+    if purchase_order.status != PURCHASE_ORDER_STATUS_PENDING_SUPPLIER_CONFIRM:
+        raise OrderServiceError(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="当前采购订单状态不允许提交发货确认",
+        )
+    normalized_comment = _normalize_purchase_order_confirm_comment(comment)
+    before_json = _build_purchase_order_snapshot(purchase_order)
+    purchase_order.status = PURCHASE_ORDER_STATUS_SUPPLIER_CONFIRMED
+    purchase_order.supplier_confirm_comment = normalized_comment
+    purchase_order.supplier_confirmed_by = operator_id
+    purchase_order.supplier_confirmed_at = datetime.now(timezone.utc)
+    purchase_order.updated_by = operator_id
+    db.add(
+        BusinessAuditLog(
+            event_code="M8-SUPPLIER-PO-CONFIRM-DELIVERY",
+            biz_type="purchase_order",
+            biz_id=f"purchase_order:{purchase_order.id}",
+            operator_id=operator_id,
+            before_json=before_json,
+            after_json=_build_purchase_order_snapshot(purchase_order),
+            extra_json={"comment": normalized_comment},
+        )
+    )
+    _commit_or_raise(db, message="供应商发货确认提交失败，请稍后重试")
+    return PurchaseOrderConfirmResult(
+        purchase_order_id=purchase_order.id,
+        message="供应商发货确认已提交",
+    )
+
+
 def get_sales_order_detail_or_raise(
     db: Session,
     *,
@@ -691,6 +753,26 @@ def build_sales_order_snapshot(sales_order: SalesOrder) -> dict:
         "qty_ordered": str(sales_order.qty_ordered),
         "unit_price": str(sales_order.unit_price),
         "status": sales_order.status,
+    }
+
+
+def _build_purchase_order_snapshot(purchase_order: PurchaseOrder) -> dict[str, object]:
+    return {
+        "id": purchase_order.id,
+        "order_no": purchase_order.order_no,
+        "purchase_contract_id": purchase_order.purchase_contract_id,
+        "source_sales_order_id": purchase_order.source_sales_order_id,
+        "supplier_id": purchase_order.supplier_id,
+        "oil_product_id": purchase_order.oil_product_id,
+        "qty_ordered": str(purchase_order.qty_ordered),
+        "payable_amount": str(purchase_order.payable_amount),
+        "status": purchase_order.status,
+        "zero_pay_exception_flag": purchase_order.zero_pay_exception_flag,
+        "supplier_confirm_comment": purchase_order.supplier_confirm_comment,
+        "supplier_confirmed_by": purchase_order.supplier_confirmed_by,
+        "supplier_confirmed_at": purchase_order.supplier_confirmed_at.isoformat()
+        if purchase_order.supplier_confirmed_at
+        else None,
     }
 
 
@@ -816,6 +898,21 @@ def _normalize_attachment_file_path(file_path: str) -> str:
             detail="附件路径长度不能超过512个字符",
         )
     return normalized_file_path
+
+
+def _normalize_purchase_order_confirm_comment(comment: str) -> str:
+    normalized_comment = str(comment or "").strip()
+    if not normalized_comment:
+        raise OrderServiceError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="发货确认说明不能为空",
+        )
+    if len(normalized_comment) > 256:
+        raise OrderServiceError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="发货确认说明长度不能超过256个字符",
+        )
+    return normalized_comment
 
 
 def _generate_doc_no(prefix: str) -> str:

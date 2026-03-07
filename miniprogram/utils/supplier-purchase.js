@@ -37,6 +37,7 @@ function buildSupplierSummaryCards(purchaseOrders) {
   const items = Array.isArray(purchaseOrders) ? purchaseOrders : [];
   const pendingConfirmCount = items.filter((item) => ['已创建', '待供应商确认'].includes(item.status)).length;
   const activeCount = items.filter((item) => ['可继续执行', '执行中'].includes(item.status)).length;
+  const confirmedCount = items.filter((item) => item.status === '供应商已确认').length;
   const zeroPayCount = items.filter((item) => Boolean(item.zero_pay_exception_flag)).length;
   return [
     {
@@ -47,10 +48,10 @@ function buildSupplierSummaryCards(purchaseOrders) {
       className: 'todo-summary-card--danger',
     },
     {
-      key: 'active',
-      label: '可继续执行',
-      value: activeCount,
-      desc: '可继续跟踪付款校验后的执行进度',
+      key: 'confirmed',
+      label: '已确认待付款',
+      value: confirmedCount,
+      desc: '已提交发货确认，等待付款校验推进',
       className: 'todo-summary-card--success',
     },
     {
@@ -59,6 +60,13 @@ function buildSupplierSummaryCards(purchaseOrders) {
       value: zeroPayCount,
       desc: '仍需关注后续付款补录与执行推进',
       className: 'todo-summary-card--warning',
+    },
+    {
+      key: 'active',
+      label: '可继续执行',
+      value: activeCount,
+      desc: '可继续跟踪付款校验后的执行进度',
+      className: 'todo-summary-card--success',
     },
   ];
 }
@@ -143,10 +151,13 @@ function buildSupplierMessages(purchaseOrders) {
 function buildSupplierMessageSummary(item) {
   const status = normalizeStatus(item.status);
   if (status === '待供应商确认') {
-    return `请先回看发货准备信息。来源销售订单 ${item.source_sales_order_no || '-'}。`;
+    return `请先回看发货准备信息，并在确认无误后提交发货确认。来源销售订单 ${item.source_sales_order_no || '-'}。`;
   }
   if (status === '已创建') {
     return `新采购订单已生成，请先回看发货准备信息。来源销售订单 ${item.source_sales_order_no || '-'}。`;
+  }
+  if (status === '供应商已确认') {
+    return '供应商已完成发货确认，当前等待付款校验结果。';
   }
   if (status === '待付款校验') {
     return '当前等待付款校验结果，暂不开放供应商侧确认动作。';
@@ -189,6 +200,12 @@ function buildSupplierPreparationHints(order) {
     hints.push('当前命中零付款例外，仍需等待后续付款补录与执行推进。');
   } else {
     hints.push('当前已开放首批附件回传，可登记盖章发货指令单或供应商回单。');
+  }
+  if (order.status === '待供应商确认') {
+    hints.push('当前可提交单笔发货确认；建议先完成附件留痕，再推进确认。');
+  }
+  if (order.status === '供应商已确认') {
+    hints.push('供应商发货确认已提交，后续等待付款校验和执行链继续推进。');
   }
   if (Array.isArray(order.attachments) && order.attachments.length) {
     hints.push(`当前已登记附件 ${order.attachments.length} 份，可继续补充回单留痕。`);

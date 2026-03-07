@@ -32,3 +32,20 @@ test('发货准备提示会反映附件首批已开放与已登记数量', () =>
   assert.match(hints[2], /首批附件回传/);
   assert.match(hints[3], /当前已登记附件 2 份/);
 });
+
+test('待供应商确认与供应商已确认会输出对应中文提示', () => {
+  const pendingHints = buildSupplierPreparationHints({
+    source_sales_order_no: 'SO-002',
+    status: '待供应商确认',
+    zero_pay_exception_flag: false,
+    attachments: [],
+  });
+  const confirmedHints = buildSupplierPreparationHints({
+    source_sales_order_no: 'SO-003',
+    status: '供应商已确认',
+    zero_pay_exception_flag: true,
+    attachments: [],
+  });
+  assert.match(pendingHints[3], /建议先完成附件留痕/);
+  assert.match(confirmedHints[3], /等待付款校验/);
+});

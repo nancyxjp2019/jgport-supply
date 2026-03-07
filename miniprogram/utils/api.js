@@ -1,5 +1,6 @@
 const { getRuntimeMode } = require('../config/env');
 const {
+  confirmDemoSupplierPurchaseOrderDelivery,
   createDemoSupplierPurchaseOrderAttachment,
   createDemoSalesOrder,
   getDemoSupplierPurchaseOrderDetail,
@@ -174,6 +175,21 @@ async function getSupplierPurchaseOrderDetail(orderId) {
   });
 }
 
+async function confirmSupplierPurchaseOrderDelivery(orderId, comment) {
+  if (getRuntimeMode() === 'demo') {
+    await sleep(120);
+    return {
+      data: confirmDemoSupplierPurchaseOrderDelivery(orderId, comment),
+      statusCode: 200,
+    };
+  }
+  return request({
+    url: `/supplier/purchase-orders/${orderId}/confirm-delivery`,
+    method: 'POST',
+    data: { comment },
+  });
+}
+
 async function listSupplierPurchaseOrderAttachments(orderId) {
   if (getRuntimeMode() === 'demo') {
     await sleep(120);
@@ -285,6 +301,7 @@ async function completeManualOutbound(payload) {
 module.exports = {
   completeManualOutbound,
   completeWarehouseOutbound,
+  confirmSupplierPurchaseOrderDelivery,
   createSupplierPurchaseOrderAttachment,
   createSalesOrderDraft,
   getAvailableSalesContracts,

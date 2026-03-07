@@ -86,7 +86,7 @@ test('供应商消息会基于真实采购订单生成入口', () => {
         id: 301,
         order_no: 'PO-001',
         source_sales_order_no: 'SO-001',
-        status: '已创建',
+        status: '待供应商确认',
         created_at: '2026-03-06T10:00:00Z',
       },
     ],

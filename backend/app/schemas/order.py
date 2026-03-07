@@ -160,8 +160,14 @@ class SupplierPurchaseOrderResponse(BaseModel):
     payable_amount: Decimal
     status: str
     zero_pay_exception_flag: bool
+    supplier_confirm_comment: str | None = None
+    supplier_confirmed_at: datetime | None = None
     message: str
     created_at: datetime | None = None
+
+
+class SupplierPurchaseOrderConfirmDeliveryRequest(BaseModel):
+    comment: str = Field(min_length=1, max_length=256, description="发货确认说明")
 
 
 class SupplierPurchaseOrderAttachmentCreateRequest(BaseModel):

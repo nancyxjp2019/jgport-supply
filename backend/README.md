@@ -15,6 +15,7 @@
   - `0009_add_m6_contract_close`（M6：合同关闭字段、手工关闭差异记录）
   - `0010_add_m7_reports`（M7：仪表盘、看板、轻量报表快照）
   - `0011_add_m8_wechat_auth`（M8-06：小程序微信登录绑定表）
+  - `0012_m8_supplier_confirm`（M8-14：供应商发货确认留痕字段）
 
 ## 2. 目录说明
 - `app/main.py`：应用入口
@@ -95,6 +96,7 @@
 - `POST /api/v1/sales-orders/{id}/ops-approve` 仅允许 `operations/admin + operator_company + admin_web`。
 - `POST /api/v1/sales-orders/{id}/finance-approve` 仅允许 `finance/admin + operator_company + admin_web`。
 - `GET /api/v1/purchase-orders/{id}` 允许 `operations/finance/admin + operator_company + admin_web`。
+- `POST /api/v1/supplier/purchase-orders/{id}/confirm-delivery` 仅允许 `supplier + supplier_company + miniprogram`，且仅可确认本公司名下、状态为 `待供应商确认` 的采购订单。
 - `POST /api/v1/payment-docs/supplement` 仅允许 `finance/admin + operator_company + admin_web`。
 - `POST /api/v1/receipt-docs/supplement` 仅允许 `finance/admin + operator_company + admin_web`。
 - `POST /api/v1/payment-docs/{id}/confirm` 仅允许 `finance/admin + operator_company + admin_web`。

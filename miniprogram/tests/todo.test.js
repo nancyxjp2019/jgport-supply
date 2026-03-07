@@ -72,7 +72,7 @@ test('供应商待办摘要与列表基于真实采购订单生成', () => {
       id: 1,
       order_no: 'PO-1',
       source_sales_order_no: 'SO-1',
-      status: '已创建',
+      status: '待供应商确认',
       oil_product_id: 'OIL-92',
       qty_ordered: '10.000',
       payable_amount: '8000.12',
@@ -83,7 +83,7 @@ test('供应商待办摘要与列表基于真实采购订单生成', () => {
       id: 2,
       order_no: 'PO-2',
       source_sales_order_no: 'SO-2',
-      status: '可继续执行',
+      status: '供应商已确认',
       oil_product_id: 'OIL-95',
       qty_ordered: '8.000',
       payable_amount: '0.00',
@@ -96,7 +96,8 @@ test('供应商待办摘要与列表基于真实采购订单生成', () => {
   assert.equal(cards[0].value, 1);
   assert.equal(cards[1].value, 1);
   assert.equal(cards[2].value, 1);
+  assert.equal(cards[3].value, 0);
   assert.equal(items[0].orderNo, 'PO-1');
-  assert.equal(items[0].status, '已创建');
+  assert.equal(items[0].status, '待供应商确认');
   assert.match(items[0].actionUrl, /supplier-purchase/);
 });

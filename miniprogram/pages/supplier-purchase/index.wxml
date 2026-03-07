@@ -1,7 +1,7 @@
 <view class="page-shell">
   <view class="hero-card supplier-hero-card">
     <view class="page-title">供应商采购进度</view>
-    <view class="page-subtitle">面向供应商角色的首批真实业务页。当前已开放采购订单进度查看、发货准备信息回看与首批附件回传。</view>
+    <view class="page-subtitle">面向供应商角色的首批真实业务页。当前已开放采购订单进度查看、发货准备信息回看、首批附件回传与单笔发货确认。</view>
     <view class="pill-row supplier-hero-meta">
       <view class="version-pill">首批真实进度</view>
       <view class="mode-pill">{{runtimeLabel}}</view>
@@ -103,7 +103,7 @@
 
     <view wx:elif="{{selectedOrder}}" class="panel-card detail-card">
       <view class="section-title">当前选中采购订单</view>
-      <view class="section-desc">当前已开放首批附件回传，仍不代表付款确认或发货审核已完成。</view>
+      <view class="section-desc">当前已开放首批附件回传与单笔发货确认，仍不代表付款确认或仓储已执行完成。</view>
       <view class="supplier-card__head detail-card__head">
         <view>
           <view class="supplier-card__title">{{selectedOrder.order_no}}</view>
@@ -136,12 +136,42 @@
           <view class="detail-row__label">创建时间</view>
           <view class="detail-row__value">{{selectedOrder.createdAtText}}</view>
         </view>
+        <view wx:if="{{selectedOrder.supplierConfirmedAtText}}" class="detail-row">
+          <view class="detail-row__label">确认时间</view>
+          <view class="detail-row__value">{{selectedOrder.supplierConfirmedAtText}}</view>
+        </view>
+        <view wx:if="{{selectedOrder.supplier_confirm_comment}}" class="detail-row">
+          <view class="detail-row__label">确认说明</view>
+          <view class="detail-row__value">{{selectedOrder.supplier_confirm_comment}}</view>
+        </view>
       </view>
       <view class="hint-card">
         <view class="section-title">发货准备提示</view>
         <view class="hint-list">
           <view wx:for="{{selectedOrder.preparationHints}}" wx:key="*this" class="hint-item">{{index + 1}}. {{item}}</view>
         </view>
+      </view>
+
+      <view class="hint-card confirm-card">
+        <view class="section-title">发货确认</view>
+        <view class="section-desc">仅当采购订单处于待供应商确认时，才可提交单笔发货确认。该动作不会替代付款确认与仓储执行。</view>
+        <view wx:if="{{selectedOrder.canConfirmDelivery}}" class="status-tip">建议先补齐附件留痕，再提交发货确认。</view>
+        <view wx:else class="status-tip">当前状态不可重复提交发货确认，如已确认请等待付款校验推进。</view>
+        <view class="form-field">
+          <view class="form-field__label">确认说明</view>
+          <input
+            class="form-field__input"
+            type="text"
+            maxlength="256"
+            placeholder="请输入中文确认说明，如 CODEX-TEST-已核对发货准备"
+            value="{{deliveryConfirmComment}}"
+            bindinput="onDeliveryConfirmCommentInput"
+          />
+        </view>
+        <view class="button-row hint-card__actions">
+          <button class="primary-btn" loading="{{deliveryConfirmSubmitting}}" disabled="{{!selectedOrder.canConfirmDelivery}}" bindtap="onConfirmDelivery">提交发货确认</button>
+        </view>
+        <view wx:if="{{deliveryConfirmErrorMessage}}" class="error-text">{{deliveryConfirmErrorMessage}}</view>
       </view>
 
       <view class="hint-card attachment-card">

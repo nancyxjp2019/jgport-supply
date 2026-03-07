@@ -1,5 +1,6 @@
 const { getRuntimeMode, getRuntimeModeLabel } = require('../../config/env');
 const {
+  confirmSupplierPurchaseOrderDelivery,
   createSupplierPurchaseOrderAttachment,
   getAccessProfile,
   getSupplierPurchaseOrderDetail,
@@ -41,6 +42,9 @@ function buildInitialState() {
     attachmentBizTagOptions: getSupplierAttachmentTagOptions(),
     attachmentBizTagIndex: 0,
     attachmentFilePath: '',
+    deliveryConfirmComment: '',
+    deliveryConfirmSubmitting: false,
+    deliveryConfirmErrorMessage: '',
     emptyText: '当前暂无可查看的采购订单。',
   };
 }
@@ -168,6 +172,12 @@ Page({
     this.setData({ attachmentFilePath: String(event.detail.value || '').trim() });
   },
 
+  onDeliveryConfirmCommentInput(event) {
+    this.setData({
+      deliveryConfirmComment: String(event.detail.value || '').trim(),
+    });
+  },
+
   onFillDemoAttachmentPath() {
     const selectedOrder = this.data.selectedOrder;
     const tag = this.data.attachmentBizTagOptions[this.data.attachmentBizTagIndex] || this.data.attachmentBizTagOptions[0];
@@ -210,11 +220,53 @@ Page({
     }
   },
 
+  async onConfirmDelivery() {
+    const selectedOrder = this.data.selectedOrder;
+    const comment = String(this.data.deliveryConfirmComment || '').trim();
+    if (!selectedOrder || !selectedOrder.id) {
+      wx.showToast({ title: '请先选择采购订单', icon: 'none' });
+      return;
+    }
+    if (!selectedOrder.canConfirmDelivery) {
+      wx.showToast({ title: '当前状态不可重复确认', icon: 'none' });
+      return;
+    }
+    if (!comment) {
+      wx.showToast({ title: '请填写发货确认说明', icon: 'none' });
+      return;
+    }
+    this.setData({
+      deliveryConfirmSubmitting: true,
+      deliveryConfirmErrorMessage: '',
+    });
+    try {
+      const response = await confirmSupplierPurchaseOrderDelivery(
+        selectedOrder.id,
+        comment,
+      );
+      wx.showToast({
+        title: response.data.message || '发货确认已提交',
+        icon: 'success',
+      });
+      this.setData({ deliveryConfirmComment: '' });
+      await this.loadPage();
+    } catch (error) {
+      this.setData({
+        deliveryConfirmErrorMessage:
+          error.message || '发货确认提交失败，请稍后重试',
+      });
+    } finally {
+      this.setData({ deliveryConfirmSubmitting: false });
+    }
+  },
+
   async _loadDetail(orderId) {
     this.setData({
       detailLoading: true,
       detailErrorMessage: '',
       attachmentErrorMessage: '',
+      deliveryConfirmErrorMessage: '',
+      deliveryConfirmComment: '',
       attachmentLoading: false,
       attachments: [],
     });
@@ -290,6 +342,10 @@ Page({
       qtyOrderedText: formatQty(item.qty_ordered),
       payableAmountText: formatMoney(item.payable_amount),
       createdAtText: formatDateTime(item.created_at),
+      supplierConfirmedAtText: item.supplier_confirmed_at
+        ? formatDateTime(item.supplier_confirmed_at)
+        : '',
+      canConfirmDelivery: item.status === '待供应商确认',
       primaryAttachmentTagLabel: resolveSupplierAttachmentTagLabel(
         resolvedAttachments.length ? resolvedAttachments[0].biz_tag : '',
       ),

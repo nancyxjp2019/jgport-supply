@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+  confirmDemoSupplierPurchaseOrderDelivery,
   createDemoSupplierPurchaseOrderAttachment,
   getDemoSupplierPurchaseOrderDetail,
   listDemoSupplierPurchaseOrderAttachments,
@@ -24,4 +25,11 @@ test('演示模式供应商附件可登记并加入摘要列表', () => {
   assert.equal(created.biz_tag, 'SUPPLIER_DELIVERY_RECEIPT');
   assert.equal(afterItems.length, beforeItems.length + 1);
   assert.equal(afterItems[0].file_path, 'CODEX-TEST-/demo-supplier-delivery-receipt-001.pdf');
+});
+
+test('演示模式供应商可提交单笔发货确认', () => {
+  const confirmed = confirmDemoSupplierPurchaseOrderDelivery(3001, 'CODEX-TEST-演示确认');
+  assert.equal(confirmed.status, '供应商已确认');
+  assert.equal(confirmed.supplier_confirm_comment, 'CODEX-TEST-演示确认');
+  assert.ok(confirmed.supplier_confirmed_at);
 });

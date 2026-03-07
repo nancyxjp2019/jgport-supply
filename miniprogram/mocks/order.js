@@ -69,6 +69,8 @@ const DEMO_PURCHASE_ORDERS = [
     payable_amount: '11800.12',
     status: '待供应商确认',
     zero_pay_exception_flag: false,
+    supplier_confirm_comment: null,
+    supplier_confirmed_at: null,
     created_at: '2026-03-06T10:00:00+08:00',
     message: '演示模式：供应商采购订单详情查询成功',
   },
@@ -82,8 +84,10 @@ const DEMO_PURCHASE_ORDERS = [
     oil_product_id: 'OIL-0',
     qty_ordered: '12.500',
     payable_amount: '0.00',
-    status: '可继续执行',
+    status: '供应商已确认',
     zero_pay_exception_flag: true,
+    supplier_confirm_comment: 'AUTO-TEST-供应商已完成发货确认',
+    supplier_confirmed_at: '2026-03-05T17:00:00+08:00',
     created_at: '2026-03-05T15:30:00+08:00',
     message: '演示模式：供应商采购订单详情查询成功',
   },
@@ -225,7 +229,27 @@ function createDemoSupplierPurchaseOrderAttachment(orderId, payload) {
   return { ...attachment };
 }
 
+function confirmDemoSupplierPurchaseOrderDelivery(orderId, comment) {
+  const order = DEMO_PURCHASE_ORDERS.find((item) => item.id === Number(orderId));
+  if (!order) {
+    throw new Error('当前采购订单不存在，请刷新后重试');
+  }
+  if (order.status !== '待供应商确认') {
+    throw new Error('当前采购订单状态不允许提交发货确认');
+  }
+  const normalizedComment = String(comment || '').trim();
+  if (!normalizedComment) {
+    throw new Error('发货确认说明不能为空');
+  }
+  order.status = '供应商已确认';
+  order.supplier_confirm_comment = normalizedComment;
+  order.supplier_confirmed_at = new Date().toISOString();
+  order.message = '演示模式：供应商发货确认已提交';
+  return { ...order };
+}
+
 module.exports = {
+  confirmDemoSupplierPurchaseOrderDelivery,
   createDemoSupplierPurchaseOrderAttachment,
   createDemoSalesOrder,
   getDemoSupplierPurchaseOrderDetail,

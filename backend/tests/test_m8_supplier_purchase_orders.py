@@ -58,6 +58,7 @@ def test_supplier_miniprogram_can_view_own_purchase_order_detail(auth_headers) -
     assert body["id"] == purchase_order_id
     assert body["supplier_id"] == SUPPLIER_COMPANY_ID
     assert body["source_sales_order_no"]
+    assert body["status"] == "待供应商确认"
     assert "downstream_tasks" not in body
     assert "idempotency_key" not in body
 
@@ -98,6 +99,99 @@ def test_non_supplier_cannot_access_supplier_purchase_orders(auth_headers) -> No
 
     assert response.status_code == 403
     assert response.json()["detail"] == "当前角色无权访问该接口"
+
+
+def test_supplier_can_confirm_delivery_for_own_purchase_order(auth_headers) -> None:
+    purchase_order_id = _create_purchase_order(
+        auth_headers, supplier_id=SUPPLIER_COMPANY_ID
+    )
+
+    response = client.post(
+        f"/api/v1/supplier/purchase-orders/{purchase_order_id}/confirm-delivery",
+        json={"comment": "CODEX-TEST-已核对发货准备并完成确认"},
+        headers=auth_headers(
+            user_id="CODEX-TEST-MINI-SUPPLIER-CONFIRM",
+            role_code="supplier",
+            company_id=SUPPLIER_COMPANY_ID,
+            company_type="supplier_company",
+            client_type="miniprogram",
+        ),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "供应商已确认"
+    assert body["supplier_confirm_comment"] == "CODEX-TEST-已核对发货准备并完成确认"
+    assert body["supplier_confirmed_at"] is not None
+
+
+def test_supplier_confirm_delivery_respects_company_scope(auth_headers) -> None:
+    purchase_order_id = _create_purchase_order(
+        auth_headers, supplier_id=SUPPLIER_COMPANY_ID
+    )
+
+    response = client.post(
+        f"/api/v1/supplier/purchase-orders/{purchase_order_id}/confirm-delivery",
+        json={"comment": "CODEX-TEST-跨公司确认阻断"},
+        headers=auth_headers(
+            user_id="CODEX-TEST-MINI-SUPPLIER-CONFIRM-BLOCK",
+            role_code="supplier",
+            company_id="CODEX-TEST-SUPPLIER-OTHER-COMPANY",
+            company_type="supplier_company",
+            client_type="miniprogram",
+        ),
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "当前供应商无权查看该采购订单"
+
+
+def test_supplier_confirm_delivery_blocks_invalid_status(auth_headers) -> None:
+    purchase_order_id = _create_purchase_order(
+        auth_headers, supplier_id=SUPPLIER_COMPANY_ID
+    )
+    headers = auth_headers(
+        user_id="CODEX-TEST-MINI-SUPPLIER-CONFIRM-STATUS",
+        role_code="supplier",
+        company_id=SUPPLIER_COMPANY_ID,
+        company_type="supplier_company",
+        client_type="miniprogram",
+    )
+    first_response = client.post(
+        f"/api/v1/supplier/purchase-orders/{purchase_order_id}/confirm-delivery",
+        json={"comment": "CODEX-TEST-首次确认"},
+        headers=headers,
+    )
+    second_response = client.post(
+        f"/api/v1/supplier/purchase-orders/{purchase_order_id}/confirm-delivery",
+        json={"comment": "CODEX-TEST-重复确认"},
+        headers=headers,
+    )
+
+    assert first_response.status_code == 200
+    assert second_response.status_code == 409
+    assert second_response.json()["detail"] == "当前采购订单状态不允许提交发货确认"
+
+
+def test_supplier_confirm_delivery_blocks_empty_comment(auth_headers) -> None:
+    purchase_order_id = _create_purchase_order(
+        auth_headers, supplier_id=SUPPLIER_COMPANY_ID
+    )
+
+    response = client.post(
+        f"/api/v1/supplier/purchase-orders/{purchase_order_id}/confirm-delivery",
+        json={"comment": "   "},
+        headers=auth_headers(
+            user_id="CODEX-TEST-MINI-SUPPLIER-CONFIRM-EMPTY",
+            role_code="supplier",
+            company_id=SUPPLIER_COMPANY_ID,
+            company_type="supplier_company",
+            client_type="miniprogram",
+        ),
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "发货确认说明不能为空"
 
 
 def test_supplier_can_upload_and_list_purchase_order_attachments(auth_headers) -> None:

@@ -98,6 +98,10 @@
   margin-top: 20rpx;
 }
 
+.confirm-card {
+  margin-top: 20rpx;
+}
+
 .form-field {
   margin-top: 18rpx;
   padding: 18rpx 20rpx;

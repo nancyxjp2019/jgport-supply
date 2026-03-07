@@ -15,6 +15,7 @@ from app.schemas.order import (
     PurchaseOrderResponse,
     PurchaseOrderListItemResponse,
     PurchaseOrderListResponse,
+    SupplierPurchaseOrderConfirmDeliveryRequest,
     SupplierPurchaseOrderAttachmentCreateRequest,
     SupplierPurchaseOrderAttachmentListItemResponse,
     SupplierPurchaseOrderAttachmentListResponse,
@@ -32,6 +33,7 @@ from app.schemas.order import (
 )
 from app.services.order_service import (
     OrderServiceError,
+    confirm_supplier_purchase_order_delivery,
     create_sales_order_draft,
     create_supplier_purchase_order_attachment,
     finance_approve_sales_order,
@@ -325,6 +327,38 @@ def get_supplier_purchase_order_detail(
     )
 
 
+@router.post(
+    "/supplier/purchase-orders/{purchase_order_id}/confirm-delivery",
+    response_model=SupplierPurchaseOrderResponse,
+)
+def confirm_supplier_purchase_order_delivery_route(
+    purchase_order_id: int,
+    payload: SupplierPurchaseOrderConfirmDeliveryRequest,
+    actor: AuthenticatedActor = Depends(supplier_purchase_order_reader_dependency),
+    db: Session = Depends(get_db),
+) -> SupplierPurchaseOrderResponse:
+    supplier_company_id = _resolve_supplier_purchase_order_scope(actor)
+    try:
+        result = confirm_supplier_purchase_order_delivery(
+            db,
+            purchase_order_id=purchase_order_id,
+            supplier_company_id=supplier_company_id,
+            operator_id=actor.user_id,
+            comment=payload.comment,
+        )
+        purchase_order = get_purchase_order_or_raise(
+            db,
+            purchase_order_id=result.purchase_order_id,
+            required_supplier_company_id=supplier_company_id,
+        )
+    except OrderServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    return _to_supplier_purchase_order_response(
+        purchase_order,
+        message=result.message,
+    )
+
+
 @router.get(
     "/supplier/purchase-orders/{purchase_order_id}/attachments",
     response_model=SupplierPurchaseOrderAttachmentListResponse,
@@ -605,6 +639,8 @@ def _to_supplier_purchase_order_response(
         payable_amount=purchase_order.payable_amount,
         status=purchase_order.status,
         zero_pay_exception_flag=purchase_order.zero_pay_exception_flag,
+        supplier_confirm_comment=purchase_order.supplier_confirm_comment,
+        supplier_confirmed_at=purchase_order.supplier_confirmed_at,
         message=message,
         created_at=purchase_order.created_at,
     )
