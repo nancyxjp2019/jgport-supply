@@ -22,13 +22,23 @@ CUSTOMER_COMPANY_ID = "CODEX-TEST-CUSTOMER-COMPANY"
 SUPPLIER_COMPANY_ID = "CODEX-TEST-SUPPLIER-COMPANY"
 
 
-def test_purchase_contract_approve_materializes_inbound_docs_per_item(auth_headers) -> None:
+def test_purchase_contract_approve_materializes_inbound_docs_per_item(
+    auth_headers,
+) -> None:
     contract_id = _create_effective_purchase_contract(
         auth_headers,
         supplier_id=SUPPLIER_COMPANY_ID,
         items=[
-            {"oil_product_id": "OIL-92", "qty_signed": Decimal("100.000"), "unit_price": Decimal("6300.80")},
-            {"oil_product_id": "OIL-95", "qty_signed": Decimal("80.000"), "unit_price": Decimal("6400.10")},
+            {
+                "oil_product_id": "OIL-92",
+                "qty_signed": Decimal("100.000"),
+                "unit_price": Decimal("6300.80"),
+            },
+            {
+                "oil_product_id": "OIL-95",
+                "qty_signed": Decimal("80.000"),
+                "unit_price": Decimal("6400.10"),
+            },
         ],
     )
 
@@ -39,16 +49,30 @@ def test_purchase_contract_approve_materializes_inbound_docs_per_item(auth_heade
     assert {doc.status for doc in inbound_docs} == {"草稿"}
 
     tasks = _query_contract_tasks(contract_id=contract_id)
-    assert {task.status for task in tasks if task.target_doc_type == "inbound_doc"} == {"已生成"}
-    assert _relation_exists("contract", contract_id, "inbound_doc", inbound_docs[0].id, "GENERATES")
-    assert _relation_exists("contract", contract_id, "inbound_doc", inbound_docs[1].id, "GENERATES")
+    assert {task.status for task in tasks if task.target_doc_type == "inbound_doc"} == {
+        "已生成"
+    }
+    assert _relation_exists(
+        "contract", contract_id, "inbound_doc", inbound_docs[0].id, "GENERATES"
+    )
+    assert _relation_exists(
+        "contract", contract_id, "inbound_doc", inbound_docs[1].id, "GENERATES"
+    )
 
 
-def test_submit_inbound_doc_updates_qty_in_acc_and_marks_contract_qty_done(auth_headers) -> None:
+def test_submit_inbound_doc_updates_qty_in_acc_and_marks_contract_qty_done(
+    auth_headers,
+) -> None:
     contract_id = _create_effective_purchase_contract(
         auth_headers,
         supplier_id=SUPPLIER_COMPANY_ID,
-        items=[{"oil_product_id": "OIL-92", "qty_signed": Decimal("100.000"), "unit_price": Decimal("6300.80")}],
+        items=[
+            {
+                "oil_product_id": "OIL-92",
+                "qty_signed": Decimal("100.000"),
+                "unit_price": Decimal("6300.80"),
+            }
+        ],
     )
     inbound_doc = _query_inbound_docs(contract_id=contract_id)[0]
 
@@ -63,17 +87,27 @@ def test_submit_inbound_doc_updates_qty_in_acc_and_marks_contract_qty_done(auth_
     contract = _query_contract(contract_id)
     assert contract is not None
     assert contract.status == "数量履约完成"
-    contract_item = _query_contract_item(contract_id=contract_id, oil_product_id="OIL-92")
+    contract_item = _query_contract_item(
+        contract_id=contract_id, oil_product_id="OIL-92"
+    )
     assert contract_item is not None
     assert contract_item.qty_in_acc == Decimal("100.000")
-    assert _query_qty_effects("inbound_doc", inbound_doc.id, "IN") == [Decimal("100.000")]
+    assert _query_qty_effects("inbound_doc", inbound_doc.id, "IN") == [
+        Decimal("100.000")
+    ]
 
 
 def test_submit_inbound_doc_blocks_threshold_overflow(auth_headers) -> None:
     contract_id = _create_effective_purchase_contract(
         auth_headers,
         supplier_id=SUPPLIER_COMPANY_ID,
-        items=[{"oil_product_id": "OIL-92", "qty_signed": Decimal("100.000"), "unit_price": Decimal("6300.80")}],
+        items=[
+            {
+                "oil_product_id": "OIL-92",
+                "qty_signed": Decimal("100.000"),
+                "unit_price": Decimal("6300.80"),
+            }
+        ],
     )
     inbound_doc = _query_inbound_docs(contract_id=contract_id)[0]
 
@@ -85,17 +119,27 @@ def test_submit_inbound_doc_blocks_threshold_overflow(auth_headers) -> None:
 
     assert response.status_code == 200
     assert response.json()["status"] == "校验失败"
-    contract_item = _query_contract_item(contract_id=contract_id, oil_product_id="OIL-92")
+    contract_item = _query_contract_item(
+        contract_id=contract_id, oil_product_id="OIL-92"
+    )
     assert contract_item is not None
     assert contract_item.qty_in_acc == Decimal("0.000")
 
 
 def test_warehouse_confirm_creates_outbound_doc_pending_submit(auth_headers) -> None:
-    sales_contract_id = _create_effective_sales_contract(auth_headers, qty_signed=Decimal("100.000"))
+    sales_contract_id = _create_effective_sales_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
     purchase_contract_id = _create_effective_purchase_contract(
         auth_headers,
         supplier_id=SUPPLIER_COMPANY_ID,
-        items=[{"oil_product_id": "OIL-92", "qty_signed": Decimal("100.000"), "unit_price": Decimal("6300.80")}],
+        items=[
+            {
+                "oil_product_id": "OIL-92",
+                "qty_signed": Decimal("100.000"),
+                "unit_price": Decimal("6300.80"),
+            }
+        ],
     )
     sales_order_id = _create_sales_order_derived(
         auth_headers,
@@ -113,7 +157,9 @@ def test_warehouse_confirm_creates_outbound_doc_pending_submit(auth_headers) -> 
             "actual_qty": 10,
             "warehouse_id": "CODEX-TEST-WH-001",
         },
-        headers=_warehouse_headers(auth_headers, "CODEX-TEST-WAREHOUSE-OUTBOUND-CREATE"),
+        headers=_warehouse_headers(
+            auth_headers, "CODEX-TEST-WAREHOUSE-OUTBOUND-CREATE"
+        ),
     )
 
     assert response.status_code == 200
@@ -122,17 +168,23 @@ def test_warehouse_confirm_creates_outbound_doc_pending_submit(auth_headers) -> 
     outbound_doc = _query_outbound_docs(sales_order_id=sales_order_id)[0]
     assert outbound_doc.source_type == "SYSTEM"
     assert outbound_doc.source_ticket_no == "CODEX-TEST-SYS-TICKET-001"
-    assert _relation_exists("sales_order", sales_order_id, "outbound_doc", outbound_doc.id, "GENERATES")
+    assert _relation_exists(
+        "sales_order", sales_order_id, "outbound_doc", outbound_doc.id, "GENERATES"
+    )
 
 
 def test_manual_outbound_requires_matching_contract_order_and_oil(auth_headers) -> None:
-    sales_contract_id_a = _create_effective_sales_contract(auth_headers, qty_signed=Decimal("100.000"))
+    sales_contract_id_a = _create_effective_sales_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
     sales_contract_id_b = _create_effective_sales_contract(
         auth_headers,
         qty_signed=Decimal("100.000"),
         customer_id="CODEX-TEST-CUSTOMER-COMPANY-B",
     )
-    sales_order_id = _create_sales_order_draft(auth_headers, sales_contract_id=sales_contract_id_a, qty=Decimal("50.000"))
+    sales_order_id = _create_sales_order_draft(
+        auth_headers, sales_contract_id=sales_contract_id_a, qty=Decimal("50.000")
+    )
 
     response = client.post(
         "/api/v1/outbound-docs/manual",
@@ -157,8 +209,12 @@ def test_manual_outbound_requires_matching_contract_order_and_oil(auth_headers) 
     assert response.json()["detail"] == "销售合同与销售订单不匹配，禁止生成出库单"
 
 
-def test_warehouse_confirm_requires_sales_order_ready_for_execution(auth_headers) -> None:
-    sales_contract_id = _create_effective_sales_contract(auth_headers, qty_signed=Decimal("100.000"))
+def test_warehouse_confirm_requires_sales_order_ready_for_execution(
+    auth_headers,
+) -> None:
+    sales_contract_id = _create_effective_sales_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
     sales_order_id = _create_sales_order_draft(
         auth_headers,
         sales_contract_id=sales_contract_id,
@@ -182,7 +238,9 @@ def test_warehouse_confirm_requires_sales_order_ready_for_execution(auth_headers
 
 
 def test_manual_outbound_requires_sales_order_ready_for_execution(auth_headers) -> None:
-    sales_contract_id = _create_effective_sales_contract(auth_headers, qty_signed=Decimal("100.000"))
+    sales_contract_id = _create_effective_sales_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
     sales_order_id = _create_sales_order_draft(
         auth_headers,
         sales_contract_id=sales_contract_id,
@@ -213,11 +271,19 @@ def test_manual_outbound_requires_sales_order_ready_for_execution(auth_headers) 
 
 
 def test_submit_outbound_doc_updates_qty_out_acc(auth_headers) -> None:
-    sales_contract_id = _create_effective_sales_contract(auth_headers, qty_signed=Decimal("100.000"))
+    sales_contract_id = _create_effective_sales_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
     purchase_contract_id = _create_effective_purchase_contract(
         auth_headers,
         supplier_id=SUPPLIER_COMPANY_ID,
-        items=[{"oil_product_id": "OIL-92", "qty_signed": Decimal("100.000"), "unit_price": Decimal("6300.80")}],
+        items=[
+            {
+                "oil_product_id": "OIL-92",
+                "qty_signed": Decimal("100.000"),
+                "unit_price": Decimal("6300.80"),
+            }
+        ],
     )
     sales_order_id = _create_sales_order_derived(
         auth_headers,
@@ -236,23 +302,37 @@ def test_submit_outbound_doc_updates_qty_out_acc(auth_headers) -> None:
     submit_response = client.post(
         f"/api/v1/outbound-docs/{outbound_doc_id}/submit",
         json={"actual_qty": 60, "warehouse_id": "CODEX-TEST-WH-001"},
-        headers=_warehouse_headers(auth_headers, "CODEX-TEST-WAREHOUSE-OUTBOUND-SUBMIT"),
+        headers=_warehouse_headers(
+            auth_headers, "CODEX-TEST-WAREHOUSE-OUTBOUND-SUBMIT"
+        ),
     )
 
     assert submit_response.status_code == 200
     assert submit_response.json()["status"] == "已过账"
-    contract_item = _query_contract_item(contract_id=sales_contract_id, oil_product_id="OIL-92")
+    contract_item = _query_contract_item(
+        contract_id=sales_contract_id, oil_product_id="OIL-92"
+    )
     assert contract_item is not None
     assert contract_item.qty_out_acc == Decimal("60.000")
-    assert _query_qty_effects("outbound_doc", outbound_doc_id, "OUT") == [Decimal("60.000")]
+    assert _query_qty_effects("outbound_doc", outbound_doc_id, "OUT") == [
+        Decimal("60.000")
+    ]
 
 
 def test_submit_outbound_doc_blocks_threshold_overflow(auth_headers) -> None:
-    sales_contract_id = _create_effective_sales_contract(auth_headers, qty_signed=Decimal("100.000"))
+    sales_contract_id = _create_effective_sales_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
     purchase_contract_id = _create_effective_purchase_contract(
         auth_headers,
         supplier_id=SUPPLIER_COMPANY_ID,
-        items=[{"oil_product_id": "OIL-92", "qty_signed": Decimal("100.000"), "unit_price": Decimal("6300.80")}],
+        items=[
+            {
+                "oil_product_id": "OIL-92",
+                "qty_signed": Decimal("100.000"),
+                "unit_price": Decimal("6300.80"),
+            }
+        ],
     )
     sales_order_id = _create_sales_order_derived(
         auth_headers,
@@ -276,17 +356,27 @@ def test_submit_outbound_doc_blocks_threshold_overflow(auth_headers) -> None:
 
     assert submit_response.status_code == 200
     assert submit_response.json()["status"] == "校验失败"
-    contract_item = _query_contract_item(contract_id=sales_contract_id, oil_product_id="OIL-92")
+    contract_item = _query_contract_item(
+        contract_id=sales_contract_id, oil_product_id="OIL-92"
+    )
     assert contract_item is not None
     assert contract_item.qty_out_acc == Decimal("0.000")
 
 
 def test_contract_qty_done_blocks_new_outbound_submit(auth_headers) -> None:
-    sales_contract_id = _create_effective_sales_contract(auth_headers, qty_signed=Decimal("100.000"))
+    sales_contract_id = _create_effective_sales_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
     purchase_contract_id = _create_effective_purchase_contract(
         auth_headers,
         supplier_id=SUPPLIER_COMPANY_ID,
-        items=[{"oil_product_id": "OIL-92", "qty_signed": Decimal("100.000"), "unit_price": Decimal("6300.80")}],
+        items=[
+            {
+                "oil_product_id": "OIL-92",
+                "qty_signed": Decimal("100.000"),
+                "unit_price": Decimal("6300.80"),
+            }
+        ],
     )
     sales_order_id = _create_sales_order_derived(
         auth_headers,
@@ -331,11 +421,19 @@ def test_contract_qty_done_blocks_new_outbound_submit(auth_headers) -> None:
 
 
 def test_repeated_outbound_submit_is_idempotent(auth_headers) -> None:
-    sales_contract_id = _create_effective_sales_contract(auth_headers, qty_signed=Decimal("100.000"))
+    sales_contract_id = _create_effective_sales_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
     purchase_contract_id = _create_effective_purchase_contract(
         auth_headers,
         supplier_id=SUPPLIER_COMPANY_ID,
-        items=[{"oil_product_id": "OIL-92", "qty_signed": Decimal("100.000"), "unit_price": Decimal("6300.80")}],
+        items=[
+            {
+                "oil_product_id": "OIL-92",
+                "qty_signed": Decimal("100.000"),
+                "unit_price": Decimal("6300.80"),
+            }
+        ],
     )
     sales_order_id = _create_sales_order_derived(
         auth_headers,
@@ -365,7 +463,118 @@ def test_repeated_outbound_submit_is_idempotent(auth_headers) -> None:
     assert first_response.status_code == 200
     assert second_response.status_code == 200
     assert second_response.json()["message"] == "出库单已过账，无需重复提交"
-    assert _query_qty_effects("outbound_doc", outbound_doc_id, "OUT") == [Decimal("20.000")]
+    assert _query_qty_effects("outbound_doc", outbound_doc_id, "OUT") == [
+        Decimal("20.000")
+    ]
+
+
+def test_operations_can_list_and_query_inbound_doc_detail(auth_headers) -> None:
+    contract_id = _create_effective_purchase_contract(
+        auth_headers,
+        supplier_id=SUPPLIER_COMPANY_ID,
+        items=[
+            {
+                "oil_product_id": "OIL-92",
+                "qty_signed": Decimal("50.000"),
+                "unit_price": Decimal("6300.80"),
+            }
+        ],
+    )
+    inbound_doc = _query_inbound_docs(contract_id=contract_id)[0]
+
+    list_response = client.get(
+        "/api/v1/inbound-docs",
+        params={"status": "草稿", "source_type": "AUTO_CONTRACT", "limit": 50},
+        headers=auth_headers(
+            user_id="CODEX-TEST-M8-INV-LIST-INB",
+            role_code="operations",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+    assert list_response.status_code == 200
+    list_body = list_response.json()
+    assert list_body["total"] >= 1
+    assert any(item["id"] == inbound_doc.id for item in list_body["items"])
+
+    detail_response = client.get(
+        f"/api/v1/inbound-docs/{inbound_doc.id}",
+        headers=auth_headers(
+            user_id="CODEX-TEST-M8-INV-DETAIL-INB",
+            role_code="operations",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+    assert detail_response.status_code == 200
+    detail_body = detail_response.json()
+    assert detail_body["id"] == inbound_doc.id
+    assert detail_body["doc_no"] == inbound_doc.doc_no
+    assert detail_body["status"] == "草稿"
+
+
+def test_operations_can_list_and_query_outbound_doc_detail(auth_headers) -> None:
+    sales_contract_id = _create_effective_sales_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
+    purchase_contract_id = _create_effective_purchase_contract(
+        auth_headers,
+        supplier_id=SUPPLIER_COMPANY_ID,
+        items=[
+            {
+                "oil_product_id": "OIL-92",
+                "qty_signed": Decimal("100.000"),
+                "unit_price": Decimal("6300.80"),
+            }
+        ],
+    )
+    sales_order_id = _create_sales_order_derived(
+        auth_headers,
+        sales_contract_id=sales_contract_id,
+        purchase_contract_id=purchase_contract_id,
+        qty=Decimal("100.000"),
+    )
+    outbound_doc_id = _create_system_outbound_doc(
+        auth_headers,
+        contract_id=sales_contract_id,
+        sales_order_id=sales_order_id,
+        source_ticket_no="CODEX-TEST-SYS-TICKET-LIST-001",
+        actual_qty=Decimal("30.000"),
+    )
+
+    list_response = client.get(
+        "/api/v1/outbound-docs",
+        params={"status": "待提交", "source_type": "SYSTEM", "limit": 50},
+        headers=auth_headers(
+            user_id="CODEX-TEST-M8-INV-LIST-OUT",
+            role_code="operations",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+    assert list_response.status_code == 200
+    list_body = list_response.json()
+    assert list_body["total"] >= 1
+    assert any(item["id"] == outbound_doc_id for item in list_body["items"])
+
+    detail_response = client.get(
+        f"/api/v1/outbound-docs/{outbound_doc_id}",
+        headers=auth_headers(
+            user_id="CODEX-TEST-M8-INV-DETAIL-OUT",
+            role_code="operations",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="admin_web",
+        ),
+    )
+    assert detail_response.status_code == 200
+    detail_body = detail_response.json()
+    assert detail_body["id"] == outbound_doc_id
+    assert detail_body["status"] == "待提交"
+    assert detail_body["source_type"] == "SYSTEM"
 
 
 def _query_inbound_docs(*, contract_id: int | None = None) -> list[InboundDoc]:
@@ -376,7 +585,9 @@ def _query_inbound_docs(*, contract_id: int | None = None) -> list[InboundDoc]:
         return list(db.scalars(statement.order_by(InboundDoc.id)).all())
 
 
-def _query_outbound_docs(*, sales_order_id: int | None = None, contract_id: int | None = None) -> list[OutboundDoc]:
+def _query_outbound_docs(
+    *, sales_order_id: int | None = None, contract_id: int | None = None
+) -> list[OutboundDoc]:
     with SessionLocal() as db:
         statement = select(OutboundDoc)
         if sales_order_id is not None:
@@ -391,7 +602,9 @@ def _query_contract(contract_id: int) -> Contract | None:
         return db.get(Contract, contract_id)
 
 
-def _query_contract_item(*, contract_id: int, oil_product_id: str) -> ContractItem | None:
+def _query_contract_item(
+    *, contract_id: int, oil_product_id: str
+) -> ContractItem | None:
     with SessionLocal() as db:
         statement = select(ContractItem).where(
             ContractItem.contract_id == contract_id,
@@ -442,7 +655,9 @@ def _relation_exists(
         return db.scalar(statement) is not None
 
 
-def _create_effective_purchase_contract(auth_headers, *, supplier_id: str, items: list[dict]) -> int:
+def _create_effective_purchase_contract(
+    auth_headers, *, supplier_id: str, items: list[dict]
+) -> int:
     create_response = client.post(
         "/api/v1/contracts/purchase",
         json={
@@ -496,7 +711,13 @@ def _create_effective_sales_contract(
         json={
             "contract_no": f"CODEX-TEST-M5-SALES-{uuid4().hex[:10]}",
             "customer_id": customer_id,
-            "items": [{"oil_product_id": "OIL-92", "qty_signed": float(qty_signed), "unit_price": float(unit_price)}],
+            "items": [
+                {
+                    "oil_product_id": "OIL-92",
+                    "qty_signed": float(qty_signed),
+                    "unit_price": float(unit_price),
+                }
+            ],
         },
         headers=auth_headers(
             user_id="CODEX-TEST-M5-FINANCE-CREATE-SALES-CONTRACT",
@@ -525,7 +746,9 @@ def _create_effective_sales_contract(
     return contract_id
 
 
-def _create_sales_order_draft(auth_headers, *, sales_contract_id: int, qty: Decimal) -> int:
+def _create_sales_order_draft(
+    auth_headers, *, sales_contract_id: int, qty: Decimal
+) -> int:
     response = client.post(
         "/api/v1/sales-orders",
         json={
@@ -555,7 +778,9 @@ def _create_sales_order_derived(
     actual_receipt_amount: Decimal = Decimal("12000.34"),
     actual_pay_amount: Decimal = Decimal("11800.12"),
 ) -> int:
-    sales_order_id = _create_sales_order_draft(auth_headers, sales_contract_id=sales_contract_id, qty=qty)
+    sales_order_id = _create_sales_order_draft(
+        auth_headers, sales_contract_id=sales_contract_id, qty=qty
+    )
 
     submit_response = client.post(
         f"/api/v1/sales-orders/{sales_order_id}/submit",
@@ -621,7 +846,9 @@ def _create_system_outbound_doc(
             "actual_qty": float(actual_qty),
             "warehouse_id": "CODEX-TEST-WH-001",
         },
-        headers=_warehouse_headers(auth_headers, f"CODEX-TEST-WAREHOUSE-{uuid4().hex[:8]}"),
+        headers=_warehouse_headers(
+            auth_headers, f"CODEX-TEST-WAREHOUSE-{uuid4().hex[:8]}"
+        ),
     )
     assert response.status_code == 200
     return response.json()["id"]

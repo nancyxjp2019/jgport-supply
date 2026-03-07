@@ -4,7 +4,7 @@
 - 文档状态：`已冻结`
 - 目标：冻结实现口径，形成可开发规格，作为阶段C模块开发唯一输入。
 - 上游输入：
-  - `docs/需求方案.md`（当前规则 `1~47` 与“业务目标/角色权限”基线）
+  - `docs/需求方案.md`（当前规则 `1~49` 与“业务目标/角色权限”基线）
   - `docs/V6阶段A-流程图状态机与UI原型清单.md`
 - 下游输出：阶段C模块任务拆分、接口开发、联调与测试用例。
 
@@ -174,6 +174,10 @@ purchase_payment_net =
 
 | 接口 | 方法 | 关键请求字段 | 关键校验 | 关键响应 |
 |---|---|---|---|---|
+| `/inbound-docs` | `GET` | `status?`,`source_type?`,`limit?` | 仅 `operations/finance/admin + operator_company + admin_web` 可查询 | 入库单列表（按创建时间倒序） |
+| `/inbound-docs/{id}` | `GET` | - | 仅 `operations/finance/admin + operator_company + admin_web` 可查询 | 入库单详情（含状态、数量、来源） |
+| `/outbound-docs` | `GET` | `status?`,`source_type?`,`limit?` | 仅 `operations/finance/admin + operator_company + admin_web` 可查询 | 出库单列表（按创建时间倒序） |
+| `/outbound-docs/{id}` | `GET` | - | 仅 `operations/finance/admin + operator_company + admin_web` 可查询 | 出库单详情（含来源回执字段） |
 | `/inbound-docs/{id}/submit` | `POST` | `actual_qty`,`warehouse_id` | 超量阈值校验；合同数量履约完成阻断；失败转`校验失败` | `status` |
 | `/outbound-docs/{id}/submit` | `POST` | `actual_qty`,`warehouse_id` | 超量阈值校验；合同数量履约完成阻断；失败转`校验失败` | `status` |
 | `/outbound-docs/warehouse-confirm` | `POST` | `contract_id`,`sales_order_id`,`source_ticket_no`,`actual_qty`,`warehouse_id` | 必须绑定销售合同+销售订单；销售订单状态必须为`已衍生采购订单/执行中`；`source_ticket_no`参与幂等去重 | `outbound_doc_id`,`status=待提交` |

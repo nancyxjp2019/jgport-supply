@@ -64,6 +64,16 @@ const router = createRouter({
             summary: '收款单与付款单列表、补录、确认与凭证路径回看',
           },
         },
+        {
+          path: '/inventory',
+          name: 'inventory',
+          component: () => import('@/views/inventory/InventoryView.vue'),
+          meta: {
+            requiresAuth: true,
+            title: '库存执行跟踪台',
+            summary: '入库单与出库单追踪、校验失败回看与执行异常提示',
+          },
+        },
       ],
     },
   ],

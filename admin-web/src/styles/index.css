@@ -545,6 +545,117 @@ body::before {
   flex-wrap: wrap;
 }
 
+.inventory-page {
+  gap: 18px;
+}
+
+.inventory-filter-card,
+.inventory-list-card,
+.inventory-detail-card {
+  padding: 22px;
+}
+
+.inventory-filter-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.inventory-filter-row h3 {
+  margin: 0 0 8px;
+}
+
+.inventory-filter-row p {
+  margin: 0;
+  color: var(--ink-regular);
+}
+
+.inventory-filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.inventory-filter-select {
+  width: 180px;
+}
+
+.inventory-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.inventory-list-card .el-table {
+  margin-top: 12px;
+}
+
+.inventory-detail-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.inventory-detail-grid .detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(31, 95, 91, 0.06);
+}
+
+.inventory-detail-grid .detail-row span {
+  color: var(--ink-regular);
+}
+
+.inventory-detail-grid .detail-row strong {
+  text-align: right;
+}
+
+.inventory-alert-panel {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+}
+
+.inventory-alert-title {
+  margin: 0 0 6px;
+  font-weight: 700;
+}
+
+.inventory-alert-panel p {
+  margin: 0;
+}
+
+.inventory-alert-panel.is-info {
+  background: rgba(44, 108, 131, 0.12);
+  border-color: rgba(44, 108, 131, 0.24);
+}
+
+.inventory-alert-panel.is-warning {
+  background: rgba(196, 122, 44, 0.14);
+  border-color: rgba(196, 122, 44, 0.3);
+}
+
+.inventory-alert-panel.is-danger {
+  background: rgba(197, 59, 28, 0.14);
+  border-color: rgba(197, 59, 28, 0.28);
+}
+
+.inventory-alert-panel.is-success {
+  background: rgba(31, 95, 91, 0.14);
+  border-color: rgba(31, 95, 91, 0.28);
+}
+
+.inventory-alert-panel.is-neutral {
+  background: rgba(31, 95, 91, 0.08);
+  border-color: rgba(31, 95, 91, 0.2);
+}
+
 .signal-card--warning {
   background: linear-gradient(145deg, rgba(196, 122, 44, 0.16), rgba(255, 251, 244, 0.94));
 }
@@ -704,6 +815,10 @@ body::before {
   .funds-main-grid {
     grid-template-columns: 1fr;
   }
+
+  .inventory-main-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 960px) {
@@ -742,6 +857,10 @@ body::before {
   }
 
   .funds-filter-row {
+    flex-direction: column;
+  }
+
+  .inventory-filter-row {
     flex-direction: column;
   }
 }
