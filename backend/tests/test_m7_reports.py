@@ -14,7 +14,10 @@ from app.api.routers import reports as reports_router
 from app.core.auth_actor import AuthenticatedActor
 from app.db.session import SessionLocal
 from app.main import app
+from app.models.business_audit_log import BusinessAuditLog
 from app.models.contract import Contract
+from app.models.contract_item import ContractItem
+from app.models.contract_qty_effect import ContractQtyEffect
 from app.models.inbound_doc import InboundDoc
 from app.models.outbound_doc import OutboundDoc
 from app.models.payment_doc import PaymentDoc
@@ -95,6 +98,7 @@ def test_dashboard_summary_matches_current_database_formula_and_persists_snapsho
         actual_qty=Decimal("100.000"),
     )
     _submit_outbound_doc(auth_headers, outbound_doc_id, Decimal("100.000"))
+    _clear_daily_scan_audit_logs()
 
     response = client.get(
         "/api/v1/dashboard/summary",
@@ -214,6 +218,31 @@ def test_board_tasks_returns_counts_and_contains_current_actionable_items(
     )
     _submit_outbound_doc(auth_headers, qty_done_outbound_doc_id, Decimal("100.000"))
 
+    stagnant_sales_contract_id = _create_effective_sales_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
+    stagnant_purchase_contract_id = _create_effective_purchase_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
+    stagnant_sales_order_id, _ = _create_sales_order_derived(
+        auth_headers,
+        sales_contract_id=stagnant_sales_contract_id,
+        purchase_contract_id=stagnant_purchase_contract_id,
+        qty=Decimal("50.000"),
+        actual_receipt_amount=Decimal("0.00"),
+        actual_pay_amount=Decimal("0.00"),
+    )
+    stagnant_outbound_doc_id = _create_system_outbound_doc(
+        auth_headers,
+        contract_id=stagnant_sales_contract_id,
+        sales_order_id=stagnant_sales_order_id,
+        source_ticket_no=f"CODEX-TEST-M8-26-STAGNANT-{uuid4().hex[:8]}",
+        actual_qty=Decimal("50.000"),
+    )
+    _submit_outbound_doc(auth_headers, stagnant_outbound_doc_id, Decimal("50.000"))
+    _backdate_contract_qty_effect(contract_id=stagnant_sales_contract_id, days_ago=4)
+    _clear_daily_scan_audit_logs()
+
     response = client.get(
         "/api/v1/boards/tasks",
         headers=_ops_admin_web_headers(auth_headers, "CODEX-TEST-M7-BOARD-READER"),
@@ -225,6 +254,7 @@ def test_board_tasks_returns_counts_and_contains_current_actionable_items(
     assert body["pending_supplement_count"] == expected["pending_supplement_count"]
     assert body["validation_failed_count"] == expected["validation_failed_count"]
     assert body["qty_done_not_closed_count"] == expected["qty_done_not_closed_count"]
+    assert body["fulfillment_stagnant_count"] == expected["fulfillment_stagnant_count"]
     assert any(
         item["biz_id"] == pending_receipt_doc.id
         for item in body["pending_supplement_items"]
@@ -236,6 +266,34 @@ def test_board_tasks_returns_counts_and_contains_current_actionable_items(
     assert any(
         item["biz_id"] == qty_done_sales_contract_id
         for item in body["qty_done_not_closed_items"]
+    )
+    stagnant_item = next(
+        item
+        for item in body["fulfillment_stagnant_items"]
+        if item["biz_id"] == stagnant_sales_contract_id
+    )
+    assert stagnant_item["scan_type"] == "履约滞留"
+    assert stagnant_item["days_without_effect"] >= 4
+    assert stagnant_item["last_effect_at"] is not None
+
+    repeated_response = client.get(
+        "/api/v1/boards/tasks",
+        headers=_ops_admin_web_headers(auth_headers, "CODEX-TEST-M8-26-BOARD-READER"),
+    )
+    assert repeated_response.status_code == 200
+    assert (
+        _count_daily_scan_audit_logs(
+            contract_id=qty_done_sales_contract_id,
+            scan_type="qty_done_not_closed",
+        )
+        == 1
+    )
+    assert (
+        _count_daily_scan_audit_logs(
+            contract_id=stagnant_sales_contract_id,
+            scan_type="fulfillment_stagnant",
+        )
+        == 1
     )
 
     snapshot = _latest_report_snapshot("board_tasks")
@@ -258,6 +316,7 @@ def test_light_overview_blocks_non_operator_roles_and_matches_current_formula(
     )
     assert blocked_response.status_code == 403
     assert blocked_response.json()["detail"] == "当前角色无权访问该接口"
+    _clear_daily_scan_audit_logs()
 
     response = client.get(
         "/api/v1/reports/light/overview",
@@ -285,6 +344,7 @@ def test_light_overview_blocks_non_operator_roles_and_matches_current_formula(
     assert body["pending_supplement_count"] == expected["pending_supplement_count"]
     assert body["validation_failed_count"] == expected["validation_failed_count"]
     assert body["qty_done_not_closed_count"] == expected["qty_done_not_closed_count"]
+    assert body["fulfillment_stagnant_count"] == expected["fulfillment_stagnant_count"]
 
     snapshot = _latest_report_snapshot("light_overview")
     assert snapshot is not None
@@ -624,6 +684,77 @@ def test_report_metric_version_must_exist(auth_headers) -> None:
     assert response.json()["detail"] == "当前报表口径版本不存在"
 
 
+def test_daily_scan_merges_trigger_sources_without_duplicate_audit_logs(
+    auth_headers,
+) -> None:
+    stagnant_sales_contract_id = _create_effective_sales_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
+    stagnant_purchase_contract_id = _create_effective_purchase_contract(
+        auth_headers, qty_signed=Decimal("100.000")
+    )
+    stagnant_sales_order_id, _ = _create_sales_order_derived(
+        auth_headers,
+        sales_contract_id=stagnant_sales_contract_id,
+        purchase_contract_id=stagnant_purchase_contract_id,
+        qty=Decimal("40.000"),
+        actual_receipt_amount=Decimal("0.00"),
+        actual_pay_amount=Decimal("0.00"),
+    )
+    stagnant_outbound_doc_id = _create_system_outbound_doc(
+        auth_headers,
+        contract_id=stagnant_sales_contract_id,
+        sales_order_id=stagnant_sales_order_id,
+        source_ticket_no=f"CODEX-TEST-M8-26-MERGE-{uuid4().hex[:8]}",
+        actual_qty=Decimal("40.000"),
+    )
+    _submit_outbound_doc(auth_headers, stagnant_outbound_doc_id, Decimal("40.000"))
+    _backdate_contract_qty_effect(contract_id=stagnant_sales_contract_id, days_ago=5)
+    _clear_daily_scan_audit_logs()
+
+    board_response = client.get(
+        "/api/v1/boards/tasks",
+        headers=_ops_admin_web_headers(auth_headers, "CODEX-TEST-M8-26-MERGE-BOARD"),
+    )
+    assert board_response.status_code == 200
+
+    dashboard_response = client.get(
+        "/api/v1/dashboard/summary",
+        headers=_ops_admin_web_headers(auth_headers, "CODEX-TEST-M8-26-MERGE-DASH"),
+    )
+    assert dashboard_response.status_code == 200
+
+    light_response = client.get(
+        "/api/v1/reports/light/overview",
+        headers=auth_headers(
+            user_id="CODEX-TEST-M8-26-MERGE-LIGHT",
+            role_code="operations",
+            company_id="CODEX-TEST-OPERATOR-COMPANY",
+            company_type="operator_company",
+            client_type="miniprogram",
+        ),
+    )
+    assert light_response.status_code == 200
+
+    scan_log = _get_daily_scan_audit_log(
+        contract_id=stagnant_sales_contract_id,
+        scan_type="fulfillment_stagnant",
+    )
+    assert scan_log is not None
+    assert scan_log.extra_json["trigger_sources"] == [
+        "board_tasks",
+        "dashboard_summary",
+        "light_overview",
+    ]
+    assert (
+        _count_daily_scan_audit_logs(
+            contract_id=stagnant_sales_contract_id,
+            scan_type="fulfillment_stagnant",
+        )
+        == 1
+    )
+
+
 def _compute_expected_dashboard_metrics() -> dict[str, Decimal | int]:
     db = SessionLocal()
     try:
@@ -742,13 +873,16 @@ def _compute_expected_board_metrics() -> dict[str, int]:
         qty_done_not_closed_count = len(
             db.scalars(select(Contract).where(Contract.status == "数量履约完成")).all()
         )
+        fulfillment_stagnant_count = len(_list_fulfillment_stagnant_contract_ids(db))
         return {
             "pending_supplement_count": pending_supplement_count,
             "validation_failed_count": validation_failed_count,
             "qty_done_not_closed_count": qty_done_not_closed_count,
+            "fulfillment_stagnant_count": fulfillment_stagnant_count,
             "total_alert_count": pending_supplement_count
             + validation_failed_count
-            + qty_done_not_closed_count,
+            + qty_done_not_closed_count
+            + fulfillment_stagnant_count,
         }
     finally:
         db.close()
@@ -787,7 +921,126 @@ def _compute_expected_light_metrics() -> dict[str, Decimal | int]:
             "pending_supplement_count": board_metrics["pending_supplement_count"],
             "validation_failed_count": board_metrics["validation_failed_count"],
             "qty_done_not_closed_count": board_metrics["qty_done_not_closed_count"],
+            "fulfillment_stagnant_count": board_metrics["fulfillment_stagnant_count"],
         }
+    finally:
+        db.close()
+
+
+def _list_fulfillment_stagnant_contract_ids(db) -> list[int]:
+    contracts = db.scalars(
+        select(Contract).where(Contract.status == "生效中").order_by(Contract.id.asc())
+    ).all()
+    if not contracts:
+        return []
+    contract_ids = {contract.id for contract in contracts}
+    effect_rows = db.execute(
+        select(ContractItem.contract_id, ContractQtyEffect.created_at)
+        .join(ContractQtyEffect, ContractQtyEffect.contract_item_id == ContractItem.id)
+        .where(ContractItem.contract_id.in_(contract_ids))
+        .order_by(ContractItem.contract_id.asc(), ContractQtyEffect.created_at.desc())
+    ).all()
+    latest_effect_map: dict[int, datetime] = {}
+    for contract_id, created_at in effect_rows:
+        if int(contract_id) not in latest_effect_map:
+            latest_effect_map[int(contract_id)] = created_at
+
+    today_cn = datetime.now(SHANGHAI_TZ).date()
+    stagnant_ids: list[int] = []
+    for contract in contracts:
+        reference_time = (
+            latest_effect_map.get(contract.id)
+            or contract.approved_at
+            or contract.submitted_at
+            or contract.created_at
+        )
+        assert reference_time is not None
+        if (today_cn - reference_time.astimezone(SHANGHAI_TZ).date()).days >= 3:
+            stagnant_ids.append(contract.id)
+    return stagnant_ids
+
+
+def _backdate_contract_qty_effect(*, contract_id: int, days_ago: int) -> None:
+    db = SessionLocal()
+    try:
+        effect = db.scalar(
+            select(ContractQtyEffect)
+            .join(ContractItem, ContractItem.id == ContractQtyEffect.contract_item_id)
+            .where(ContractItem.contract_id == contract_id)
+            .order_by(ContractQtyEffect.created_at.desc(), ContractQtyEffect.id.desc())
+            .limit(1)
+        )
+        contract = db.get(Contract, contract_id)
+        assert effect is not None
+        assert contract is not None
+        target_time = datetime.now(UTC) - timedelta(days=days_ago)
+        effect.created_at = target_time
+        contract.updated_at = target_time
+        db.commit()
+    finally:
+        db.close()
+
+
+def _count_daily_scan_audit_logs(*, contract_id: int, scan_type: str) -> int:
+    db = SessionLocal()
+    try:
+        return len(
+            db.scalars(
+                select(BusinessAuditLog).where(
+                    BusinessAuditLog.biz_type == "report_daily_contract_scan",
+                    BusinessAuditLog.biz_id
+                    == _scan_audit_biz_id(
+                        contract_id=contract_id,
+                        scan_type=scan_type,
+                    ),
+                )
+            ).all()
+        )
+    finally:
+        db.close()
+
+
+def _get_daily_scan_audit_log(
+    *, contract_id: int, scan_type: str
+) -> BusinessAuditLog | None:
+    db = SessionLocal()
+    try:
+        return db.scalar(
+            select(BusinessAuditLog).where(
+                BusinessAuditLog.biz_type == "report_daily_contract_scan",
+                BusinessAuditLog.biz_id
+                == _scan_audit_biz_id(
+                    contract_id=contract_id,
+                    scan_type=scan_type,
+                ),
+            )
+        )
+    finally:
+        db.close()
+
+
+def _scan_audit_biz_id(*, contract_id: int, scan_type: str) -> str:
+    return f"{scan_type}:{contract_id}:{datetime.now(SHANGHAI_TZ).date().isoformat()}"
+
+
+def _clear_daily_scan_audit_logs() -> None:
+    db = SessionLocal()
+    try:
+        scan_day = datetime.now(SHANGHAI_TZ).date().isoformat()
+        logs = db.scalars(
+            select(BusinessAuditLog).where(
+                BusinessAuditLog.biz_type.in_(
+                    [
+                        "report_daily_contract_scan",
+                        "report_daily_contract_scan_state",
+                    ]
+                ),
+                BusinessAuditLog.biz_id.like(f"%:{scan_day}"),
+            )
+        ).all()
+        for log in logs:
+            db.delete(log)
+        db.commit()
     finally:
         db.close()
 

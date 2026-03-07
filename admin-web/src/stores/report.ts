@@ -24,6 +24,10 @@ export interface BoardTaskItem {
   contract_no: string | null
   related_order_id: number | null
   created_at: string | null
+  last_effect_at?: string | null
+  days_without_effect?: number | null
+  scan_type?: string | null
+  scan_date?: string | null
 }
 
 export interface BoardTasksResponse {
@@ -33,9 +37,11 @@ export interface BoardTasksResponse {
   pending_supplement_count: number
   validation_failed_count: number
   qty_done_not_closed_count: number
+  fulfillment_stagnant_count: number
   pending_supplement_items: BoardTaskItem[]
   validation_failed_items: BoardTaskItem[]
   qty_done_not_closed_items: BoardTaskItem[]
+  fulfillment_stagnant_items: BoardTaskItem[]
   message: string
 }
 
@@ -78,7 +84,8 @@ export const useReportStore = defineStore('report', () => {
     const total =
       board.value.pending_supplement_count +
       board.value.validation_failed_count +
-      board.value.qty_done_not_closed_count
+      board.value.qty_done_not_closed_count +
+      board.value.fulfillment_stagnant_count
     return [
       {
         key: 'pending',
@@ -97,6 +104,12 @@ export const useReportStore = defineStore('report', () => {
         label: '数量履约完成未关闭',
         value: board.value.qty_done_not_closed_count,
         ratio: total > 0 ? board.value.qty_done_not_closed_count / total : 0,
+      },
+      {
+        key: 'stagnant',
+        label: '履约滞留',
+        value: board.value.fulfillment_stagnant_count,
+        ratio: total > 0 ? board.value.fulfillment_stagnant_count / total : 0,
       },
     ]
   })

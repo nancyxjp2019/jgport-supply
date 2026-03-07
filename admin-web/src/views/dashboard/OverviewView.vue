@@ -102,6 +102,10 @@
               <span>今日实付</span>
               <strong>¥{{ formatMoney(dashboard.actual_payment_today) }}</strong>
             </div>
+            <div class="summary-tile">
+              <span>履约滞留</span>
+              <strong>{{ board?.fulfillment_stagnant_count ?? 0 }} 项</strong>
+            </div>
           </div>
         </article>
       </section>

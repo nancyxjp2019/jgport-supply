@@ -27,6 +27,10 @@ class BoardTaskItem(BaseModel):
     contract_no: str | None = None
     related_order_id: int | None = None
     created_at: datetime | None = None
+    last_effect_at: datetime | None = None
+    days_without_effect: int | None = None
+    scan_type: str | None = None
+    scan_date: date | None = None
 
 
 class BoardTasksResponse(BaseModel):
@@ -36,9 +40,11 @@ class BoardTasksResponse(BaseModel):
     pending_supplement_count: int
     validation_failed_count: int
     qty_done_not_closed_count: int
+    fulfillment_stagnant_count: int
     pending_supplement_items: list[BoardTaskItem] = Field(default_factory=list)
     validation_failed_items: list[BoardTaskItem] = Field(default_factory=list)
     qty_done_not_closed_items: list[BoardTaskItem] = Field(default_factory=list)
+    fulfillment_stagnant_items: list[BoardTaskItem] = Field(default_factory=list)
     message: str
 
 
@@ -54,6 +60,7 @@ class LightReportOverviewResponse(BaseModel):
     pending_supplement_count: int
     validation_failed_count: int
     qty_done_not_closed_count: int
+    fulfillment_stagnant_count: int
     message: str
 
 

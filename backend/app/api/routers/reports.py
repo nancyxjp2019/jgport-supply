@@ -59,11 +59,16 @@ def get_dashboard_summary_route(
     metric_version: str | None = Query(
         default=None, max_length=16, description="指标口径版本"
     ),
-    _: AuthenticatedActor = Depends(admin_report_dependency),
+    actor: AuthenticatedActor = Depends(admin_report_dependency),
     db: Session = Depends(get_db),
 ) -> DashboardSummaryResponse:
     try:
-        result = get_dashboard_summary(db, metric_version=metric_version)
+        _ = actor
+        result = get_dashboard_summary(
+            db,
+            metric_version=metric_version,
+            trigger_source="dashboard_summary",
+        )
     except ReportServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
     return DashboardSummaryResponse(
@@ -84,11 +89,16 @@ def get_board_tasks_route(
     metric_version: str | None = Query(
         default=None, max_length=16, description="指标口径版本"
     ),
-    _: AuthenticatedActor = Depends(admin_report_dependency),
+    actor: AuthenticatedActor = Depends(admin_report_dependency),
     db: Session = Depends(get_db),
 ) -> BoardTasksResponse:
     try:
-        result = get_board_tasks(db, metric_version=metric_version)
+        _ = actor
+        result = get_board_tasks(
+            db,
+            metric_version=metric_version,
+            trigger_source="board_tasks",
+        )
     except ReportServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
     return BoardTasksResponse(
@@ -98,6 +108,7 @@ def get_board_tasks_route(
         pending_supplement_count=int(result.payload["pending_supplement_count"]),
         validation_failed_count=int(result.payload["validation_failed_count"]),
         qty_done_not_closed_count=int(result.payload["qty_done_not_closed_count"]),
+        fulfillment_stagnant_count=int(result.payload["fulfillment_stagnant_count"]),
         pending_supplement_items=[
             BoardTaskItem(**item) for item in result.payload["pending_supplement_items"]
         ],
@@ -108,6 +119,10 @@ def get_board_tasks_route(
             BoardTaskItem(**item)
             for item in result.payload["qty_done_not_closed_items"]
         ],
+        fulfillment_stagnant_items=[
+            BoardTaskItem(**item)
+            for item in result.payload["fulfillment_stagnant_items"]
+        ],
         message="业务看板查询成功",
     )
 
@@ -117,11 +132,16 @@ def get_light_overview_route(
     metric_version: str | None = Query(
         default=None, max_length=16, description="指标口径版本"
     ),
-    _: AuthenticatedActor = Depends(mini_report_dependency),
+    actor: AuthenticatedActor = Depends(mini_report_dependency),
     db: Session = Depends(get_db),
 ) -> LightReportOverviewResponse:
     try:
-        result = get_light_overview(db, metric_version=metric_version)
+        _ = actor
+        result = get_light_overview(
+            db,
+            metric_version=metric_version,
+            trigger_source="light_overview",
+        )
     except ReportServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
     return LightReportOverviewResponse(
@@ -136,6 +156,7 @@ def get_light_overview_route(
         pending_supplement_count=int(result.payload["pending_supplement_count"]),
         validation_failed_count=int(result.payload["validation_failed_count"]),
         qty_done_not_closed_count=int(result.payload["qty_done_not_closed_count"]),
+        fulfillment_stagnant_count=int(result.payload["fulfillment_stagnant_count"]),
         message="轻量报表查询成功",
     )
 

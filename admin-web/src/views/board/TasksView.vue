@@ -27,6 +27,11 @@
           <strong>{{ board.qty_done_not_closed_count }}</strong>
           <p>优先检查金额闭环差额与关闭阻塞原因</p>
         </article>
+        <article class="signal-card signal-card--deep">
+          <span>履约滞留</span>
+          <strong>{{ board.fulfillment_stagnant_count }}</strong>
+          <p>重点跟进连续 3 个上海自然日无新履约累计的合同</p>
+        </article>
       </section>
 
       <ElTabs class="board-tabs">
@@ -69,6 +74,21 @@
               <p>最近时间：{{ formatDateTime(item.created_at) }}</p>
             </article>
             <ElEmpty v-if="!board.qty_done_not_closed_items.length" description="当前暂无待关闭合同" />
+          </div>
+        </ElTabPane>
+
+        <ElTabPane label="履约滞留">
+          <div class="task-list">
+            <article v-for="item in board.fulfillment_stagnant_items" :key="`${item.biz_type}-${item.biz_id}`" class="task-card">
+              <div class="task-card__header">
+                <strong>{{ item.title }}</strong>
+                <ElTag type="danger" round>{{ item.scan_type || item.status }}</ElTag>
+              </div>
+              <p>合同编号：{{ item.contract_no || '未关联' }}</p>
+              <p>最近履约时间：{{ formatDateTime(item.last_effect_at || item.created_at) }}</p>
+              <p>滞留天数：{{ item.days_without_effect ?? 0 }} 天</p>
+            </article>
+            <ElEmpty v-if="!board.fulfillment_stagnant_items.length" description="当前暂无履约滞留合同" />
           </div>
         </ElTabPane>
       </ElTabs>

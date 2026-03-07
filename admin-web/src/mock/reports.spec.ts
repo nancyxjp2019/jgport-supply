@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest'
 import {
   buildDemoAdminMultiDimReportCsv,
   createDemoAdminMultiDimExportTask,
+  demoBoardTasks,
+  demoDashboardSummary,
   downloadDemoAdminMultiDimExportTask,
   getDemoAdminMultiDimExportTasks,
   getDemoAdminMultiDimReport,
@@ -10,6 +12,12 @@ import {
 } from '@/mock/reports'
 
 describe('多维报表演示数据', () => {
+  it('演示看板与仪表盘包含履约滞留告警', () => {
+    expect(demoBoardTasks.fulfillment_stagnant_count).toBe(2)
+    expect(demoBoardTasks.fulfillment_stagnant_items[0]?.scan_type).toBe('履约滞留')
+    expect(demoDashboardSummary.threshold_alert_count).toBe(9)
+  })
+
   it('支持按合同方向筛选并返回采购维度汇总', () => {
     const report = getDemoAdminMultiDimReport({
       group_by: 'refund_status',

@@ -17,7 +17,7 @@ export const demoDashboardSummary: DashboardSummaryResponse = {
   actual_receipt_today: '650025.00',
   actual_payment_today: '580080.00',
   inventory_turnover_30d: '1.286500',
-  threshold_alert_count: 7,
+  threshold_alert_count: 9,
   message: '仪表盘查询成功',
 }
 
@@ -28,6 +28,7 @@ export const demoBoardTasks: BoardTasksResponse = {
   pending_supplement_count: 3,
   validation_failed_count: 2,
   qty_done_not_closed_count: 2,
+  fulfillment_stagnant_count: 2,
   pending_supplement_items: [
     {
       biz_type: 'receipt_doc',
@@ -82,6 +83,36 @@ export const demoBoardTasks: BoardTasksResponse = {
       contract_no: 'XS-202603-001',
       related_order_id: null,
       created_at: '2026-03-06T14:05:00+08:00',
+    },
+  ],
+  fulfillment_stagnant_items: [
+    {
+      biz_type: 'contract',
+      biz_id: 305,
+      title: '合同 XS-202603-015 履约滞留',
+      status: '生效中',
+      contract_id: 305,
+      contract_no: 'XS-202603-015',
+      related_order_id: null,
+      created_at: '2026-03-02T09:30:00+08:00',
+      last_effect_at: '2026-03-02T09:30:00+08:00',
+      days_without_effect: 4,
+      scan_type: '履约滞留',
+      scan_date: '2026-03-06',
+    },
+    {
+      biz_type: 'contract',
+      biz_id: 306,
+      title: '合同 CG-202603-021 履约滞留',
+      status: '生效中',
+      contract_id: 306,
+      contract_no: 'CG-202603-021',
+      related_order_id: null,
+      created_at: '2026-03-01T16:00:00+08:00',
+      last_effect_at: '2026-03-01T16:00:00+08:00',
+      days_without_effect: 5,
+      scan_type: '履约滞留',
+      scan_date: '2026-03-06',
     },
   ],
   message: '业务看板查询成功',

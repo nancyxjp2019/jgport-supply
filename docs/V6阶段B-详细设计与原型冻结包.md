@@ -4,7 +4,7 @@
 - 文档状态：`已冻结`
 - 目标：冻结实现口径，形成可开发规格，作为阶段C模块开发唯一输入。
 - 上游输入：
-- `docs/需求方案.md`（当前规则 `1~56` 与“业务目标/角色权限”基线）
+- `docs/需求方案.md`（当前规则 `1~57` 与“业务目标/角色权限”基线）
   - `docs/V6阶段A-流程图状态机与UI原型清单.md`
 - 下游输出：阶段C模块任务拆分、接口开发、联调与测试用例。
 
@@ -110,8 +110,8 @@ purchase_payment_net =
 | 入库单提交生效 | 录入实际入库量 | 执行超量阈值校验并生效/阻断 | `inbound_submit:{inbound_doc_id}` | 阻断后可调整数量重提 |
 | 收款单0金额提交 | `amount_actual=0` | 按规则14执行阈值校验并决定放行/待补录 | `receipt_zero_submit:{receipt_doc_id}` | 不通过转`待补录金额` |
 | 自动关闭校验任务 | 合同数量履约完成 | 按合同方向执行金额闭环校验；成功后自动关闭并终止剩余未终态草稿/待处理单据 | `contract_auto_close_check:{contract_id}:{version}` | 校验失败转授权手工关闭 |
-| 每日闭环扫描任务 | 每日定时触发 | 扫描`数量履约完成且未关闭`合同并生成看板告警 | `contract_close_scan:{date}:{contract_id}` | 重复触发幂等跳过，写审计 |
-| 每日履约滞留扫描任务 | 每日定时触发 | 扫描`生效中且履约长时间未变化`合同并告警 | `contract_fulfillment_scan:{date}:{contract_id}` | 重复触发幂等跳过，写审计 |
+| 每日闭环扫描任务 | 当日首次报表请求触发应用内补偿扫描 | 扫描`数量履约完成且未关闭`合同并生成看板告警 | `contract_close_scan:{date}:{contract_id}` | 同日重复触发幂等跳过，写审计 |
+| 每日履约滞留扫描任务 | 当日首次报表请求触发应用内补偿扫描 | 扫描`生效中且履约长时间未变化`合同并告警 | `contract_fulfillment_scan:{date}:{contract_id}` | 同日重复触发幂等跳过，写审计 |
 | 多维报表创建导出任务 | 管理后台 `finance/admin` 发起导出 | 写入导出任务记录并触发后台导出执行；同筛选快照的未终态任务直接复用原记录 | `admin_multi_dim_export:{actor_id}:{fingerprint}` | 任务写入失败则整单回滚 |
 | 导出任务后台执行 | 任务状态=`待处理/处理中` | 生成 CSV 文件、回填文件元数据并更新状态 | `report_export_execute:{task_id}:{retry_count}` | 失败写错误原因并转`已失败` |
 | 导出任务结果下载 | 任务状态=`已完成` 且文件存在 | 返回导出文件并累加下载次数 | `report_export_download:{task_id}:{download_count}` | 文件缺失转`已失败`并提示重试 |
@@ -214,6 +214,11 @@ purchase_payment_net =
 | `/reports/admin/multi-dim/export-tasks` | `GET` | 查询导出任务历史（仅财务/管理员） | `T+0~T+1` |
 | `/reports/admin/multi-dim/export-tasks/{id}/download` | `GET` | 下载已完成导出文件（仅财务/管理员） | `T+0~T+1` |
 | `/reports/admin/multi-dim/export-tasks/{id}/retry` | `POST` | 重试失败或文件缺失的导出任务（仅财务/管理员） | `T+0~T+1` |
+
+- 扫描补偿触发冻结补充：
+  - 仪表盘、业务看板、轻量报表在构建快照前，需先保证“当日闭环扫描 + 当日履约滞留扫描”至少完成一次。
+  - 首批不建设独立调度器；若当日已存在相同合同、相同扫描类型的扫描留痕，则同日重复请求必须直接复用，不得重复写审计。
+  - 履约滞留首批阈值固定为连续 `3` 个 `Asia/Shanghai` 自然日无新的 `contract_qty_effects` 记录。
 
 ## 5.5.3 多维报表钻取接口与承接补充
 
