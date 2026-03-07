@@ -71,6 +71,8 @@ const DEMO_PURCHASE_ORDERS = [
     zero_pay_exception_flag: false,
     supplier_confirm_comment: null,
     supplier_confirmed_at: null,
+    payment_validation_status: '未进入付款校验',
+    payment_validation_hint: '当前需先完成发货确认，发货确认提交后才会进入后续付款校验结果回看阶段。',
     created_at: '2026-03-06T10:00:00+08:00',
     message: '演示模式：供应商采购订单详情查询成功',
   },
@@ -88,7 +90,66 @@ const DEMO_PURCHASE_ORDERS = [
     zero_pay_exception_flag: true,
     supplier_confirm_comment: 'AUTO-TEST-供应商已完成发货确认',
     supplier_confirmed_at: '2026-03-05T17:00:00+08:00',
+    payment_validation_status: '等待付款校验结果',
+    payment_validation_hint: '当前已完成发货确认，并命中零付款例外场景；需等待运营/财务按冻结规则完成付款校验放行，后续仍需关注补录。',
     created_at: '2026-03-05T15:30:00+08:00',
+    message: '演示模式：供应商采购订单详情查询成功',
+  },
+  {
+    id: 3003,
+    order_no: 'PO-DEMO-003',
+    purchase_contract_id: 803,
+    source_sales_order_id: 1003,
+    source_sales_order_no: 'SO-DEMO-003',
+    supplier_id: 'AUTO-TEST-SUPPLIER-COMPANY',
+    oil_product_id: 'OIL-95',
+    qty_ordered: '8.000',
+    payable_amount: '9200.00',
+    status: '待付款校验',
+    zero_pay_exception_flag: false,
+    supplier_confirm_comment: 'AUTO-TEST-已提交发货确认，等待付款校验',
+    supplier_confirmed_at: '2026-03-05T19:00:00+08:00',
+    payment_validation_status: '待付款校验中',
+    payment_validation_hint: '当前正在等待付款校验完成；供应商侧暂不开放付款确认、驳回或异常关闭动作。',
+    created_at: '2026-03-05T18:00:00+08:00',
+    message: '演示模式：供应商采购订单详情查询成功',
+  },
+  {
+    id: 3004,
+    order_no: 'PO-DEMO-004',
+    purchase_contract_id: 804,
+    source_sales_order_id: 1004,
+    source_sales_order_no: 'SO-DEMO-004',
+    supplier_id: 'AUTO-TEST-SUPPLIER-COMPANY',
+    oil_product_id: 'OIL-98',
+    qty_ordered: '15.000',
+    payable_amount: '15600.00',
+    status: '可继续执行',
+    zero_pay_exception_flag: false,
+    supplier_confirm_comment: 'AUTO-TEST-付款校验已完成，可继续执行',
+    supplier_confirmed_at: '2026-03-04T10:00:00+08:00',
+    payment_validation_status: '已通过付款校验',
+    payment_validation_hint: '当前采购订单已完成付款校验，可继续跟踪仓储、发运与后续执行进度。',
+    created_at: '2026-03-04T09:00:00+08:00',
+    message: '演示模式：供应商采购订单详情查询成功',
+  },
+  {
+    id: 3005,
+    order_no: 'PO-DEMO-005',
+    purchase_contract_id: 805,
+    source_sales_order_id: 1005,
+    source_sales_order_no: 'SO-DEMO-005',
+    supplier_id: 'AUTO-TEST-SUPPLIER-COMPANY',
+    oil_product_id: 'OIL-0',
+    qty_ordered: '6.000',
+    payable_amount: '0.00',
+    status: '执行中',
+    zero_pay_exception_flag: true,
+    supplier_confirm_comment: 'AUTO-TEST-例外放行后进入执行中',
+    supplier_confirmed_at: '2026-03-03T12:30:00+08:00',
+    payment_validation_status: '已完成付款校验并进入执行中',
+    payment_validation_hint: '当前订单已进入执行中，说明付款校验已完成或已按例外规则放行；后续仍需关注执行反馈与补录闭环。',
+    created_at: '2026-03-03T11:00:00+08:00',
     message: '演示模式：供应商采购订单详情查询成功',
   },
 ];
@@ -105,6 +166,9 @@ let demoPurchaseOrderAttachments = {
     },
   ],
   3002: [],
+  3003: [],
+  3004: [],
+  3005: [],
 };
 let demoPurchaseAttachmentIdSeed = 5000;
 
@@ -244,6 +308,10 @@ function confirmDemoSupplierPurchaseOrderDelivery(orderId, comment) {
   order.status = '供应商已确认';
   order.supplier_confirm_comment = normalizedComment;
   order.supplier_confirmed_at = new Date().toISOString();
+  order.payment_validation_status = '等待付款校验结果';
+  order.payment_validation_hint = order.zero_pay_exception_flag
+    ? '当前已完成发货确认，并命中零付款例外场景；需等待运营/财务按冻结规则完成付款校验放行，后续仍需关注补录。'
+    : '当前已完成发货确认，正在等待运营/财务完成付款校验；供应商侧仅开放结果回看，不开放付款确认。';
   order.message = '演示模式：供应商发货确认已提交';
   return { ...order };
 }

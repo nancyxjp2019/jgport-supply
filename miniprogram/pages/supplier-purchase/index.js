@@ -13,6 +13,7 @@ const { resolveEntrySourceMeta, resolveHomePath } = require('../../utils/navigat
 const { getAccessToken, initializeSession, logoutSession, updateAccessProfile } = require('../../utils/session');
 const {
   buildSupplierPreparationHints,
+  buildSupplierPaymentValidationView,
   buildSupplierAttachmentItems,
   buildSupplierSummaryCards,
   getSupplierAttachmentTagOptions,
@@ -345,6 +346,7 @@ Page({
       supplierConfirmedAtText: item.supplier_confirmed_at
         ? formatDateTime(item.supplier_confirmed_at)
         : '',
+      paymentValidationView: buildSupplierPaymentValidationView(item),
       canConfirmDelivery: item.status === '待供应商确认',
       primaryAttachmentTagLabel: resolveSupplierAttachmentTagLabel(
         resolvedAttachments.length ? resolvedAttachments[0].biz_tag : '',

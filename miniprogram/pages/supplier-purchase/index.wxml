@@ -153,6 +153,16 @@
       </view>
 
       <view class="hint-card confirm-card">
+        <view class="section-title">付款校验结果回看</view>
+        <view class="section-desc">当前仅开放付款校验结果只读回看，不代表供应商侧已获得付款确认权限。</view>
+        <view class="detail-row">
+          <view class="detail-row__label">结果状态</view>
+          <view class="detail-row__value">{{selectedOrder.paymentValidationView.statusText || '暂无结果'}}</view>
+        </view>
+        <view wx:if="{{selectedOrder.paymentValidationView.hintText}}" class="status-tip">{{selectedOrder.paymentValidationView.hintText}}</view>
+      </view>
+
+      <view class="hint-card confirm-card">
         <view class="section-title">发货确认</view>
         <view class="section-desc">仅当采购订单处于待供应商确认时，才可提交单笔发货确认。该动作不会替代付款确认与仓储执行。</view>
         <view wx:if="{{selectedOrder.canConfirmDelivery}}" class="status-tip">建议先补齐附件留痕，再提交发货确认。</view>

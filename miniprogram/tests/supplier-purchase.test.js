@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 
 const {
   buildSupplierAttachmentItems,
+  buildSupplierPaymentValidationView,
   buildSupplierPreparationHints,
   getSupplierAttachmentTagOptions,
   resolveSupplierAttachmentTagLabel,
@@ -48,4 +49,19 @@ test('待供应商确认与供应商已确认会输出对应中文提示', () =>
   });
   assert.match(pendingHints[3], /建议先完成附件留痕/);
   assert.match(confirmedHints[3], /等待付款校验/);
+});
+
+test('付款校验结果视图会区分普通场景与零付款例外', () => {
+  const pendingView = buildSupplierPaymentValidationView({
+    status: '待付款校验',
+    zero_pay_exception_flag: false,
+  });
+  const zeroPayView = buildSupplierPaymentValidationView({
+    status: '可继续执行',
+    zero_pay_exception_flag: true,
+  });
+  assert.equal(pendingView.statusText, '待付款校验中');
+  assert.match(pendingView.hintText, /等待付款校验完成/);
+  assert.equal(zeroPayView.statusText, '例外放行后可继续执行');
+  assert.match(zeroPayView.hintText, /后续补录/);
 });

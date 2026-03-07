@@ -213,6 +213,71 @@ function buildSupplierPreparationHints(order) {
   return hints;
 }
 
+function buildSupplierPaymentValidationView(order) {
+  if (!order) {
+    return {
+      statusText: '',
+      hintText: '',
+    };
+  }
+  if (order.payment_validation_status || order.payment_validation_hint) {
+    return {
+      statusText: String(order.payment_validation_status || ''),
+      hintText: String(order.payment_validation_hint || ''),
+    };
+  }
+  const status = normalizeStatus(order.status);
+  const isZeroPay = Boolean(order.zero_pay_exception_flag);
+  if (status === '待供应商确认') {
+    return {
+      statusText: '未进入付款校验',
+      hintText: '当前需先完成发货确认，发货确认提交后才会进入后续付款校验结果回看阶段。',
+    };
+  }
+  if (status === '供应商已确认') {
+    return {
+      statusText: '等待付款校验结果',
+      hintText: isZeroPay
+        ? '当前已完成发货确认，并命中零付款例外场景；需等待运营/财务按冻结规则完成付款校验放行，后续仍需关注补录。'
+        : '当前已完成发货确认，正在等待运营/财务完成付款校验；供应商侧仅开放结果回看，不开放付款确认。',
+    };
+  }
+  if (status === '待付款校验') {
+    return {
+      statusText: '待付款校验中',
+      hintText: isZeroPay
+        ? '当前命中零付款例外，正在等待按冻结规则放行；在后续补录完成前，仍需持续关注付款校验结果。'
+        : '当前正在等待付款校验完成；供应商侧暂不开放付款确认、驳回或异常关闭动作。',
+    };
+  }
+  if (status === '可继续执行') {
+    return {
+      statusText: isZeroPay ? '例外放行后可继续执行' : '已通过付款校验',
+      hintText: isZeroPay
+        ? '当前采购订单已按零付款例外规则完成放行，可继续跟踪后续执行推进，但仍需关注后续补录。'
+        : '当前采购订单已完成付款校验，可继续跟踪仓储、发运与后续执行进度。',
+    };
+  }
+  if (status === '执行中') {
+    return {
+      statusText: '已完成付款校验并进入执行中',
+      hintText: isZeroPay
+        ? '当前订单已进入执行中，说明付款校验已完成或已按例外规则放行；后续仍需关注执行反馈与补录闭环。'
+        : '当前订单已进入执行中，说明付款校验已完成；请继续关注仓储与发运执行反馈。',
+    };
+  }
+  if (status === '已完成') {
+    return {
+      statusText: '已完成付款校验并执行完成',
+      hintText: '当前订单已完成付款校验与执行闭环，可回看历史状态与留痕信息。',
+    };
+  }
+  return {
+    statusText: '',
+    hintText: '',
+  };
+}
+
 function getSupplierAttachmentTagOptions() {
   return SUPPLIER_ATTACHMENT_TAG_OPTIONS.map((item) => ({ ...item }));
 }
@@ -232,6 +297,7 @@ function buildSupplierAttachmentItems(items) {
 module.exports = {
   buildSupplierAttachmentItems,
   buildSupplierMessages,
+  buildSupplierPaymentValidationView,
   buildSupplierPreparationHints,
   buildSupplierSummaryCards,
   buildSupplierTodoItems,

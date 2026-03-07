@@ -97,6 +97,7 @@
 - `POST /api/v1/sales-orders/{id}/finance-approve` 仅允许 `finance/admin + operator_company + admin_web`。
 - `GET /api/v1/purchase-orders/{id}` 允许 `operations/finance/admin + operator_company + admin_web`。
 - `POST /api/v1/supplier/purchase-orders/{id}/confirm-delivery` 仅允许 `supplier + supplier_company + miniprogram`，且仅可确认本公司名下、状态为 `待供应商确认` 的采购订单。
+- `GET /api/v1/supplier/purchase-orders/{id}` 当前会补充供应商发货确认字段与付款校验结果只读提示，用于小程序回看，不下放资金确认权限。
 - `POST /api/v1/payment-docs/supplement` 仅允许 `finance/admin + operator_company + admin_web`。
 - `POST /api/v1/receipt-docs/supplement` 仅允许 `finance/admin + operator_company + admin_web`。
 - `POST /api/v1/payment-docs/{id}/confirm` 仅允许 `finance/admin + operator_company + admin_web`。

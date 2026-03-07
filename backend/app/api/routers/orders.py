@@ -625,6 +625,9 @@ def _to_supplier_purchase_order_response(
     *,
     message: str,
 ) -> SupplierPurchaseOrderResponse:
+    payment_validation_status, payment_validation_hint = (
+        _build_supplier_payment_validation_view(purchase_order)
+    )
     return SupplierPurchaseOrderResponse(
         id=purchase_order.id,
         order_no=purchase_order.order_no,
@@ -641,9 +644,69 @@ def _to_supplier_purchase_order_response(
         zero_pay_exception_flag=purchase_order.zero_pay_exception_flag,
         supplier_confirm_comment=purchase_order.supplier_confirm_comment,
         supplier_confirmed_at=purchase_order.supplier_confirmed_at,
+        payment_validation_status=payment_validation_status,
+        payment_validation_hint=payment_validation_hint,
         message=message,
         created_at=purchase_order.created_at,
     )
+
+
+def _build_supplier_payment_validation_view(
+    purchase_order: PurchaseOrder,
+) -> tuple[str | None, str | None]:
+    status = str(purchase_order.status or "").strip()
+    is_zero_pay = bool(purchase_order.zero_pay_exception_flag)
+    if status == "待供应商确认":
+        return (
+            "未进入付款校验",
+            "当前需先完成发货确认，发货确认提交后才会进入后续付款校验结果回看阶段。",
+        )
+    if status == "供应商已确认":
+        if is_zero_pay:
+            return (
+                "等待付款校验结果",
+                "当前已完成发货确认，并命中零付款例外场景；需等待运营/财务按冻结规则完成付款校验放行，后续仍需关注补录。",
+            )
+        return (
+            "等待付款校验结果",
+            "当前已完成发货确认，正在等待运营/财务完成付款校验；供应商侧仅开放结果回看，不开放付款确认。",
+        )
+    if status == "待付款校验":
+        if is_zero_pay:
+            return (
+                "待付款校验中",
+                "当前命中零付款例外，正在等待按冻结规则放行；在后续补录完成前，仍需持续关注付款校验结果。",
+            )
+        return (
+            "待付款校验中",
+            "当前正在等待付款校验完成；供应商侧暂不开放付款确认、驳回或异常关闭动作。",
+        )
+    if status == "可继续执行":
+        if is_zero_pay:
+            return (
+                "例外放行后可继续执行",
+                "当前采购订单已按零付款例外规则完成放行，可继续跟踪后续执行推进，但仍需关注后续补录。",
+            )
+        return (
+            "已通过付款校验",
+            "当前采购订单已完成付款校验，可继续跟踪仓储、发运与后续执行进度。",
+        )
+    if status == "执行中":
+        if is_zero_pay:
+            return (
+                "已完成付款校验并进入执行中",
+                "当前订单已进入执行中，说明付款校验已完成或已按例外规则放行；后续仍需关注执行反馈与补录闭环。",
+            )
+        return (
+            "已完成付款校验并进入执行中",
+            "当前订单已进入执行中，说明付款校验已完成；请继续关注仓储与发运执行反馈。",
+        )
+    if status == "已完成":
+        return (
+            "已完成付款校验并执行完成",
+            "当前订单已完成付款校验与执行闭环，可回看历史状态与留痕信息。",
+        )
+    return (None, None)
 
 
 def _to_supplier_purchase_order_attachment_response(

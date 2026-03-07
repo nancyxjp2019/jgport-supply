@@ -6,6 +6,7 @@ from uuid import uuid4
 from app.db.session import SessionLocal
 from app.main import app
 from app.models.doc_attachment import DocAttachment
+from app.models.purchase_order import PurchaseOrder
 
 client = TestClient(app)
 
@@ -59,6 +60,7 @@ def test_supplier_miniprogram_can_view_own_purchase_order_detail(auth_headers) -
     assert body["supplier_id"] == SUPPLIER_COMPANY_ID
     assert body["source_sales_order_no"]
     assert body["status"] == "待供应商确认"
+    assert body["payment_validation_status"] == "未进入付款校验"
     assert "downstream_tasks" not in body
     assert "idempotency_key" not in body
 
@@ -192,6 +194,56 @@ def test_supplier_confirm_delivery_blocks_empty_comment(auth_headers) -> None:
 
     assert response.status_code == 422
     assert response.json()["detail"] == "发货确认说明不能为空"
+
+
+def test_supplier_detail_exposes_payment_validation_result_copy(auth_headers) -> None:
+    purchase_order_id = _create_purchase_order(
+        auth_headers, supplier_id=SUPPLIER_COMPANY_ID
+    )
+    _update_purchase_order_status(purchase_order_id, status="待付款校验")
+
+    response = client.get(
+        f"/api/v1/supplier/purchase-orders/{purchase_order_id}",
+        headers=auth_headers(
+            user_id="CODEX-TEST-MINI-SUPPLIER-PAY-RESULT",
+            role_code="supplier",
+            company_id=SUPPLIER_COMPANY_ID,
+            company_type="supplier_company",
+            client_type="miniprogram",
+        ),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["payment_validation_status"] == "待付款校验中"
+    assert "等待付款校验完成" in body["payment_validation_hint"]
+
+
+def test_supplier_detail_exposes_zero_pay_result_copy(auth_headers) -> None:
+    purchase_order_id = _create_purchase_order(
+        auth_headers, supplier_id=SUPPLIER_COMPANY_ID
+    )
+    _update_purchase_order_status(
+        purchase_order_id,
+        status="可继续执行",
+        zero_pay_exception_flag=True,
+    )
+
+    response = client.get(
+        f"/api/v1/supplier/purchase-orders/{purchase_order_id}",
+        headers=auth_headers(
+            user_id="CODEX-TEST-MINI-SUPPLIER-ZERO-PAY-RESULT",
+            role_code="supplier",
+            company_id=SUPPLIER_COMPANY_ID,
+            company_type="supplier_company",
+            client_type="miniprogram",
+        ),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["payment_validation_status"] == "例外放行后可继续执行"
+    assert "后续补录" in body["payment_validation_hint"]
 
 
 def test_supplier_can_upload_and_list_purchase_order_attachments(auth_headers) -> None:
@@ -512,3 +564,19 @@ def _query_doc_attachments(purchase_order_id: int) -> list[tuple[str, str]]:
             .all()
         )
         return [(row.biz_tag, row.path) for row in rows]
+
+
+def _update_purchase_order_status(
+    purchase_order_id: int,
+    *,
+    status: str,
+    zero_pay_exception_flag: bool | None = None,
+) -> None:
+    with SessionLocal() as db:
+        purchase_order = (
+            db.query(PurchaseOrder).filter(PurchaseOrder.id == purchase_order_id).one()
+        )
+        purchase_order.status = status
+        if zero_pay_exception_flag is not None:
+            purchase_order.zero_pay_exception_flag = zero_pay_exception_flag
+        db.commit()

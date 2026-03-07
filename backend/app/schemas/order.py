@@ -162,6 +162,8 @@ class SupplierPurchaseOrderResponse(BaseModel):
     zero_pay_exception_flag: bool
     supplier_confirm_comment: str | None = None
     supplier_confirmed_at: datetime | None = None
+    payment_validation_status: str | None = None
+    payment_validation_hint: str | None = None
     message: str
     created_at: datetime | None = None
 
