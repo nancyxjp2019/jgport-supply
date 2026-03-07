@@ -4,7 +4,7 @@
 - 文档状态：`已冻结`
 - 目标：冻结实现口径，形成可开发规格，作为阶段C模块开发唯一输入。
 - 上游输入：
-  - `docs/需求方案.md`（当前规则 `1~50` 与“业务目标/角色权限”基线）
+  - `docs/需求方案.md`（当前规则 `1~51` 与“业务目标/角色权限”基线）
   - `docs/V6阶段A-流程图状态机与UI原型清单.md`
 - 下游输出：阶段C模块任务拆分、接口开发、联调与测试用例。
 
@@ -159,8 +159,22 @@ purchase_payment_net =
 
 | 接口 | 方法 | 关键请求字段 | 关键校验 | 关键响应 |
 |---|---|---|---|---|
+| `/payment-docs` | `GET` | `status?`,`limit?` | 仅 `finance/admin + operator_company + admin_web` 可查询 | 付款单列表（含退款状态） |
+| `/receipt-docs` | `GET` | `status?`,`limit?` | 仅 `finance/admin + operator_company + admin_web` 可查询 | 收款单列表（含退款状态） |
+| `/payment-docs/{id}` | `GET` | 无 | 仅 `finance/admin + operator_company + admin_web` 可查询 | 付款单详情（含凭证路径） |
+| `/receipt-docs/{id}` | `GET` | 无 | 仅 `finance/admin + operator_company + admin_web` 可查询 | 收款单详情（含凭证路径） |
+| `/payment-docs/supplement` | `POST` | `contract_id`,`purchase_order_id`,`amount_actual` | 手工补录必须同时绑定合同+采购订单 | `payment_doc_id` |
+| `/receipt-docs/supplement` | `POST` | `contract_id`,`sales_order_id`,`amount_actual` | 手工补录必须同时绑定合同+销售订单 | `receipt_doc_id` |
 | `/receipt-docs/{id}/confirm` | `POST` | `amount_actual`,`voucher_files[]` | 非0金额必须有凭证；0金额按规则14校验 | `status=已确认`或`待补录金额` |
 | `/payment-docs/{id}/confirm` | `POST` | `amount_actual`,`voucher_files[]` | 非0金额必须有凭证；0金额在规则11场景无条件放行，其他场景按规则14校验 | `status=已确认`或`待补录金额` |
+| `/payment-docs/{id}/refund-request` | `POST` | `refund_amount`,`reason` | 仅 `已确认/已核销` 可发起；退款金额不得超过单据金额 | `refund_status=待审核` |
+| `/receipt-docs/{id}/refund-request` | `POST` | `refund_amount`,`reason` | 仅 `已确认/已核销` 可发起；退款金额不得超过单据金额 | `refund_status=待审核` |
+| `/payment-docs/{id}/refund-approve` | `POST` | `reason` | 仅 `refund_status=待审核` 可通过 | `refund_status=部分退款/已退款` |
+| `/receipt-docs/{id}/refund-approve` | `POST` | `reason` | 仅 `refund_status=待审核` 可通过 | `refund_status=部分退款/已退款` |
+| `/payment-docs/{id}/refund-reject` | `POST` | `reason` | 仅 `refund_status=待审核` 可驳回 | `refund_status=驳回`,`refund_amount=0` |
+| `/receipt-docs/{id}/refund-reject` | `POST` | `reason` | 仅 `refund_status=待审核` 可驳回 | `refund_status=驳回`,`refund_amount=0` |
+| `/payment-docs/{id}/writeoff` | `POST` | `comment` | 仅 `status=已确认` 可核销；重复请求幂等返回 | `status=已核销` |
+| `/receipt-docs/{id}/writeoff` | `POST` | `comment` | 仅 `status=已确认` 可核销；重复请求幂等返回 | `status=已核销` |
 
 - 规则14实现口径冻结补充：
   - 仅适用于“订单衍生的普通收款单/付款单”，不适用于合同保证金单据。
@@ -168,8 +182,6 @@ purchase_payment_net =
   - 待执行数量：
     - 销售方向：`contract_item.qty_signed - contract_item.qty_out_acc`
     - 采购方向：`contract_item.qty_signed - contract_item.qty_in_acc`
-| `/payment-docs/supplement` | `POST` | `contract_id`,`purchase_order_id`,`amount_actual` | 手工补录必须同时绑定合同+采购订单 | `payment_doc_id` |
-| `/receipt-docs/supplement` | `POST` | `contract_id`,`sales_order_id`,`amount_actual` | 手工补录必须同时绑定合同+销售订单 | `receipt_doc_id` |
 
 ## 5.4 仓储执行接口
 

@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  approveDemoPaymentRefund,
   confirmDemoPaymentDoc,
   confirmDemoReceiptDoc,
   createDemoPaymentSupplement,
   getDemoPaymentDocDetail,
   listDemoPaymentDocs,
+  rejectDemoPaymentRefund,
+  requestDemoPaymentRefund,
+  writeoffDemoPaymentDoc,
 } from '@/mock/funds'
 
 describe('财务资金处理台演示数据', () => {
@@ -43,5 +47,33 @@ describe('财务资金处理台演示数据', () => {
     })
     expect(receiptBlocked.status).toBe('待补录金额')
     expect(receiptBlocked.voucher_required).toBe(true)
+  })
+
+  it('付款单支持退款待审核、驳回、审核通过与核销', () => {
+    const refundRequested = requestDemoPaymentRefund(8103, {
+      refund_amount: 10000,
+      reason: 'AUTO-TEST-退款申请',
+    })
+    expect(refundRequested.refund_status).toBe('待审核')
+
+    const refundRejected = rejectDemoPaymentRefund(8103, {
+      reason: 'AUTO-TEST-退款驳回',
+    })
+    expect(refundRejected.refund_status).toBe('驳回')
+    expect(refundRejected.refund_amount).toBe('0.00')
+
+    requestDemoPaymentRefund(8103, {
+      refund_amount: 50000,
+      reason: 'AUTO-TEST-退款复提',
+    })
+    const refundApproved = approveDemoPaymentRefund(8103, {
+      reason: 'AUTO-TEST-退款审核通过',
+    })
+    expect(refundApproved.refund_status).toBe('已退款')
+
+    const writeoff = writeoffDemoPaymentDoc(8103, {
+      comment: 'AUTO-TEST-付款核销',
+    })
+    expect(writeoff.status).toBe('已核销')
   })
 })

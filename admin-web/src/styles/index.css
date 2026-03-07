@@ -786,6 +786,83 @@ body::before {
   flex-wrap: wrap;
 }
 
+.funds-reconcile-page {
+  gap: 18px;
+}
+
+.funds-reconcile-filter-card,
+.funds-reconcile-list-card,
+.funds-reconcile-detail-card {
+  padding: 22px;
+}
+
+.funds-reconcile-filter-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.funds-reconcile-filter-row h3 {
+  margin: 0 0 8px;
+}
+
+.funds-reconcile-filter-row p {
+  margin: 0;
+  color: var(--ink-regular);
+}
+
+.funds-reconcile-filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.funds-reconcile-filter-select {
+  width: 180px;
+}
+
+.funds-reconcile-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.funds-reconcile-list-card .el-table {
+  margin-top: 12px;
+}
+
+.funds-reconcile-detail-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.funds-reconcile-detail-grid .detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(31, 95, 91, 0.06);
+}
+
+.funds-reconcile-detail-grid .detail-row span {
+  color: var(--ink-regular);
+}
+
+.funds-reconcile-detail-grid .detail-row strong {
+  text-align: right;
+}
+
+.funds-reconcile-action-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
 .signal-card--warning {
   background: linear-gradient(145deg, rgba(196, 122, 44, 0.16), rgba(255, 251, 244, 0.94));
 }
@@ -953,6 +1030,10 @@ body::before {
   .contract-close-main-grid {
     grid-template-columns: 1fr;
   }
+
+  .funds-reconcile-main-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 960px) {
@@ -999,6 +1080,10 @@ body::before {
   }
 
   .contract-close-filter-row {
+    flex-direction: column;
+  }
+
+  .funds-reconcile-filter-row {
     flex-direction: column;
   }
 }

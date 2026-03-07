@@ -408,3 +408,174 @@ export function confirmDemoReceiptDoc(docId: number, payload: FundDocConfirmPayl
   target.message = '演示模式：0金额收款不满足放行条件，已转待补录金额'
   return cloneReceiptDoc(target)
 }
+
+function normalizeReason(value: string, fieldLabel: string): string {
+  const normalized = String(value || '').trim()
+  if (!normalized) {
+    throw new Error(`${fieldLabel}不能为空`)
+  }
+  return normalized
+}
+
+function normalizeRefundAmount(value: number): number {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error('退款金额必须大于0')
+  }
+  return Number(value.toFixed(2))
+}
+
+export function writeoffDemoPaymentDoc(
+  docId: number,
+  payload: {
+    comment: string
+  },
+): PaymentDocDetailResponse {
+  const target = getPaymentDocOrThrow(docId)
+  normalizeReason(payload.comment, '核销说明')
+  if (target.status === '已核销') {
+    target.message = '演示模式：付款单已核销，无需重复处理'
+    return clonePaymentDoc(target)
+  }
+  if (target.status !== '已确认') {
+    throw new Error('当前付款单状态不允许执行核销')
+  }
+  target.status = '已核销'
+  target.message = '演示模式：付款单已核销'
+  return clonePaymentDoc(target)
+}
+
+export function writeoffDemoReceiptDoc(
+  docId: number,
+  payload: {
+    comment: string
+  },
+): ReceiptDocDetailResponse {
+  const target = getReceiptDocOrThrow(docId)
+  normalizeReason(payload.comment, '核销说明')
+  if (target.status === '已核销') {
+    target.message = '演示模式：收款单已核销，无需重复处理'
+    return cloneReceiptDoc(target)
+  }
+  if (target.status !== '已确认') {
+    throw new Error('当前收款单状态不允许执行核销')
+  }
+  target.status = '已核销'
+  target.message = '演示模式：收款单已核销'
+  return cloneReceiptDoc(target)
+}
+
+export function requestDemoPaymentRefund(
+  docId: number,
+  payload: {
+    refund_amount: number
+    reason: string
+  },
+): PaymentDocDetailResponse {
+  const target = getPaymentDocOrThrow(docId)
+  const refundAmount = normalizeRefundAmount(payload.refund_amount)
+  normalizeReason(payload.reason, '退款申请说明')
+  if (!['已确认', '已核销'].includes(target.status)) {
+    throw new Error('当前付款单状态不允许发起退款审核')
+  }
+  if (!['未退款', '驳回'].includes(target.refund_status)) {
+    throw new Error('当前付款单退款状态不允许重复发起审核')
+  }
+  if (refundAmount > Number(target.amount_actual)) {
+    throw new Error('退款金额不能超过单据实收实付金额')
+  }
+  target.refund_status = '待审核'
+  target.refund_amount = refundAmount.toFixed(2)
+  target.message = '演示模式：付款单退款已提交待审核'
+  return clonePaymentDoc(target)
+}
+
+export function requestDemoReceiptRefund(
+  docId: number,
+  payload: {
+    refund_amount: number
+    reason: string
+  },
+): ReceiptDocDetailResponse {
+  const target = getReceiptDocOrThrow(docId)
+  const refundAmount = normalizeRefundAmount(payload.refund_amount)
+  normalizeReason(payload.reason, '退款申请说明')
+  if (!['已确认', '已核销'].includes(target.status)) {
+    throw new Error('当前收款单状态不允许发起退款审核')
+  }
+  if (!['未退款', '驳回'].includes(target.refund_status)) {
+    throw new Error('当前收款单退款状态不允许重复发起审核')
+  }
+  if (refundAmount > Number(target.amount_actual)) {
+    throw new Error('退款金额不能超过单据实收实付金额')
+  }
+  target.refund_status = '待审核'
+  target.refund_amount = refundAmount.toFixed(2)
+  target.message = '演示模式：收款单退款已提交待审核'
+  return cloneReceiptDoc(target)
+}
+
+export function approveDemoPaymentRefund(
+  docId: number,
+  payload: {
+    reason: string
+  },
+): PaymentDocDetailResponse {
+  const target = getPaymentDocOrThrow(docId)
+  normalizeReason(payload.reason, '审核说明')
+  if (target.refund_status !== '待审核') {
+    throw new Error('当前付款单退款状态不允许审核通过')
+  }
+  target.refund_status = Number(target.refund_amount) >= Number(target.amount_actual) ? '已退款' : '部分退款'
+  target.message = '演示模式：付款单退款审核已通过'
+  return clonePaymentDoc(target)
+}
+
+export function approveDemoReceiptRefund(
+  docId: number,
+  payload: {
+    reason: string
+  },
+): ReceiptDocDetailResponse {
+  const target = getReceiptDocOrThrow(docId)
+  normalizeReason(payload.reason, '审核说明')
+  if (target.refund_status !== '待审核') {
+    throw new Error('当前收款单退款状态不允许审核通过')
+  }
+  target.refund_status = Number(target.refund_amount) >= Number(target.amount_actual) ? '已退款' : '部分退款'
+  target.message = '演示模式：收款单退款审核已通过'
+  return cloneReceiptDoc(target)
+}
+
+export function rejectDemoPaymentRefund(
+  docId: number,
+  payload: {
+    reason: string
+  },
+): PaymentDocDetailResponse {
+  const target = getPaymentDocOrThrow(docId)
+  normalizeReason(payload.reason, '审核说明')
+  if (target.refund_status !== '待审核') {
+    throw new Error('当前付款单退款状态不允许驳回')
+  }
+  target.refund_status = '驳回'
+  target.refund_amount = '0.00'
+  target.message = '演示模式：付款单退款已驳回'
+  return clonePaymentDoc(target)
+}
+
+export function rejectDemoReceiptRefund(
+  docId: number,
+  payload: {
+    reason: string
+  },
+): ReceiptDocDetailResponse {
+  const target = getReceiptDocOrThrow(docId)
+  normalizeReason(payload.reason, '审核说明')
+  if (target.refund_status !== '待审核') {
+    throw new Error('当前收款单退款状态不允许驳回')
+  }
+  target.refund_status = '驳回'
+  target.refund_amount = '0.00'
+  target.message = '演示模式：收款单退款已驳回'
+  return cloneReceiptDoc(target)
+}

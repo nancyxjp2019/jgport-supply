@@ -9,6 +9,9 @@ from app.db.session import get_db
 from app.models.payment_doc import PaymentDoc
 from app.models.receipt_doc import ReceiptDoc
 from app.schemas.funds import (
+    FundRefundDecisionRequest,
+    FundRefundRequest,
+    FundWriteoffRequest,
     PaymentDocConfirmRequest,
     PaymentDocListItem,
     PaymentDocListResponse,
@@ -24,10 +27,18 @@ from app.services.funds_service import (
     FundsServiceError,
     ATTACHMENT_BIZ_TAG_PAYMENT_VOUCHER,
     ATTACHMENT_BIZ_TAG_RECEIPT_VOUCHER,
+    approve_payment_refund,
+    approve_receipt_refund,
     confirm_payment_doc,
     confirm_receipt_doc,
     create_payment_doc_supplement,
     create_receipt_doc_supplement,
+    reject_payment_refund,
+    reject_receipt_refund,
+    request_payment_refund,
+    request_receipt_refund,
+    writeoff_payment_doc,
+    writeoff_receipt_doc,
     list_doc_attachment_paths,
 )
 
@@ -193,6 +204,192 @@ def confirm_receipt(
             receipt_doc_id=receipt_doc_id,
             amount_actual=payload.amount_actual,
             voucher_files=payload.voucher_files,
+        )
+        receipt_doc = db.get(ReceiptDoc, result.doc_id)
+    except FundsServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    assert receipt_doc is not None
+    return _to_receipt_response(receipt_doc, message=result.message, db=db)
+
+
+@router.post(
+    "/payment-docs/{payment_doc_id}/writeoff", response_model=PaymentDocResponse
+)
+def writeoff_payment(
+    payment_doc_id: int,
+    payload: FundWriteoffRequest,
+    actor: AuthenticatedActor = Depends(fund_doc_write_dependency),
+    db: Session = Depends(get_db),
+) -> PaymentDocResponse:
+    try:
+        result = writeoff_payment_doc(
+            db,
+            operator_id=actor.user_id,
+            payment_doc_id=payment_doc_id,
+            comment=payload.comment,
+        )
+        payment_doc = db.get(PaymentDoc, result.doc_id)
+    except FundsServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    assert payment_doc is not None
+    return _to_payment_response(payment_doc, message=result.message, db=db)
+
+
+@router.post(
+    "/receipt-docs/{receipt_doc_id}/writeoff", response_model=ReceiptDocResponse
+)
+def writeoff_receipt(
+    receipt_doc_id: int,
+    payload: FundWriteoffRequest,
+    actor: AuthenticatedActor = Depends(fund_doc_write_dependency),
+    db: Session = Depends(get_db),
+) -> ReceiptDocResponse:
+    try:
+        result = writeoff_receipt_doc(
+            db,
+            operator_id=actor.user_id,
+            receipt_doc_id=receipt_doc_id,
+            comment=payload.comment,
+        )
+        receipt_doc = db.get(ReceiptDoc, result.doc_id)
+    except FundsServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    assert receipt_doc is not None
+    return _to_receipt_response(receipt_doc, message=result.message, db=db)
+
+
+@router.post(
+    "/payment-docs/{payment_doc_id}/refund-request", response_model=PaymentDocResponse
+)
+def request_payment_refund_route(
+    payment_doc_id: int,
+    payload: FundRefundRequest,
+    actor: AuthenticatedActor = Depends(fund_doc_write_dependency),
+    db: Session = Depends(get_db),
+) -> PaymentDocResponse:
+    try:
+        result = request_payment_refund(
+            db,
+            operator_id=actor.user_id,
+            payment_doc_id=payment_doc_id,
+            refund_amount=payload.refund_amount,
+            reason=payload.reason,
+        )
+        payment_doc = db.get(PaymentDoc, result.doc_id)
+    except FundsServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    assert payment_doc is not None
+    return _to_payment_response(payment_doc, message=result.message, db=db)
+
+
+@router.post(
+    "/receipt-docs/{receipt_doc_id}/refund-request", response_model=ReceiptDocResponse
+)
+def request_receipt_refund_route(
+    receipt_doc_id: int,
+    payload: FundRefundRequest,
+    actor: AuthenticatedActor = Depends(fund_doc_write_dependency),
+    db: Session = Depends(get_db),
+) -> ReceiptDocResponse:
+    try:
+        result = request_receipt_refund(
+            db,
+            operator_id=actor.user_id,
+            receipt_doc_id=receipt_doc_id,
+            refund_amount=payload.refund_amount,
+            reason=payload.reason,
+        )
+        receipt_doc = db.get(ReceiptDoc, result.doc_id)
+    except FundsServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    assert receipt_doc is not None
+    return _to_receipt_response(receipt_doc, message=result.message, db=db)
+
+
+@router.post(
+    "/payment-docs/{payment_doc_id}/refund-approve", response_model=PaymentDocResponse
+)
+def approve_payment_refund_route(
+    payment_doc_id: int,
+    payload: FundRefundDecisionRequest,
+    actor: AuthenticatedActor = Depends(fund_doc_write_dependency),
+    db: Session = Depends(get_db),
+) -> PaymentDocResponse:
+    try:
+        result = approve_payment_refund(
+            db,
+            operator_id=actor.user_id,
+            payment_doc_id=payment_doc_id,
+            reason=payload.reason,
+        )
+        payment_doc = db.get(PaymentDoc, result.doc_id)
+    except FundsServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    assert payment_doc is not None
+    return _to_payment_response(payment_doc, message=result.message, db=db)
+
+
+@router.post(
+    "/receipt-docs/{receipt_doc_id}/refund-approve", response_model=ReceiptDocResponse
+)
+def approve_receipt_refund_route(
+    receipt_doc_id: int,
+    payload: FundRefundDecisionRequest,
+    actor: AuthenticatedActor = Depends(fund_doc_write_dependency),
+    db: Session = Depends(get_db),
+) -> ReceiptDocResponse:
+    try:
+        result = approve_receipt_refund(
+            db,
+            operator_id=actor.user_id,
+            receipt_doc_id=receipt_doc_id,
+            reason=payload.reason,
+        )
+        receipt_doc = db.get(ReceiptDoc, result.doc_id)
+    except FundsServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    assert receipt_doc is not None
+    return _to_receipt_response(receipt_doc, message=result.message, db=db)
+
+
+@router.post(
+    "/payment-docs/{payment_doc_id}/refund-reject", response_model=PaymentDocResponse
+)
+def reject_payment_refund_route(
+    payment_doc_id: int,
+    payload: FundRefundDecisionRequest,
+    actor: AuthenticatedActor = Depends(fund_doc_write_dependency),
+    db: Session = Depends(get_db),
+) -> PaymentDocResponse:
+    try:
+        result = reject_payment_refund(
+            db,
+            operator_id=actor.user_id,
+            payment_doc_id=payment_doc_id,
+            reason=payload.reason,
+        )
+        payment_doc = db.get(PaymentDoc, result.doc_id)
+    except FundsServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    assert payment_doc is not None
+    return _to_payment_response(payment_doc, message=result.message, db=db)
+
+
+@router.post(
+    "/receipt-docs/{receipt_doc_id}/refund-reject", response_model=ReceiptDocResponse
+)
+def reject_receipt_refund_route(
+    receipt_doc_id: int,
+    payload: FundRefundDecisionRequest,
+    actor: AuthenticatedActor = Depends(fund_doc_write_dependency),
+    db: Session = Depends(get_db),
+) -> ReceiptDocResponse:
+    try:
+        result = reject_receipt_refund(
+            db,
+            operator_id=actor.user_id,
+            receipt_doc_id=receipt_doc_id,
+            reason=payload.reason,
         )
         receipt_doc = db.get(ReceiptDoc, result.doc_id)
     except FundsServiceError as exc:

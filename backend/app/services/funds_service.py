@@ -34,6 +34,11 @@ DOC_STATUS_DRAFT = "草稿"
 DOC_STATUS_PENDING_SUPPLEMENT = "待补录金额"
 DOC_STATUS_CONFIRMED = "已确认"
 DOC_STATUS_WRITEOFF = "已核销"
+REFUND_STATUS_NONE = "未退款"
+REFUND_STATUS_PENDING_REVIEW = "待审核"
+REFUND_STATUS_REJECTED = "驳回"
+REFUND_STATUS_PARTIAL = "部分退款"
+REFUND_STATUS_DONE = "已退款"
 TASK_STATUS_PENDING = "待处理"
 TASK_STATUS_GENERATED = "已生成"
 
@@ -71,7 +76,10 @@ def materialize_contract_effective_fund_docs(
     tasks: list[ContractEffectiveTask],
 ) -> None:
     for task in tasks:
-        if task.target_doc_type not in {"receipt_doc", "payment_doc"} or task.status != TASK_STATUS_PENDING:
+        if (
+            task.target_doc_type not in {"receipt_doc", "payment_doc"}
+            or task.status != TASK_STATUS_PENDING
+        ):
             continue
 
         payload = task.payload_json
@@ -155,7 +163,10 @@ def materialize_sales_order_fund_docs(
     tasks: list[SalesOrderDerivativeTask],
 ) -> None:
     for task in tasks:
-        if task.target_doc_type not in {"receipt_doc", "payment_doc"} or task.status != TASK_STATUS_PENDING:
+        if (
+            task.target_doc_type not in {"receipt_doc", "payment_doc"}
+            or task.status != TASK_STATUS_PENDING
+        ):
             continue
 
         payload = task.payload_json
@@ -208,7 +219,9 @@ def materialize_sales_order_fund_docs(
                 amount_actual=amount_actual,
                 status=DOC_STATUS_DRAFT,
                 voucher_required=not zero_pay_exception_flag,
-                voucher_exempt_reason="例外放行（需后补付款单）" if zero_pay_exception_flag else None,
+                voucher_exempt_reason="例外放行（需后补付款单）"
+                if zero_pay_exception_flag
+                else None,
                 refund_status="未退款",
                 refund_amount=Decimal("0.00"),
                 created_by=operator_id,
@@ -379,7 +392,9 @@ def confirm_payment_doc(
     payment_doc.updated_by = operator_id
 
     if normalized_amount > Decimal("0.00"):
-        _ensure_vouchers_present(normalized_voucher_files, detail="非0金额付款单必须上传付款凭证")
+        _ensure_vouchers_present(
+            normalized_voucher_files, detail="非0金额付款单必须上传付款凭证"
+        )
         payment_doc.status = DOC_STATUS_CONFIRMED
         payment_doc.voucher_required = True
         payment_doc.voucher_exempt_reason = None
@@ -413,7 +428,9 @@ def confirm_payment_doc(
         )
         _commit_or_raise(db, message="确认付款单失败，请稍后重试")
         if close_result.closed:
-            return FundsServiceResult(doc_id=payment_doc.id, message="付款单已确认，合同已自动关闭")
+            return FundsServiceResult(
+                doc_id=payment_doc.id, message="付款单已确认，合同已自动关闭"
+            )
         return FundsServiceResult(doc_id=payment_doc.id, message="付款单已确认")
 
     if _is_rule11_zero_pay_doc(db, payment_doc):
@@ -440,8 +457,13 @@ def confirm_payment_doc(
         )
         _commit_or_raise(db, message="确认付款单失败，请稍后重试")
         if close_result.closed:
-            return FundsServiceResult(doc_id=payment_doc.id, message="付款单已按规则11例外确认，合同已自动关闭")
-        return FundsServiceResult(doc_id=payment_doc.id, message="付款单已按规则11例外确认")
+            return FundsServiceResult(
+                doc_id=payment_doc.id,
+                message="付款单已按规则11例外确认，合同已自动关闭",
+            )
+        return FundsServiceResult(
+            doc_id=payment_doc.id, message="付款单已按规则11例外确认"
+        )
 
     if _passes_rule14_for_payment(db, payment_doc):
         payment_doc.status = DOC_STATUS_CONFIRMED
@@ -467,8 +489,13 @@ def confirm_payment_doc(
         )
         _commit_or_raise(db, message="确认付款单失败，请稍后重试")
         if close_result.closed:
-            return FundsServiceResult(doc_id=payment_doc.id, message="付款单已按规则14免凭证确认，合同已自动关闭")
-        return FundsServiceResult(doc_id=payment_doc.id, message="付款单已按规则14免凭证确认")
+            return FundsServiceResult(
+                doc_id=payment_doc.id,
+                message="付款单已按规则14免凭证确认，合同已自动关闭",
+            )
+        return FundsServiceResult(
+            doc_id=payment_doc.id, message="付款单已按规则14免凭证确认"
+        )
 
     payment_doc.status = DOC_STATUS_PENDING_SUPPLEMENT
     payment_doc.voucher_required = True
@@ -486,7 +513,9 @@ def confirm_payment_doc(
         extra_json={"confirm_rule": "BLOCKED", "blocked_code": "BIZ-PAY-ZERO-001"},
     )
     _commit_or_raise(db, message="确认付款单失败，请稍后重试")
-    return FundsServiceResult(doc_id=payment_doc.id, message="0金额付款不满足放行条件，已转待补录金额")
+    return FundsServiceResult(
+        doc_id=payment_doc.id, message="0金额付款不满足放行条件，已转待补录金额"
+    )
 
 
 def confirm_receipt_doc(
@@ -507,7 +536,9 @@ def confirm_receipt_doc(
     receipt_doc.updated_by = operator_id
 
     if normalized_amount > Decimal("0.00"):
-        _ensure_vouchers_present(normalized_voucher_files, detail="非0金额收款单必须上传收款凭证")
+        _ensure_vouchers_present(
+            normalized_voucher_files, detail="非0金额收款单必须上传收款凭证"
+        )
         receipt_doc.status = DOC_STATUS_CONFIRMED
         receipt_doc.voucher_required = True
         receipt_doc.voucher_exempt_reason = None
@@ -541,7 +572,9 @@ def confirm_receipt_doc(
         )
         _commit_or_raise(db, message="确认收款单失败，请稍后重试")
         if close_result.closed:
-            return FundsServiceResult(doc_id=receipt_doc.id, message="收款单已确认，合同已自动关闭")
+            return FundsServiceResult(
+                doc_id=receipt_doc.id, message="收款单已确认，合同已自动关闭"
+            )
         return FundsServiceResult(doc_id=receipt_doc.id, message="收款单已确认")
 
     if _passes_rule14_for_receipt(db, receipt_doc):
@@ -568,8 +601,13 @@ def confirm_receipt_doc(
         )
         _commit_or_raise(db, message="确认收款单失败，请稍后重试")
         if close_result.closed:
-            return FundsServiceResult(doc_id=receipt_doc.id, message="收款单已按规则14免凭证确认，合同已自动关闭")
-        return FundsServiceResult(doc_id=receipt_doc.id, message="收款单已按规则14免凭证确认")
+            return FundsServiceResult(
+                doc_id=receipt_doc.id,
+                message="收款单已按规则14免凭证确认，合同已自动关闭",
+            )
+        return FundsServiceResult(
+            doc_id=receipt_doc.id, message="收款单已按规则14免凭证确认"
+        )
 
     receipt_doc.status = DOC_STATUS_PENDING_SUPPLEMENT
     receipt_doc.voucher_required = True
@@ -587,7 +625,305 @@ def confirm_receipt_doc(
         extra_json={"confirm_rule": "BLOCKED", "blocked_code": "BIZ-RECEIPT-ZERO-001"},
     )
     _commit_or_raise(db, message="确认收款单失败，请稍后重试")
-    return FundsServiceResult(doc_id=receipt_doc.id, message="0金额收款不满足放行条件，已转待补录金额")
+    return FundsServiceResult(
+        doc_id=receipt_doc.id, message="0金额收款不满足放行条件，已转待补录金额"
+    )
+
+
+def writeoff_payment_doc(
+    db: Session,
+    *,
+    operator_id: str,
+    payment_doc_id: int,
+    comment: str,
+) -> FundsServiceResult:
+    payment_doc = _get_payment_doc_or_raise(db, payment_doc_id)
+    if payment_doc.status == DOC_STATUS_WRITEOFF:
+        return FundsServiceResult(
+            doc_id=payment_doc.id, message="付款单已核销，无需重复处理"
+        )
+    if payment_doc.status != DOC_STATUS_CONFIRMED:
+        raise FundsServiceError(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="当前付款单状态不允许执行核销",
+        )
+
+    before_json = _build_payment_snapshot(payment_doc)
+    payment_doc.status = DOC_STATUS_WRITEOFF
+    payment_doc.updated_by = operator_id
+    _write_fund_audit(
+        db,
+        event_code="M8-PAYMENT-DOC-WRITEOFF",
+        biz_type="payment_doc",
+        biz_id=f"payment_doc:{payment_doc.id}",
+        operator_id=operator_id,
+        before_json=before_json,
+        after_json=_build_payment_snapshot(payment_doc),
+        extra_json={"comment": comment.strip()},
+    )
+    close_result = evaluate_contract_closure(
+        db,
+        contract_id=payment_doc.contract_id,
+        operator_id=operator_id,
+        trigger_code="PAYMENT_DOC_WRITEOFF",
+    )
+    _commit_or_raise(db, message="付款单核销失败，请稍后重试")
+    if close_result.closed:
+        return FundsServiceResult(
+            doc_id=payment_doc.id, message="付款单已核销，合同已自动关闭"
+        )
+    return FundsServiceResult(doc_id=payment_doc.id, message="付款单已核销")
+
+
+def writeoff_receipt_doc(
+    db: Session,
+    *,
+    operator_id: str,
+    receipt_doc_id: int,
+    comment: str,
+) -> FundsServiceResult:
+    receipt_doc = _get_receipt_doc_or_raise(db, receipt_doc_id)
+    if receipt_doc.status == DOC_STATUS_WRITEOFF:
+        return FundsServiceResult(
+            doc_id=receipt_doc.id, message="收款单已核销，无需重复处理"
+        )
+    if receipt_doc.status != DOC_STATUS_CONFIRMED:
+        raise FundsServiceError(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="当前收款单状态不允许执行核销",
+        )
+
+    before_json = _build_receipt_snapshot(receipt_doc)
+    receipt_doc.status = DOC_STATUS_WRITEOFF
+    receipt_doc.updated_by = operator_id
+    _write_fund_audit(
+        db,
+        event_code="M8-RECEIPT-DOC-WRITEOFF",
+        biz_type="receipt_doc",
+        biz_id=f"receipt_doc:{receipt_doc.id}",
+        operator_id=operator_id,
+        before_json=before_json,
+        after_json=_build_receipt_snapshot(receipt_doc),
+        extra_json={"comment": comment.strip()},
+    )
+    close_result = evaluate_contract_closure(
+        db,
+        contract_id=receipt_doc.contract_id,
+        operator_id=operator_id,
+        trigger_code="RECEIPT_DOC_WRITEOFF",
+    )
+    _commit_or_raise(db, message="收款单核销失败，请稍后重试")
+    if close_result.closed:
+        return FundsServiceResult(
+            doc_id=receipt_doc.id, message="收款单已核销，合同已自动关闭"
+        )
+    return FundsServiceResult(doc_id=receipt_doc.id, message="收款单已核销")
+
+
+def request_payment_refund(
+    db: Session,
+    *,
+    operator_id: str,
+    payment_doc_id: int,
+    refund_amount: Decimal,
+    reason: str,
+) -> FundsServiceResult:
+    payment_doc = _get_payment_doc_or_raise(db, payment_doc_id)
+    if payment_doc.status not in {DOC_STATUS_CONFIRMED, DOC_STATUS_WRITEOFF}:
+        raise FundsServiceError(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="当前付款单状态不允许发起退款审核",
+        )
+    _ensure_refund_requestable(
+        payment_doc.refund_status, detail="当前付款单退款状态不允许重复发起审核"
+    )
+    normalized_refund_amount = normalize_money(refund_amount)
+    _ensure_refund_amount_within_doc_amount(
+        refund_amount=normalized_refund_amount,
+        doc_amount=payment_doc.amount_actual,
+    )
+
+    before_json = _build_payment_snapshot(payment_doc)
+    payment_doc.refund_status = REFUND_STATUS_PENDING_REVIEW
+    payment_doc.refund_amount = normalized_refund_amount
+    payment_doc.updated_by = operator_id
+    _write_fund_audit(
+        db,
+        event_code="M8-PAYMENT-REFUND-REQUEST",
+        biz_type="payment_doc",
+        biz_id=f"payment_doc:{payment_doc.id}",
+        operator_id=operator_id,
+        before_json=before_json,
+        after_json=_build_payment_snapshot(payment_doc),
+        extra_json={"reason": reason.strip()},
+    )
+    _commit_or_raise(db, message="付款单退款审核申请失败，请稍后重试")
+    return FundsServiceResult(doc_id=payment_doc.id, message="付款单退款已提交待审核")
+
+
+def request_receipt_refund(
+    db: Session,
+    *,
+    operator_id: str,
+    receipt_doc_id: int,
+    refund_amount: Decimal,
+    reason: str,
+) -> FundsServiceResult:
+    receipt_doc = _get_receipt_doc_or_raise(db, receipt_doc_id)
+    if receipt_doc.status not in {DOC_STATUS_CONFIRMED, DOC_STATUS_WRITEOFF}:
+        raise FundsServiceError(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="当前收款单状态不允许发起退款审核",
+        )
+    _ensure_refund_requestable(
+        receipt_doc.refund_status, detail="当前收款单退款状态不允许重复发起审核"
+    )
+    normalized_refund_amount = normalize_money(refund_amount)
+    _ensure_refund_amount_within_doc_amount(
+        refund_amount=normalized_refund_amount,
+        doc_amount=receipt_doc.amount_actual,
+    )
+
+    before_json = _build_receipt_snapshot(receipt_doc)
+    receipt_doc.refund_status = REFUND_STATUS_PENDING_REVIEW
+    receipt_doc.refund_amount = normalized_refund_amount
+    receipt_doc.updated_by = operator_id
+    _write_fund_audit(
+        db,
+        event_code="M8-RECEIPT-REFUND-REQUEST",
+        biz_type="receipt_doc",
+        biz_id=f"receipt_doc:{receipt_doc.id}",
+        operator_id=operator_id,
+        before_json=before_json,
+        after_json=_build_receipt_snapshot(receipt_doc),
+        extra_json={"reason": reason.strip()},
+    )
+    _commit_or_raise(db, message="收款单退款审核申请失败，请稍后重试")
+    return FundsServiceResult(doc_id=receipt_doc.id, message="收款单退款已提交待审核")
+
+
+def approve_payment_refund(
+    db: Session,
+    *,
+    operator_id: str,
+    payment_doc_id: int,
+    reason: str,
+) -> FundsServiceResult:
+    payment_doc = _get_payment_doc_or_raise(db, payment_doc_id)
+    _ensure_refund_pending_review(
+        payment_doc.refund_status, detail="当前付款单退款状态不允许审核通过"
+    )
+
+    before_json = _build_payment_snapshot(payment_doc)
+    payment_doc.refund_status = _resolve_refund_approved_status(
+        refund_amount=payment_doc.refund_amount,
+        doc_amount=payment_doc.amount_actual,
+    )
+    payment_doc.updated_by = operator_id
+    _write_fund_audit(
+        db,
+        event_code="M8-PAYMENT-REFUND-APPROVE",
+        biz_type="payment_doc",
+        biz_id=f"payment_doc:{payment_doc.id}",
+        operator_id=operator_id,
+        before_json=before_json,
+        after_json=_build_payment_snapshot(payment_doc),
+        extra_json={"reason": reason.strip()},
+    )
+    _commit_or_raise(db, message="付款单退款审核通过失败，请稍后重试")
+    return FundsServiceResult(doc_id=payment_doc.id, message="付款单退款审核已通过")
+
+
+def approve_receipt_refund(
+    db: Session,
+    *,
+    operator_id: str,
+    receipt_doc_id: int,
+    reason: str,
+) -> FundsServiceResult:
+    receipt_doc = _get_receipt_doc_or_raise(db, receipt_doc_id)
+    _ensure_refund_pending_review(
+        receipt_doc.refund_status, detail="当前收款单退款状态不允许审核通过"
+    )
+
+    before_json = _build_receipt_snapshot(receipt_doc)
+    receipt_doc.refund_status = _resolve_refund_approved_status(
+        refund_amount=receipt_doc.refund_amount,
+        doc_amount=receipt_doc.amount_actual,
+    )
+    receipt_doc.updated_by = operator_id
+    _write_fund_audit(
+        db,
+        event_code="M8-RECEIPT-REFUND-APPROVE",
+        biz_type="receipt_doc",
+        biz_id=f"receipt_doc:{receipt_doc.id}",
+        operator_id=operator_id,
+        before_json=before_json,
+        after_json=_build_receipt_snapshot(receipt_doc),
+        extra_json={"reason": reason.strip()},
+    )
+    _commit_or_raise(db, message="收款单退款审核通过失败，请稍后重试")
+    return FundsServiceResult(doc_id=receipt_doc.id, message="收款单退款审核已通过")
+
+
+def reject_payment_refund(
+    db: Session,
+    *,
+    operator_id: str,
+    payment_doc_id: int,
+    reason: str,
+) -> FundsServiceResult:
+    payment_doc = _get_payment_doc_or_raise(db, payment_doc_id)
+    _ensure_refund_pending_review(
+        payment_doc.refund_status, detail="当前付款单退款状态不允许驳回"
+    )
+
+    before_json = _build_payment_snapshot(payment_doc)
+    payment_doc.refund_status = REFUND_STATUS_REJECTED
+    payment_doc.refund_amount = Decimal("0.00")
+    payment_doc.updated_by = operator_id
+    _write_fund_audit(
+        db,
+        event_code="M8-PAYMENT-REFUND-REJECT",
+        biz_type="payment_doc",
+        biz_id=f"payment_doc:{payment_doc.id}",
+        operator_id=operator_id,
+        before_json=before_json,
+        after_json=_build_payment_snapshot(payment_doc),
+        extra_json={"reason": reason.strip()},
+    )
+    _commit_or_raise(db, message="付款单退款驳回失败，请稍后重试")
+    return FundsServiceResult(doc_id=payment_doc.id, message="付款单退款已驳回")
+
+
+def reject_receipt_refund(
+    db: Session,
+    *,
+    operator_id: str,
+    receipt_doc_id: int,
+    reason: str,
+) -> FundsServiceResult:
+    receipt_doc = _get_receipt_doc_or_raise(db, receipt_doc_id)
+    _ensure_refund_pending_review(
+        receipt_doc.refund_status, detail="当前收款单退款状态不允许驳回"
+    )
+
+    before_json = _build_receipt_snapshot(receipt_doc)
+    receipt_doc.refund_status = REFUND_STATUS_REJECTED
+    receipt_doc.refund_amount = Decimal("0.00")
+    receipt_doc.updated_by = operator_id
+    _write_fund_audit(
+        db,
+        event_code="M8-RECEIPT-REFUND-REJECT",
+        biz_type="receipt_doc",
+        biz_id=f"receipt_doc:{receipt_doc.id}",
+        operator_id=operator_id,
+        before_json=before_json,
+        after_json=_build_receipt_snapshot(receipt_doc),
+        extra_json={"reason": reason.strip()},
+    )
+    _commit_or_raise(db, message="收款单退款驳回失败，请稍后重试")
+    return FundsServiceResult(doc_id=receipt_doc.id, message="收款单退款已驳回")
 
 
 def normalize_money(value: Decimal) -> Decimal:
@@ -660,7 +996,9 @@ def _ensure_contract_open_for_funds_or_raise(contract: Contract) -> None:
         raise FundsServiceError(status_code=exc.status_code, detail=exc.detail) from exc
 
 
-def _get_contract_item_or_raise(db: Session, contract_id: int, oil_product_id: str) -> ContractItem:
+def _get_contract_item_or_raise(
+    db: Session, contract_id: int, oil_product_id: str
+) -> ContractItem:
     statement = select(ContractItem).where(
         ContractItem.contract_id == contract_id,
         ContractItem.oil_product_id == oil_product_id,
@@ -752,6 +1090,47 @@ def _normalize_voucher_files(voucher_files: list[str]) -> list[str]:
     return normalized_files
 
 
+def _ensure_refund_amount_within_doc_amount(
+    *,
+    refund_amount: Decimal,
+    doc_amount: Decimal,
+) -> None:
+    if refund_amount <= Decimal("0.00"):
+        raise FundsServiceError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="退款金额必须大于0",
+        )
+    if refund_amount > doc_amount:
+        raise FundsServiceError(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="退款金额不能超过单据实收实付金额",
+        )
+
+
+def _ensure_refund_pending_review(refund_status: str, *, detail: str) -> None:
+    if refund_status != REFUND_STATUS_PENDING_REVIEW:
+        raise FundsServiceError(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=detail,
+        )
+
+
+def _ensure_refund_requestable(refund_status: str, *, detail: str) -> None:
+    if refund_status not in {REFUND_STATUS_NONE, REFUND_STATUS_REJECTED}:
+        raise FundsServiceError(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=detail,
+        )
+
+
+def _resolve_refund_approved_status(
+    *, refund_amount: Decimal, doc_amount: Decimal
+) -> str:
+    if refund_amount >= doc_amount:
+        return REFUND_STATUS_DONE
+    return REFUND_STATUS_PARTIAL
+
+
 def _replace_doc_attachments(
     db: Session,
     *,
@@ -808,7 +1187,9 @@ def _passes_rule14_for_receipt(db: Session, receipt_doc: ReceiptDoc) -> bool:
     if receipt_doc.doc_type != DOC_TYPE_NORMAL or receipt_doc.sales_order_id is None:
         return False
     sales_order = _get_sales_order_or_raise(db, receipt_doc.sales_order_id)
-    contract_item = _get_contract_item_or_raise(db, receipt_doc.contract_id, sales_order.oil_product_id)
+    contract_item = _get_contract_item_or_raise(
+        db, receipt_doc.contract_id, sales_order.oil_product_id
+    )
     release_threshold = _get_release_threshold_or_raise(db, receipt_doc.contract_id)
     deposit_cover_qty = _calculate_sales_deposit_cover_qty(
         db,
@@ -824,7 +1205,9 @@ def _passes_rule14_for_payment(db: Session, payment_doc: PaymentDoc) -> bool:
     if payment_doc.doc_type != DOC_TYPE_NORMAL or payment_doc.purchase_order_id is None:
         return False
     purchase_order = _get_purchase_order_or_raise(db, payment_doc.purchase_order_id)
-    contract_item = _get_contract_item_or_raise(db, payment_doc.contract_id, purchase_order.oil_product_id)
+    contract_item = _get_contract_item_or_raise(
+        db, payment_doc.contract_id, purchase_order.oil_product_id
+    )
     release_threshold = _get_release_threshold_or_raise(db, payment_doc.contract_id)
     deposit_cover_qty = _calculate_purchase_deposit_cover_qty(
         db,
@@ -861,7 +1244,9 @@ def _calculate_sales_deposit_cover_qty(
     for receipt_doc in db.scalars(statement).all():
         if receipt_doc.refund_status == "已退款":
             continue
-        deposit_net_amount += normalize_money(receipt_doc.amount_actual - receipt_doc.refund_amount)
+        deposit_net_amount += normalize_money(
+            receipt_doc.amount_actual - receipt_doc.refund_amount
+        )
     if unit_price <= Decimal("0.00"):
         raise FundsServiceError(
             status_code=status.HTTP_409_CONFLICT,
@@ -885,7 +1270,9 @@ def _calculate_purchase_deposit_cover_qty(
     for payment_doc in db.scalars(statement).all():
         if payment_doc.refund_status == "已退款":
             continue
-        deposit_net_amount += normalize_money(payment_doc.amount_actual - payment_doc.refund_amount)
+        deposit_net_amount += normalize_money(
+            payment_doc.amount_actual - payment_doc.refund_amount
+        )
     if unit_price <= Decimal("0.00"):
         raise FundsServiceError(
             status_code=status.HTTP_409_CONFLICT,
@@ -932,7 +1319,9 @@ def _build_receipt_snapshot(receipt_doc: ReceiptDoc) -> dict:
         "refund_status": receipt_doc.refund_status,
         "refund_amount": str(receipt_doc.refund_amount),
         "confirmed_by": receipt_doc.confirmed_by,
-        "confirmed_at": receipt_doc.confirmed_at.isoformat() if receipt_doc.confirmed_at else None,
+        "confirmed_at": receipt_doc.confirmed_at.isoformat()
+        if receipt_doc.confirmed_at
+        else None,
     }
 
 
@@ -950,7 +1339,9 @@ def _build_payment_snapshot(payment_doc: PaymentDoc) -> dict:
         "refund_status": payment_doc.refund_status,
         "refund_amount": str(payment_doc.refund_amount),
         "confirmed_by": payment_doc.confirmed_by,
-        "confirmed_at": payment_doc.confirmed_at.isoformat() if payment_doc.confirmed_at else None,
+        "confirmed_at": payment_doc.confirmed_at.isoformat()
+        if payment_doc.confirmed_at
+        else None,
     }
 
 

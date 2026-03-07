@@ -84,6 +84,16 @@ const router = createRouter({
             summary: '自动关闭回看、手工关闭入口与差异留痕回看',
           },
         },
+        {
+          path: '/funds-reconcile',
+          name: 'funds-reconcile',
+          component: () => import('@/views/funds-reconcile/FundsReconcileView.vue'),
+          meta: {
+            requiresAuth: true,
+            title: '退款核销与资金驳回台',
+            summary: '退款待审核流转、退款驳回与单据核销处理',
+          },
+        },
       ],
     },
   ],

@@ -32,6 +32,19 @@ class ReceiptDocConfirmRequest(BaseModel):
     )
 
 
+class FundWriteoffRequest(BaseModel):
+    comment: str = Field(min_length=1, max_length=256, description="核销说明")
+
+
+class FundRefundRequest(BaseModel):
+    refund_amount: Decimal = Field(gt=0, description="退款金额")
+    reason: str = Field(min_length=1, max_length=256, description="退款申请说明")
+
+
+class FundRefundDecisionRequest(BaseModel):
+    reason: str = Field(min_length=1, max_length=256, description="审核说明")
+
+
 class ReceiptDocResponse(BaseModel):
     id: int
     doc_no: str
