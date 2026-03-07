@@ -1,0 +1,157 @@
+<view class="page-shell">
+  <view class="hero-card supplier-hero-card">
+    <view class="page-title">供应商采购进度</view>
+    <view class="page-subtitle">面向供应商角色的首批真实业务页。当前仅开放采购订单进度查看、发货准备信息回看与附件入口预留。</view>
+    <view class="pill-row supplier-hero-meta">
+      <view class="version-pill">首批真实进度</view>
+      <view class="mode-pill">{{runtimeLabel}}</view>
+      <view wx:if="{{roleLabel}}" class="mode-pill">当前身份：{{roleLabel}}</view>
+    </view>
+  </view>
+
+  <view class="panel-card session-card">
+    <view class="section-title">当前会话</view>
+    <view class="section-desc">当前仅向供应商角色开放。付款确认、异常关闭和真实附件上传仍保留在后续迭代。</view>
+    <view class="button-row">
+      <button class="secondary-btn" bindtap="onSwitchRole">切换角色</button>
+      <button class="danger-btn" bindtap="onLogout">退出当前身份</button>
+    </view>
+  </view>
+
+  <view wx:if="{{sourceText}}" class="panel-card">
+    <view class="section-title">来源回看</view>
+    <view class="section-desc">{{sourceText}}</view>
+    <view wx:if="{{sourceDetailText}}" class="status-tip">{{sourceDetailText}}</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="status-card">
+    <view class="status-card__title">采购进度加载中</view>
+    <view class="status-tip">正在读取当前供应商公司名下采购订单，请稍候。</view>
+  </view>
+
+  <view wx:elif="{{errorMessage}}" class="status-card error-card">
+    <view class="status-card__title">加载失败</view>
+    <view class="error-text">{{errorMessage}}</view>
+  </view>
+
+  <view wx:elif="{{!allowed}}" class="status-card forbidden-card">
+    <view class="status-card__title">当前角色暂不开放供应商采购进度</view>
+    <view class="forbidden-text">当前身份：{{roleLabel || '未登录'}}。该页面仅适用于供应商角色。</view>
+    <view class="button-row">
+      <button class="secondary-btn" bindtap="onOpenDefaultPage">返回默认工作页</button>
+      <button class="danger-btn" bindtap="onLogout">退出当前身份</button>
+    </view>
+  </view>
+
+  <block wx:else>
+    <view wx:if="{{summaryCards.length}}" class="panel-card">
+      <view class="section-title">采购摘要</view>
+      <view class="section-desc">当前摘要仅覆盖已开放的供应商采购进度，不展示资金确认动作。</view>
+      <view class="todo-summary-grid">
+        <view wx:for="{{summaryCards}}" wx:key="key" class="todo-summary-card {{item.className}}">
+          <view class="todo-summary-card__label">{{item.label}}</view>
+          <view class="todo-summary-card__value">{{item.value}}</view>
+          <view class="todo-summary-card__desc">{{item.desc}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{orders.length}}" class="panel-card">
+      <view class="section-title">采购订单列表</view>
+      <view class="section-desc">点击任意采购订单可查看当前进度、来源销售订单与发货准备提示。</view>
+      <view class="supplier-list">
+        <view wx:for="{{orders}}" wx:key="id" class="supplier-card {{selectedOrderId === item.id ? 'supplier-card--active' : ''}}" data-order-id="{{item.id}}" bindtap="onOpenOrder">
+          <view class="supplier-card__head">
+            <view>
+              <view class="supplier-card__title">{{item.order_no}}</view>
+              <view class="supplier-card__meta">来源销售订单：{{item.source_sales_order_no}}</view>
+            </view>
+            <view class="status-pill {{item.statusClass}}">{{item.status}}</view>
+          </view>
+          <view class="supplier-card__grid">
+            <view class="supplier-metric">
+              <view class="supplier-metric__label">油品</view>
+              <view class="supplier-metric__value">{{item.oil_product_id}}</view>
+            </view>
+            <view class="supplier-metric">
+              <view class="supplier-metric__label">数量</view>
+              <view class="supplier-metric__value">{{item.qtyOrderedText}}</view>
+            </view>
+            <view class="supplier-metric">
+              <view class="supplier-metric__label">应付金额</view>
+              <view class="supplier-metric__value">¥{{item.payableAmountText}}</view>
+            </view>
+            <view class="supplier-metric">
+              <view class="supplier-metric__label">零付款例外</view>
+              <view class="supplier-metric__value">{{item.zero_pay_exception_flag ? '是' : '否'}}</view>
+            </view>
+          </view>
+          <view class="card-caption">创建时间：{{item.createdAtText}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{detailLoading}}" class="status-card">
+      <view class="status-card__title">详情加载中</view>
+      <view class="status-tip">正在读取采购订单详情与发货准备信息，请稍候。</view>
+    </view>
+
+    <view wx:elif="{{detailErrorMessage}}" class="status-card error-card">
+      <view class="status-card__title">详情加载失败</view>
+      <view class="error-text">{{detailErrorMessage}}</view>
+    </view>
+
+    <view wx:elif="{{selectedOrder}}" class="panel-card detail-card">
+      <view class="section-title">当前选中采购订单</view>
+      <view class="section-desc">附件能力首批仅开放入口预留，不展示真实上传结果。</view>
+      <view class="supplier-card__head detail-card__head">
+        <view>
+          <view class="supplier-card__title">{{selectedOrder.order_no}}</view>
+          <view class="supplier-card__meta">来源销售订单：{{selectedOrder.source_sales_order_no}}</view>
+        </view>
+        <view class="status-pill {{selectedOrder.statusClass}}">{{selectedOrder.status}}</view>
+      </view>
+      <view class="detail-grid">
+        <view class="detail-row">
+          <view class="detail-row__label">采购合同ID</view>
+          <view class="detail-row__value">{{selectedOrder.purchase_contract_id}}</view>
+        </view>
+        <view class="detail-row">
+          <view class="detail-row__label">油品</view>
+          <view class="detail-row__value">{{selectedOrder.oil_product_id}}</view>
+        </view>
+        <view class="detail-row">
+          <view class="detail-row__label">数量</view>
+          <view class="detail-row__value">{{selectedOrder.qtyOrderedText}}</view>
+        </view>
+        <view class="detail-row">
+          <view class="detail-row__label">应付金额</view>
+          <view class="detail-row__value">¥{{selectedOrder.payableAmountText}}</view>
+        </view>
+        <view class="detail-row">
+          <view class="detail-row__label">零付款例外</view>
+          <view class="detail-row__value">{{selectedOrder.zero_pay_exception_flag ? '是' : '否'}}</view>
+        </view>
+        <view class="detail-row">
+          <view class="detail-row__label">创建时间</view>
+          <view class="detail-row__value">{{selectedOrder.createdAtText}}</view>
+        </view>
+      </view>
+      <view class="hint-card">
+        <view class="section-title">发货准备提示</view>
+        <view class="hint-list">
+          <view wx:for="{{selectedOrder.preparationHints}}" wx:key="*this" class="hint-item">{{index + 1}}. {{item}}</view>
+        </view>
+        <view class="button-row hint-card__actions">
+          <button class="secondary-btn" disabled>附件入口预留（暂未开放）</button>
+        </view>
+      </view>
+    </view>
+
+    <view wx:elif="{{!orders.length}}" class="empty-card">
+      <view class="status-card__title">当前暂无采购订单</view>
+      <view class="empty-text">{{emptyText}}</view>
+      <view class="status-tip">后续财务审批生成采购订单后，会在这里展示真实进度。</view>
+    </view>
+  </block>
+</view>

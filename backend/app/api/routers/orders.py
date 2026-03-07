@@ -13,6 +13,9 @@ from app.schemas.order import (
     AvailableSalesContractListResponse,
     AvailableSalesContractResponse,
     PurchaseOrderResponse,
+    PurchaseOrderListItemResponse,
+    PurchaseOrderListResponse,
+    SupplierPurchaseOrderResponse,
     SalesOrderListItemResponse,
     SalesOrderListResponse,
     SalesOrderCreateRequest,
@@ -29,6 +32,7 @@ from app.services.order_service import (
     finance_approve_sales_order,
     get_sales_order_detail_or_raise,
     get_purchase_order_or_raise,
+    list_supplier_purchase_orders,
     get_sales_order_or_raise,
     list_available_sales_contracts,
     list_sales_orders,
@@ -53,6 +57,11 @@ purchase_order_reader_dependency = require_actor(
     allowed_roles={"operations", "finance", "admin"},
     allowed_client_types={"admin_web"},
     allowed_company_types={"operator_company"},
+)
+supplier_purchase_order_reader_dependency = require_actor(
+    allowed_roles={"supplier"},
+    allowed_client_types={"miniprogram"},
+    allowed_company_types={"supplier_company"},
 )
 
 
@@ -79,7 +88,9 @@ def create_sales_order(
     return _to_sales_order_response(sales_order, message=result.message)
 
 
-@router.get("/sales-contracts/available", response_model=AvailableSalesContractListResponse)
+@router.get(
+    "/sales-contracts/available", response_model=AvailableSalesContractListResponse
+)
 def list_available_sales_contracts_route(
     actor: AuthenticatedActor = Depends(get_current_actor),
     db: Session = Depends(get_db),
@@ -112,7 +123,9 @@ def list_sales_orders_route(
     )
     return SalesOrderListResponse(
         items=[
-            _to_sales_order_list_item_response(sales_order, sales_contract_no=sales_contract_no)
+            _to_sales_order_list_item_response(
+                sales_order, sales_contract_no=sales_contract_no
+            )
             for sales_order, sales_contract_no in items
         ],
         total=len(items),
@@ -188,7 +201,9 @@ def submit_sales_order_route(
     return _to_sales_order_response(sales_order, message=result.message)
 
 
-@router.post("/sales-orders/{sales_order_id}/ops-approve", response_model=SalesOrderResponse)
+@router.post(
+    "/sales-orders/{sales_order_id}/ops-approve", response_model=SalesOrderResponse
+)
 def ops_approve_sales_order_route(
     sales_order_id: int,
     payload: SalesOrderOpsApproveRequest,
@@ -209,7 +224,9 @@ def ops_approve_sales_order_route(
     return _to_sales_order_response(sales_order, message=result.message)
 
 
-@router.post("/sales-orders/{sales_order_id}/finance-approve", response_model=SalesOrderResponse)
+@router.post(
+    "/sales-orders/{sales_order_id}/finance-approve", response_model=SalesOrderResponse
+)
 def finance_approve_sales_order_route(
     sales_order_id: int,
     payload: SalesOrderFinanceApproveRequest,
@@ -238,7 +255,9 @@ def finance_approve_sales_order_route(
     )
 
 
-@router.get("/purchase-orders/{purchase_order_id}", response_model=PurchaseOrderResponse)
+@router.get(
+    "/purchase-orders/{purchase_order_id}", response_model=PurchaseOrderResponse
+)
 def get_purchase_order_detail(
     purchase_order_id: int,
     _: AuthenticatedActor = Depends(purchase_order_reader_dependency),
@@ -251,6 +270,55 @@ def get_purchase_order_detail(
     return _to_purchase_order_response(purchase_order, message="采购订单详情查询成功")
 
 
+@router.get("/supplier/purchase-orders", response_model=PurchaseOrderListResponse)
+def list_supplier_purchase_orders_route(
+    status_filter: str | None = Query(default=None, alias="status"),
+    limit: int = Query(default=20, ge=1, le=50),
+    actor: AuthenticatedActor = Depends(supplier_purchase_order_reader_dependency),
+    db: Session = Depends(get_db),
+) -> PurchaseOrderListResponse:
+    supplier_company_id = _resolve_supplier_purchase_order_scope(actor)
+    items = list_supplier_purchase_orders(
+        db,
+        supplier_company_id=supplier_company_id,
+        status_filter=status_filter,
+        limit=limit,
+    )
+    return PurchaseOrderListResponse(
+        items=[
+            _to_purchase_order_list_item_response(
+                purchase_order, source_sales_order_no=source_sales_order_no
+            )
+            for purchase_order, source_sales_order_no in items
+        ],
+        total=len(items),
+        message="供应商采购订单列表查询成功",
+    )
+
+
+@router.get(
+    "/supplier/purchase-orders/{purchase_order_id}",
+    response_model=SupplierPurchaseOrderResponse,
+)
+def get_supplier_purchase_order_detail(
+    purchase_order_id: int,
+    actor: AuthenticatedActor = Depends(supplier_purchase_order_reader_dependency),
+    db: Session = Depends(get_db),
+) -> SupplierPurchaseOrderResponse:
+    supplier_company_id = _resolve_supplier_purchase_order_scope(actor)
+    try:
+        purchase_order = get_purchase_order_or_raise(
+            db,
+            purchase_order_id,
+            required_supplier_company_id=supplier_company_id,
+        )
+    except OrderServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    return _to_supplier_purchase_order_response(
+        purchase_order, message="供应商采购订单详情查询成功"
+    )
+
+
 def _resolve_sales_order_creator_scope(actor: AuthenticatedActor) -> str | None:
     if (
         actor.role_code == "customer"
@@ -258,7 +326,9 @@ def _resolve_sales_order_creator_scope(actor: AuthenticatedActor) -> str | None:
         and actor.client_type == "miniprogram"
     ):
         if not actor.company_id:
-            raise HTTPException(status_code=401, detail="未认证公司身份，禁止操作销售订单")
+            raise HTTPException(
+                status_code=401, detail="未认证公司身份，禁止操作销售订单"
+            )
         return actor.company_id
 
     if (
@@ -278,7 +348,9 @@ def _resolve_customer_sales_order_scope(actor: AuthenticatedActor) -> str:
         and actor.client_type == "miniprogram"
     ):
         if not actor.company_id:
-            raise HTTPException(status_code=401, detail="未认证公司身份，禁止查询销售合同")
+            raise HTTPException(
+                status_code=401, detail="未认证公司身份，禁止查询销售合同"
+            )
         return actor.company_id
     raise HTTPException(status_code=403, detail="当前身份无权查询可选销售合同")
 
@@ -290,7 +362,9 @@ def _resolve_sales_order_reader_scope(actor: AuthenticatedActor) -> str | None:
         and actor.client_type == "miniprogram"
     ):
         if not actor.company_id:
-            raise HTTPException(status_code=401, detail="未认证公司身份，禁止查询销售订单")
+            raise HTTPException(
+                status_code=401, detail="未认证公司身份，禁止查询销售订单"
+            )
         return actor.company_id
     if (
         actor.role_code in {"operations", "finance", "admin"}
@@ -299,6 +373,20 @@ def _resolve_sales_order_reader_scope(actor: AuthenticatedActor) -> str | None:
     ):
         return None
     raise HTTPException(status_code=403, detail="当前身份无权查询销售订单")
+
+
+def _resolve_supplier_purchase_order_scope(actor: AuthenticatedActor) -> str:
+    if (
+        actor.role_code == "supplier"
+        and actor.company_type == "supplier_company"
+        and actor.client_type == "miniprogram"
+    ):
+        if not actor.company_id:
+            raise HTTPException(
+                status_code=401, detail="未认证公司身份，禁止查询采购订单"
+            )
+        return actor.company_id
+    raise HTTPException(status_code=403, detail="当前身份无权查询采购订单")
 
 
 def _to_sales_order_response(
@@ -327,7 +415,9 @@ def _to_sales_order_response(
         ops_approved_at=sales_order.ops_approved_at,
         finance_approved_at=sales_order.finance_approved_at,
         purchase_order_id=resolved_purchase_order_id,
-        generated_task_count=generated_task_count if generated_task_count is not None else len(sales_order.derivative_tasks),
+        generated_task_count=generated_task_count
+        if generated_task_count is not None
+        else len(sales_order.derivative_tasks),
         message=message,
         sales_contract_no=sales_contract_no,
         created_at=sales_order.created_at,
@@ -339,7 +429,9 @@ def _to_sales_order_list_item_response(
     *,
     sales_contract_no: str,
 ) -> SalesOrderListItemResponse:
-    purchase_order_id = sales_order.purchase_orders[0].id if sales_order.purchase_orders else None
+    purchase_order_id = (
+        sales_order.purchase_orders[0].id if sales_order.purchase_orders else None
+    )
     return SalesOrderListItemResponse(
         id=sales_order.id,
         order_no=sales_order.order_no,
@@ -358,7 +450,9 @@ def _to_sales_order_list_item_response(
     )
 
 
-def _to_available_sales_contract_response(contract: Contract) -> AvailableSalesContractResponse:
+def _to_available_sales_contract_response(
+    contract: Contract,
+) -> AvailableSalesContractResponse:
     return AvailableSalesContractResponse(
         id=contract.id,
         contract_no=contract.contract_no,
@@ -374,13 +468,22 @@ def _to_available_sales_contract_response(contract: Contract) -> AvailableSalesC
     )
 
 
-def _to_purchase_order_response(purchase_order: PurchaseOrder, *, message: str) -> PurchaseOrderResponse:
-    derivative_tasks = purchase_order.sales_order.derivative_tasks if purchase_order.sales_order else []
+def _to_purchase_order_response(
+    purchase_order: PurchaseOrder, *, message: str
+) -> PurchaseOrderResponse:
+    derivative_tasks = (
+        purchase_order.sales_order.derivative_tasks
+        if purchase_order.sales_order
+        else []
+    )
     return PurchaseOrderResponse(
         id=purchase_order.id,
         order_no=purchase_order.order_no,
         purchase_contract_id=purchase_order.purchase_contract_id,
         source_sales_order_id=purchase_order.source_sales_order_id,
+        source_sales_order_no=purchase_order.sales_order.order_no
+        if purchase_order.sales_order
+        else None,
         supplier_id=purchase_order.supplier_id,
         oil_product_id=purchase_order.oil_product_id,
         qty_ordered=purchase_order.qty_ordered,
@@ -397,4 +500,50 @@ def _to_purchase_order_response(purchase_order: PurchaseOrder, *, message: str) 
             for task in derivative_tasks
         ],
         message=message,
+        created_at=purchase_order.created_at,
+    )
+
+
+def _to_purchase_order_list_item_response(
+    purchase_order: PurchaseOrder,
+    *,
+    source_sales_order_no: str,
+) -> PurchaseOrderListItemResponse:
+    return PurchaseOrderListItemResponse(
+        id=purchase_order.id,
+        order_no=purchase_order.order_no,
+        purchase_contract_id=purchase_order.purchase_contract_id,
+        source_sales_order_id=purchase_order.source_sales_order_id,
+        source_sales_order_no=source_sales_order_no,
+        supplier_id=purchase_order.supplier_id,
+        oil_product_id=purchase_order.oil_product_id,
+        qty_ordered=purchase_order.qty_ordered,
+        payable_amount=purchase_order.payable_amount,
+        status=purchase_order.status,
+        zero_pay_exception_flag=purchase_order.zero_pay_exception_flag,
+        created_at=purchase_order.created_at,
+    )
+
+
+def _to_supplier_purchase_order_response(
+    purchase_order: PurchaseOrder,
+    *,
+    message: str,
+) -> SupplierPurchaseOrderResponse:
+    return SupplierPurchaseOrderResponse(
+        id=purchase_order.id,
+        order_no=purchase_order.order_no,
+        purchase_contract_id=purchase_order.purchase_contract_id,
+        source_sales_order_id=purchase_order.source_sales_order_id,
+        source_sales_order_no=purchase_order.sales_order.order_no
+        if purchase_order.sales_order
+        else None,
+        supplier_id=purchase_order.supplier_id,
+        oil_product_id=purchase_order.oil_product_id,
+        qty_ordered=purchase_order.qty_ordered,
+        payable_amount=purchase_order.payable_amount,
+        status=purchase_order.status,
+        zero_pay_exception_flag=purchase_order.zero_pay_exception_flag,
+        message=message,
+        created_at=purchase_order.created_at,
     )

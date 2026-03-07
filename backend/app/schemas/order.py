@@ -31,8 +31,12 @@ class SalesOrderOpsApproveRequest(BaseModel):
 class SalesOrderFinanceApproveRequest(BaseModel):
     result: bool = Field(description="财务审批结果")
     purchase_contract_id: int | None = Field(default=None, description="采购合同ID")
-    actual_receipt_amount: Decimal | None = Field(default=None, ge=0, description="销售订单实收金额")
-    actual_pay_amount: Decimal | None = Field(default=None, ge=0, description="采购订单实付金额")
+    actual_receipt_amount: Decimal | None = Field(
+        default=None, ge=0, description="销售订单实收金额"
+    )
+    actual_pay_amount: Decimal | None = Field(
+        default=None, ge=0, description="采购订单实付金额"
+    )
     comment: str = Field(min_length=1, max_length=256, description="财务审批意见")
 
 
@@ -111,6 +115,7 @@ class PurchaseOrderResponse(BaseModel):
     order_no: str
     purchase_contract_id: int
     source_sales_order_id: int
+    source_sales_order_no: str | None = None
     supplier_id: str
     oil_product_id: str
     qty_ordered: Decimal
@@ -119,3 +124,41 @@ class PurchaseOrderResponse(BaseModel):
     zero_pay_exception_flag: bool
     downstream_tasks: list[SalesOrderDerivativeTaskResponse]
     message: str
+    created_at: datetime | None = None
+
+
+class PurchaseOrderListItemResponse(BaseModel):
+    id: int
+    order_no: str
+    purchase_contract_id: int
+    source_sales_order_id: int
+    source_sales_order_no: str
+    supplier_id: str
+    oil_product_id: str
+    qty_ordered: Decimal
+    payable_amount: Decimal
+    status: str
+    zero_pay_exception_flag: bool
+    created_at: datetime
+
+
+class PurchaseOrderListResponse(BaseModel):
+    items: list[PurchaseOrderListItemResponse]
+    total: int
+    message: str
+
+
+class SupplierPurchaseOrderResponse(BaseModel):
+    id: int
+    order_no: str
+    purchase_contract_id: int
+    source_sales_order_id: int
+    source_sales_order_no: str | None = None
+    supplier_id: str
+    oil_product_id: str
+    qty_ordered: Decimal
+    payable_amount: Decimal
+    status: str
+    zero_pay_exception_flag: bool
+    message: str
+    created_at: datetime | None = None

@@ -78,6 +78,25 @@ test('仓库消息会携带统一深链参数', () => {
   assert.match(messages[1].actionUrl, /mode=manual/);
 });
 
+test('供应商消息会基于真实采购订单生成入口', () => {
+  const messages = buildMessages({
+    roleCode: 'supplier',
+    purchaseOrders: [
+      {
+        id: 301,
+        order_no: 'PO-001',
+        source_sales_order_no: 'SO-001',
+        status: '已创建',
+        created_at: '2026-03-06T10:00:00Z',
+      },
+    ],
+  });
+  assert.equal(messages.length, 1);
+  assert.match(messages[0].title, /PO-001/);
+  assert.match(messages[0].actionUrl, /supplier-purchase/);
+  assert.match(messages[0].actionUrl, /source=message/);
+});
+
 test('运营侧无异常时会返回清空提示消息', () => {
   const messages = buildMessages({
     roleCode: 'operations',

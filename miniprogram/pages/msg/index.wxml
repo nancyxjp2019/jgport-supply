@@ -11,7 +11,7 @@
 
   <view class="panel-card session-card">
     <view class="section-title">当前会话</view>
-    <view class="section-desc">当前消息中心优先聚合订单状态、异常摘要和执行提醒，不包含服务端消息配置。</view>
+    <view class="section-desc">当前消息中心优先聚合订单状态、异常摘要、执行提醒和供应商采购进度提醒，不包含服务端消息配置。</view>
     <view class="button-row">
       <button class="secondary-btn" bindtap="onSwitchRole">切换角色</button>
       <button class="secondary-btn" bindtap="onMarkAllRead">全部标记已读</button>

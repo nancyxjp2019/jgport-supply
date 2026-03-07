@@ -1,5 +1,6 @@
 const OPERATOR_ROLE_CODES = new Set(['operations', 'finance', 'admin']);
 const CUSTOMER_PENDING_STATUSES = ['草稿', '驳回', '待运营审批', '待财务审批'];
+const { buildSupplierSummaryCards, buildSupplierTodoItems } = require('./supplier-purchase');
 
 function normalizeRoleCode(roleCode) {
   return String(roleCode || '').trim().toLowerCase();
@@ -186,6 +187,8 @@ module.exports = {
   buildCustomerTodoItems,
   buildOperatorSummaryCards,
   buildOperatorTodoItems,
+  buildSupplierSummaryCards,
+  buildSupplierTodoItems,
   buildWarehouseQuickActions,
   buildWarehouseSummaryCards,
   resolveTodoMode,

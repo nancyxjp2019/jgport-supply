@@ -1,8 +1,10 @@
 const { getRuntimeMode } = require('../config/env');
 const {
   createDemoSalesOrder,
+  getDemoSupplierPurchaseOrderDetail,
   listDemoAvailableSalesContracts,
   listDemoSalesOrders,
+  listDemoSupplierPurchaseOrders,
   submitDemoSalesOrder,
   updateDemoSalesOrder,
 } = require('../mocks/order');
@@ -128,6 +130,48 @@ async function getAccessProfile() {
   });
 }
 
+async function listSupplierPurchaseOrders(status, options) {
+  const limit = Number(options && options.limit ? options.limit : 20);
+  if (getRuntimeMode() === 'demo') {
+    await sleep(120);
+    const items = listDemoSupplierPurchaseOrders(status);
+    return {
+      data: {
+        items,
+        total: items.length,
+        message: '演示模式：供应商采购订单列表查询成功',
+      },
+      statusCode: 200,
+    };
+  }
+  const params = [];
+  if (status) {
+    params.push(`status=${encodeURIComponent(status)}`);
+  }
+  if (Number.isFinite(limit) && limit > 0) {
+    params.push(`limit=${encodeURIComponent(String(limit))}`);
+  }
+  const suffix = params.length ? `?${params.join('&')}` : '';
+  return request({
+    url: `/supplier/purchase-orders${suffix}`,
+    method: 'GET',
+  });
+}
+
+async function getSupplierPurchaseOrderDetail(orderId) {
+  if (getRuntimeMode() === 'demo') {
+    await sleep(120);
+    return {
+      data: getDemoSupplierPurchaseOrderDetail(orderId),
+      statusCode: 200,
+    };
+  }
+  return request({
+    url: `/supplier/purchase-orders/${orderId}`,
+    method: 'GET',
+  });
+}
+
 async function loginMiniprogramLocal(roleCode) {
   return request({
     url: '/mini-auth/dev-login',
@@ -206,9 +250,11 @@ module.exports = {
   getAvailableSalesContracts,
   getAccessProfile,
   getLightReportOverview,
+  getSupplierPurchaseOrderDetail,
   loginMiniprogramLocal,
   loginMiniprogramWechat,
   listSalesOrders,
+  listSupplierPurchaseOrders,
   submitSalesOrder,
   updateSalesOrderDraft,
 };

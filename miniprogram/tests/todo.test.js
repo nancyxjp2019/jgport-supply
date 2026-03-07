@@ -6,6 +6,8 @@ const {
   buildCustomerTodoItems,
   buildOperatorSummaryCards,
   buildOperatorTodoItems,
+  buildSupplierSummaryCards,
+  buildSupplierTodoItems,
   buildWarehouseQuickActions,
   buildWarehouseSummaryCards,
   resolveTodoMode,
@@ -62,4 +64,39 @@ test('仓库待办首批返回固定快捷入口', () => {
   assert.equal(actions.length, 2);
   assert.equal(actions[0].url, '/pages/exec/index?mode=system');
   assert.equal(cards[0].value, '已开放');
+});
+
+test('供应商待办摘要与列表基于真实采购订单生成', () => {
+  const purchaseOrders = [
+    {
+      id: 1,
+      order_no: 'PO-1',
+      source_sales_order_no: 'SO-1',
+      status: '已创建',
+      oil_product_id: 'OIL-92',
+      qty_ordered: '10.000',
+      payable_amount: '8000.12',
+      zero_pay_exception_flag: false,
+      created_at: '2026-03-06T08:00:00Z',
+    },
+    {
+      id: 2,
+      order_no: 'PO-2',
+      source_sales_order_no: 'SO-2',
+      status: '可继续执行',
+      oil_product_id: 'OIL-95',
+      qty_ordered: '8.000',
+      payable_amount: '0.00',
+      zero_pay_exception_flag: true,
+      created_at: '2026-03-05T08:00:00Z',
+    },
+  ];
+  const cards = buildSupplierSummaryCards(purchaseOrders);
+  const items = buildSupplierTodoItems(purchaseOrders);
+  assert.equal(cards[0].value, 1);
+  assert.equal(cards[1].value, 1);
+  assert.equal(cards[2].value, 1);
+  assert.equal(items[0].orderNo, 'PO-1');
+  assert.equal(items[0].status, '已创建');
+  assert.match(items[0].actionUrl, /supplier-purchase/);
 });

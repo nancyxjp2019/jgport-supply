@@ -66,7 +66,10 @@ def create_sales_order_draft(
 ) -> SalesOrderServiceResult:
     contract = _get_contract_with_items_or_raise(db, sales_contract_id)
     _validate_sales_contract(contract)
-    if required_customer_company_id is not None and contract.customer_id != required_customer_company_id:
+    if (
+        required_customer_company_id is not None
+        and contract.customer_id != required_customer_company_id
+    ):
         raise OrderServiceError(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="当前客户无权使用该销售合同创建订单",
@@ -167,7 +170,10 @@ def update_sales_order(
     unit_price: Decimal,
 ) -> SalesOrderServiceResult:
     sales_order = get_sales_order_or_raise(db, sales_order_id)
-    if sales_order.status not in {SALES_ORDER_STATUS_DRAFT, SALES_ORDER_STATUS_REJECTED}:
+    if sales_order.status not in {
+        SALES_ORDER_STATUS_DRAFT,
+        SALES_ORDER_STATUS_REJECTED,
+    }:
         raise OrderServiceError(
             status_code=status.HTTP_409_CONFLICT,
             detail="当前销售订单状态不允许修改",
@@ -175,7 +181,10 @@ def update_sales_order(
 
     contract = _get_contract_with_items_or_raise(db, sales_order.sales_contract_id)
     _validate_sales_contract(contract)
-    if required_customer_company_id is not None and contract.customer_id != required_customer_company_id:
+    if (
+        required_customer_company_id is not None
+        and contract.customer_id != required_customer_company_id
+    ):
         raise OrderServiceError(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="当前客户无权修改该销售订单",
@@ -311,7 +320,11 @@ def finance_approve_sales_order(
             message="财务审批驳回，订单已进入驳回状态",
         )
 
-    if purchase_contract_id is None or actual_receipt_amount is None or actual_pay_amount is None:
+    if (
+        purchase_contract_id is None
+        or actual_receipt_amount is None
+        or actual_pay_amount is None
+    ):
         raise OrderServiceError(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="财务审批通过时必须填写采购合同、实收金额和实付金额",
@@ -319,7 +332,9 @@ def finance_approve_sales_order(
 
     purchase_contract = _get_contract_with_items_or_raise(db, purchase_contract_id)
     _validate_purchase_contract(purchase_contract)
-    purchase_contract_item = _get_contract_item_or_raise(purchase_contract.items, sales_order.oil_product_id)
+    purchase_contract_item = _get_contract_item_or_raise(
+        purchase_contract.items, sales_order.oil_product_id
+    )
     _ = purchase_contract_item
 
     normalized_receipt_amount = normalize_money(actual_receipt_amount)
@@ -438,11 +453,18 @@ def get_sales_order_or_raise(db: Session, sales_order_id: int) -> SalesOrder:
     return sales_order
 
 
-def get_purchase_order_or_raise(db: Session, purchase_order_id: int) -> PurchaseOrder:
+def get_purchase_order_or_raise(
+    db: Session,
+    purchase_order_id: int,
+    *,
+    required_supplier_company_id: str | None = None,
+) -> PurchaseOrder:
     statement = (
         select(PurchaseOrder)
         .options(
-            selectinload(PurchaseOrder.sales_order).selectinload(SalesOrder.derivative_tasks),
+            selectinload(PurchaseOrder.sales_order).selectinload(
+                SalesOrder.derivative_tasks
+            ),
         )
         .where(PurchaseOrder.id == purchase_order_id)
     )
@@ -452,7 +474,38 @@ def get_purchase_order_or_raise(db: Session, purchase_order_id: int) -> Purchase
             status_code=status.HTTP_404_NOT_FOUND,
             detail="采购订单不存在",
         )
+    if (
+        required_supplier_company_id is not None
+        and purchase_order.supplier_id != required_supplier_company_id
+    ):
+        raise OrderServiceError(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="当前供应商无权查看该采购订单",
+        )
     return purchase_order
+
+
+def list_supplier_purchase_orders(
+    db: Session,
+    *,
+    supplier_company_id: str,
+    status_filter: str | None,
+    limit: int,
+) -> list[tuple[PurchaseOrder, str]]:
+    statement = (
+        select(PurchaseOrder, SalesOrder.order_no)
+        .join(SalesOrder, SalesOrder.id == PurchaseOrder.source_sales_order_id)
+        .where(PurchaseOrder.supplier_id == supplier_company_id)
+        .order_by(PurchaseOrder.id.desc())
+        .limit(limit)
+    )
+    if status_filter:
+        statement = statement.where(PurchaseOrder.status == status_filter)
+    rows = db.execute(statement).all()
+    return [
+        (purchase_order, str(source_sales_order_no))
+        for purchase_order, source_sales_order_no in rows
+    ]
 
 
 def get_sales_order_detail_or_raise(
@@ -477,7 +530,10 @@ def get_sales_order_detail_or_raise(
             detail="销售订单不存在",
         )
     sales_order, sales_contract_no, customer_id = row
-    if required_customer_company_id is not None and customer_id != required_customer_company_id:
+    if (
+        required_customer_company_id is not None
+        and customer_id != required_customer_company_id
+    ):
         raise OrderServiceError(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="当前客户无权查看该销售订单",
@@ -503,7 +559,9 @@ def list_sales_orders(
         .limit(limit)
     )
     if required_customer_company_id is not None:
-        statement = statement.where(Contract.customer_id == required_customer_company_id)
+        statement = statement.where(
+            Contract.customer_id == required_customer_company_id
+        )
     if status_filter:
         statement = statement.where(SalesOrder.status == status_filter)
     rows = db.execute(statement).all()
@@ -601,7 +659,9 @@ def _get_contract_with_items_or_raise(db: Session, contract_id: int) -> Contract
     return contract
 
 
-def _get_contract_item_or_raise(items: list[ContractItem], oil_product_id: str) -> ContractItem:
+def _get_contract_item_or_raise(
+    items: list[ContractItem], oil_product_id: str
+) -> ContractItem:
     for item in items:
         if item.oil_product_id == oil_product_id:
             return item

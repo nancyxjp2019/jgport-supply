@@ -5,6 +5,7 @@ const {
   buildExecPageUrl,
   buildOrderPageUrl,
   buildReportPageUrl,
+  buildSupplierPurchasePageUrl,
   resolveEntrySourceMeta,
   resolveHomeEntryLabel,
   resolveHomePath,
@@ -38,6 +39,10 @@ test('消息深链会统一拼装订单、报表与执行页地址', () => {
   assert.equal(
     buildExecPageUrl({ mode: 'manual', source: 'message', sourceDetail: '定位手工补录入口' }),
     '/pages/exec/index?mode=manual&source=message&sourceDetail=%E5%AE%9A%E4%BD%8D%E6%89%8B%E5%B7%A5%E8%A1%A5%E5%BD%95%E5%85%A5%E5%8F%A3',
+  );
+  assert.equal(
+    buildSupplierPurchasePageUrl({ orderId: 12, source: 'message', sourceDetail: '定位采购订单详情' }),
+    '/pages/supplier-purchase/index?orderId=12&source=message&sourceDetail=%E5%AE%9A%E4%BD%8D%E9%87%87%E8%B4%AD%E8%AE%A2%E5%8D%95%E8%AF%A6%E6%83%85',
   );
 });
 

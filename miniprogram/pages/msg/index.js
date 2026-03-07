@@ -1,5 +1,5 @@
 const { getRuntimeMode, getRuntimeModeLabel } = require('../../config/env');
-const { getAccessProfile, getLightReportOverview, listSalesOrders } = require('../../utils/api');
+const { getAccessProfile, getLightReportOverview, listSalesOrders, listSupplierPurchaseOrders } = require('../../utils/api');
 const { formatDateTime } = require('../../utils/format');
 const { getRoleLabel } = require('../../utils/light-report');
 const { getAccessToken, initializeSession, logoutSession, updateAccessProfile } = require('../../utils/session');
@@ -147,6 +147,9 @@ Page({
       } else if (['operations', 'finance', 'admin'].includes(currentUser.roleCode)) {
         const response = await getLightReportOverview();
         messages = buildMessages({ roleCode: currentUser.roleCode, overview: response.data });
+      } else if (currentUser.roleCode === 'supplier') {
+        const response = await listSupplierPurchaseOrders('', { limit: 20 });
+        messages = buildMessages({ roleCode: currentUser.roleCode, purchaseOrders: response.data.items || [] });
       } else {
         messages = buildMessages({ roleCode: currentUser.roleCode });
       }

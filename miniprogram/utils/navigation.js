@@ -46,6 +46,14 @@ function buildExecPageUrl(options) {
   });
 }
 
+function buildSupplierPurchasePageUrl(options) {
+  return buildPageUrl('/pages/supplier-purchase/index', {
+    orderId: normalizeText(options && options.orderId),
+    source: normalizeText(options && options.source),
+    sourceDetail: normalizeText(options && options.sourceDetail),
+  });
+}
+
 function resolveEntrySourceMeta(options) {
   const source = normalizeText(options && options.source);
   const sourceDetail = normalizeText(options && options.sourceDetail);
@@ -92,6 +100,7 @@ module.exports = {
   buildOrderPageUrl,
   buildPageUrl,
   buildReportPageUrl,
+  buildSupplierPurchasePageUrl,
   resolveHomeEntryLabel,
   resolveHomePath,
   resolveEntrySourceMeta,

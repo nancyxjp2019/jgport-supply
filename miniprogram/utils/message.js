@@ -1,5 +1,6 @@
 const STORAGE_MESSAGE_READ_KEY = 'mini_message_read_keys';
 const { buildExecPageUrl, buildOrderPageUrl, buildReportPageUrl } = require('./navigation');
+const { buildSupplierMessages } = require('./supplier-purchase');
 
 function normalizeRoleCode(roleCode) {
   return String(roleCode || '').trim().toLowerCase();
@@ -17,7 +18,7 @@ function buildMessages(options) {
     return buildWarehouseMessages();
   }
   if (roleCode === 'supplier') {
-    return buildSupplierMessages();
+    return buildSupplierMessages(options && options.purchaseOrders);
   }
   return buildUnknownMessages();
 }
@@ -204,20 +205,6 @@ function buildWarehouseMessages() {
         source: 'message',
         sourceDetail: '已从消息定位到手工补录入口。',
       }),
-    },
-  ];
-}
-
-function buildSupplierMessages() {
-  return [
-    {
-      key: 'supplier-boundary',
-      level: 'info',
-      title: '供应商消息首批仅做边界提示',
-      summary: '当前版本尚未开放供应商真实业务消息，后续在采购执行模块接入。',
-      time: '',
-      actionLabel: '',
-      actionUrl: '',
     },
   ];
 }

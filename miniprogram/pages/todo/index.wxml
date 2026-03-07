@@ -1,7 +1,7 @@
 <view class="page-shell">
   <view class="hero-card todo-hero-card">
     <view class="page-title">我的待办</view>
-    <view class="page-subtitle">统一查看当前角色的移动端待办入口与摘要。首批聚焦客户订单、运营侧异常摘要和仓库执行入口。</view>
+    <view class="page-subtitle">统一查看当前角色的移动端待办入口与摘要。当前已覆盖客户订单、运营侧异常、仓库执行入口与供应商采购进度。</view>
     <view class="pill-row todo-hero-meta">
       <view class="version-pill">{{runtimeLabel}}</view>
       <view wx:if="{{roleLabel}}" class="mode-pill">当前身份：{{roleLabel}}</view>
@@ -64,13 +64,18 @@
             <view class="todo-item-card__head">
               <view>
                 <view class="todo-item-card__title">{{item.orderNo}}</view>
-                <view class="todo-item-card__meta">合同：{{item.contractNo}}</view>
+                <view wx:if="{{item.contractNo}}" class="todo-item-card__meta">合同：{{item.contractNo}}</view>
+                <view wx:elif="{{item.sourceSalesOrderNo}}" class="todo-item-card__meta">来源销售订单：{{item.sourceSalesOrderNo}}</view>
               </view>
               <view class="status-pill {{item.statusClass}}">{{item.status}}</view>
             </view>
-            <view class="todo-item-card__desc">油品：{{item.oilProductId}}，数量：{{item.qtyOrderedText}}</view>
+            <view class="todo-item-card__desc">
+              油品：{{item.oilProductId}}，数量：{{item.qtyOrderedText}}
+              <text wx:if="{{item.payableAmountText}}">，应付：¥{{item.payableAmountText}}</text>
+            </view>
             <view class="card-caption">创建时间：{{item.createdAtText}}</view>
-            <view class="card-caption">提交时间：{{item.submittedAtText}}</view>
+            <view wx:if="{{item.submittedAtText}}" class="card-caption">提交时间：{{item.submittedAtText}}</view>
+            <view wx:if="{{item.zeroPayExceptionFlag}}" class="status-tip">当前命中零付款例外，后续仍需关注付款补录。</view>
             <view class="button-row todo-item-card__actions">
               <button class="secondary-btn" data-url="{{item.actionUrl}}" bindtap="onOpenAction">{{item.actionLabel}}</button>
             </view>

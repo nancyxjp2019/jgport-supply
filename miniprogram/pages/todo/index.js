@@ -1,6 +1,6 @@
 const { getRuntimeMode, getRuntimeModeLabel } = require('../../config/env');
-const { getAccessProfile, getLightReportOverview, listSalesOrders } = require('../../utils/api');
-const { formatDateTime, formatQty } = require('../../utils/format');
+const { getAccessProfile, getLightReportOverview, listSalesOrders, listSupplierPurchaseOrders } = require('../../utils/api');
+const { formatDateTime, formatMoney, formatQty } = require('../../utils/format');
 const { getRoleLabel } = require('../../utils/light-report');
 const { getAccessToken, initializeSession, logoutSession, updateAccessProfile } = require('../../utils/session');
 const {
@@ -8,6 +8,8 @@ const {
   buildCustomerTodoItems,
   buildOperatorSummaryCards,
   buildOperatorTodoItems,
+  buildSupplierSummaryCards,
+  buildSupplierTodoItems,
   buildWarehouseQuickActions,
   buildWarehouseSummaryCards,
   resolveTodoMode,
@@ -93,7 +95,7 @@ Page({
       } else if (todoMode === 'warehouse') {
         this._loadWarehouseTodo();
       } else if (todoMode === 'supplier') {
-        this._loadSupplierTodo();
+        await this._loadSupplierTodo();
       } else {
         this._loadUnknownTodo();
       }
@@ -205,23 +207,38 @@ Page({
     });
   },
 
-  _loadSupplierTodo() {
+  async _loadSupplierTodo() {
+    const response = await listSupplierPurchaseOrders('', { limit: 20 });
+    const purchaseOrders = response.data.items || [];
+    const todoItems = buildSupplierTodoItems(purchaseOrders).map((item) => ({
+      ...item,
+      qtyOrderedText: formatQty(item.qtyOrdered),
+      payableAmountText: formatMoney(item.payableAmount),
+      createdAtText: formatDateTime(item.createdAt),
+    }));
     this.setData({
       loading: false,
-      summaryCards: [],
-      todoItems: [],
+      summaryCards: buildSupplierSummaryCards(purchaseOrders),
+      todoItems,
       quickActions: [
+        {
+          key: 'progress',
+          title: '查看采购进度',
+          desc: '查看当前供应商公司名下采购订单进度与发货准备信息。',
+          url: '/pages/supplier-purchase/index',
+          actionLabel: '去查看',
+        },
         {
           key: 'message',
           title: '查看消息中心',
-          desc: '查看当前版本已开放的边界提示消息。',
+          desc: '查看采购进度提醒与入口定位消息。',
           url: '/pages/msg/index',
           actionLabel: '去查看',
         },
       ],
-      emptyTitle: '供应商移动待办尚未开放',
-      emptyText: '当前版本仅保留供应商角色边界验证，不开放真实业务待办。',
-      helperText: '后续在采购执行和附件回传模块接入供应商待办。',
+      emptyTitle: '当前暂无供应商采购订单',
+      emptyText: '待财务审批生成采购订单后，这里会展示真实采购进度入口。',
+      helperText: '供应商首批已开放采购进度查看、发货准备回看与附件入口预留。',
     });
   },
 

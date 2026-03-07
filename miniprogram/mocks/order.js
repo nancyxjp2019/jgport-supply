@@ -56,6 +56,39 @@ const INITIAL_ORDERS = [
 let demoOrders = INITIAL_ORDERS.map((item) => ({ ...item }));
 let demoOrderIdSeed = 2000;
 
+const DEMO_PURCHASE_ORDERS = [
+  {
+    id: 3001,
+    order_no: 'PO-DEMO-001',
+    purchase_contract_id: 801,
+    source_sales_order_id: 1001,
+    source_sales_order_no: 'SO-DEMO-001',
+    supplier_id: 'AUTO-TEST-SUPPLIER-COMPANY',
+    oil_product_id: 'OIL-92',
+    qty_ordered: '20.000',
+    payable_amount: '11800.12',
+    status: '待供应商确认',
+    zero_pay_exception_flag: false,
+    created_at: '2026-03-06T10:00:00+08:00',
+    message: '演示模式：供应商采购订单详情查询成功',
+  },
+  {
+    id: 3002,
+    order_no: 'PO-DEMO-002',
+    purchase_contract_id: 802,
+    source_sales_order_id: 1002,
+    source_sales_order_no: 'SO-DEMO-002',
+    supplier_id: 'AUTO-TEST-SUPPLIER-COMPANY',
+    oil_product_id: 'OIL-0',
+    qty_ordered: '12.500',
+    payable_amount: '0.00',
+    status: '可继续执行',
+    zero_pay_exception_flag: true,
+    created_at: '2026-03-05T15:30:00+08:00',
+    message: '演示模式：供应商采购订单详情查询成功',
+  },
+];
+
 function listDemoAvailableSalesContracts() {
   return DEMO_CONTRACTS.map((contract) => ({
     ...contract,
@@ -127,10 +160,24 @@ function submitDemoSalesOrder(orderId, comment) {
   return { ...target };
 }
 
+function listDemoSupplierPurchaseOrders() {
+  return DEMO_PURCHASE_ORDERS.map((item) => ({ ...item }));
+}
+
+function getDemoSupplierPurchaseOrderDetail(orderId) {
+  const target = DEMO_PURCHASE_ORDERS.find((item) => item.id === Number(orderId));
+  if (!target) {
+    throw new Error('当前采购订单不存在，请刷新后重试');
+  }
+  return { ...target };
+}
+
 module.exports = {
   createDemoSalesOrder,
+  getDemoSupplierPurchaseOrderDetail,
   listDemoAvailableSalesContracts,
   listDemoSalesOrders,
+  listDemoSupplierPurchaseOrders,
   submitDemoSalesOrder,
   updateDemoSalesOrder,
 };
