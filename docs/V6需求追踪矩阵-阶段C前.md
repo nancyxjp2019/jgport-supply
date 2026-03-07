@@ -3,7 +3,7 @@
 ## 1. 目的与门槛
 - 目的：验证需求是否被完整理解并可直接进入模块开发。
 - 门槛：
-  - 规则覆盖率 `100%`（规则1~51全部映射）。
+  - 规则覆盖率 `100%`（规则1~52全部映射）。
   - 规则冲突数 `0`。
   - 阻断级未决问题 `0`。
 
@@ -62,6 +62,7 @@
 | 49 | 库存执行跟踪台首批开放边界 | M8 | ADM-INVENTORY-01 | `/inbound-docs` `/inbound-docs/{id}` `/outbound-docs` `/outbound-docs/{id}` + 跟踪台任务包 | `inbound_docs`,`outbound_docs` | INV-005 |
 | 50 | 合同关闭差异台首批开放边界 | M8 | ADM-CONTRACT-CLOSE-02 | `/contracts` `/contracts/{id}` `/contracts/{id}/manual-close` + 差异台任务包 | `contracts`,`contract_items`,`contract_effective_tasks` | CLS-006 |
 | 51 | 退款核销与资金驳回台首批开放边界 | M8 | ADM-FUNDS-RECON-01 | `/payment-docs/{id}/refund-*` `/receipt-docs/{id}/refund-*` `/payment-docs/{id}/writeoff` `/receipt-docs/{id}/writeoff` + 退款核销台任务包 | `payment_docs`,`receipt_docs`,`business_audit_logs` | FIN-004 |
+| 52 | 多维报表与导出首批开放边界 | M8 | ADM-REPORT-MULTI-01 | `/reports/admin/multi-dim` `/reports/admin/multi-dim/export` + 多维报表任务包 | `report_snapshots`,`payment_docs`,`receipt_docs` | RPT-007 |
 
 ## 3. 验收方式
 - 抽检方式：随机抽取任意10条规则，要求能在“模块/页面/API/数据/测试”5列中完整追溯。

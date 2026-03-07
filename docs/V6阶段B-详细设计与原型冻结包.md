@@ -4,7 +4,7 @@
 - 文档状态：`已冻结`
 - 目标：冻结实现口径，形成可开发规格，作为阶段C模块开发唯一输入。
 - 上游输入：
-  - `docs/需求方案.md`（当前规则 `1~51` 与“业务目标/角色权限”基线）
+  - `docs/需求方案.md`（当前规则 `1~52` 与“业务目标/角色权限”基线）
   - `docs/V6阶段A-流程图状态机与UI原型清单.md`
 - 下游输出：阶段C模块任务拆分、接口开发、联调与测试用例。
 
@@ -204,6 +204,7 @@ purchase_payment_net =
 | `/boards/tasks` | `GET` | 待办、阻塞、超阈值告警；仅 `operations/finance/admin + operator_company + admin_web` | `T+0` |
 | `/reports/light/overview` | `GET` | 小程序轻量汇总报表；仅 `operations/finance/admin + operator_company + miniprogram` | `T+0` |
 | `/reports/admin/multi-dim` | `GET` | 后台多维管理报表 | `T+0~T+1` |
+| `/reports/admin/multi-dim/export` | `GET` | 后台多维报表CSV导出（按当前筛选） | `T+0~T+1` |
 
 ## 5.6 参数中心接口（系统级阈值）
 

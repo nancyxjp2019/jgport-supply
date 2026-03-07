@@ -94,6 +94,16 @@ const router = createRouter({
             summary: '退款待审核流转、退款驳回与单据核销处理',
           },
         },
+        {
+          path: '/reports-multi-dim',
+          name: 'reports-multi-dim',
+          component: () => import('@/views/reports-multi-dim/ReportsMultiDimView.vue'),
+          meta: {
+            requiresAuth: true,
+            title: '多维报表与导出台',
+            summary: '合同方向/单据状态/退款状态多维汇总与CSV导出',
+          },
+        },
       ],
     },
   ],

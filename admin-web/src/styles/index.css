@@ -863,6 +863,52 @@ body::before {
   flex-wrap: wrap;
 }
 
+.reports-multi-dim-page {
+  gap: 18px;
+}
+
+.reports-multi-dim-filter-card,
+.reports-multi-dim-table-card {
+  padding: 22px;
+}
+
+.reports-multi-dim-filter-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.reports-multi-dim-filter-row h3 {
+  margin: 0 0 8px;
+}
+
+.reports-multi-dim-filter-row p {
+  margin: 0;
+  color: var(--ink-regular);
+}
+
+.reports-multi-dim-filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.reports-multi-dim-filter-select {
+  width: 180px;
+}
+
+.reports-multi-dim-summary-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.reports-multi-dim-table-card .el-table {
+  margin-top: 12px;
+}
+
 .signal-card--warning {
   background: linear-gradient(145deg, rgba(196, 122, 44, 0.16), rgba(255, 251, 244, 0.94));
 }
@@ -1034,6 +1080,10 @@ body::before {
   .funds-reconcile-main-grid {
     grid-template-columns: 1fr;
   }
+
+  .reports-multi-dim-summary-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 960px) {
@@ -1086,6 +1136,10 @@ body::before {
   .funds-reconcile-filter-row {
     flex-direction: column;
   }
+
+  .reports-multi-dim-filter-row {
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1093,6 +1147,10 @@ body::before {
   .task-overview-grid,
   .skeleton-grid,
   .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reports-multi-dim-summary-grid {
     grid-template-columns: 1fr;
   }
 

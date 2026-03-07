@@ -55,3 +55,28 @@ class LightReportOverviewResponse(BaseModel):
     validation_failed_count: int
     qty_done_not_closed_count: int
     message: str
+
+
+class AdminMultiDimReportRow(BaseModel):
+    dimension: str
+    dimension_value: str
+    receipt_net_amount: Decimal
+    payment_net_amount: Decimal
+    net_cashflow: Decimal
+    receipt_doc_count: int
+    payment_doc_count: int
+    pending_supplement_count: int
+    refund_pending_review_count: int
+
+
+class AdminMultiDimReportResponse(BaseModel):
+    metric_version: str
+    snapshot_time: datetime
+    sla_status: str
+    group_by: str
+    filters: dict[str, str | None]
+    total_receipt_net_amount: Decimal
+    total_payment_net_amount: Decimal
+    total_net_cashflow: Decimal
+    rows: list[AdminMultiDimReportRow] = Field(default_factory=list)
+    message: str

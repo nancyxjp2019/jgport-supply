@@ -69,6 +69,8 @@ from app.schemas.order import (
     SalesOrderUpdateRequest,
 )
 from app.schemas.report import (
+    AdminMultiDimReportResponse,
+    AdminMultiDimReportRow,
     BoardTaskItem,
     BoardTasksResponse,
     DashboardSummaryResponse,
@@ -152,4 +154,6 @@ __all__ = [
     "ThresholdConfigResponse",
     "MiniProgramWeChatLoginRequest",
     "MiniProgramWeChatLoginResponse",
+    "AdminMultiDimReportResponse",
+    "AdminMultiDimReportRow",
 ]
