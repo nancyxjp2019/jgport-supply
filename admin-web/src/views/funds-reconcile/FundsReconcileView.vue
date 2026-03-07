@@ -105,11 +105,12 @@
           </div>
 
           <div class="funds-reconcile-action-row">
-            <ElButton type="warning" :disabled="!canRequestRefund" @click="openRefundRequestDialog">发起退款审核</ElButton>
-            <ElButton type="success" :disabled="!canReviewRefund" @click="openRefundDecisionDialog('approve')">退款审核通过</ElButton>
-            <ElButton type="danger" :disabled="!canReviewRefund" @click="openRefundDecisionDialog('reject')">退款驳回</ElButton>
-            <ElButton type="primary" :disabled="!canWriteoff" @click="openWriteoffDialog">执行核销</ElButton>
+            <ElButton type="warning" :disabled="!canOperateFundsReconcile || !canRequestRefund" @click="openRefundRequestDialog">发起退款审核</ElButton>
+            <ElButton type="success" :disabled="!canOperateFundsReconcile || !canReviewRefund" @click="openRefundDecisionDialog('approve')">退款审核通过</ElButton>
+            <ElButton type="danger" :disabled="!canOperateFundsReconcile || !canReviewRefund" @click="openRefundDecisionDialog('reject')">退款驳回</ElButton>
+            <ElButton type="primary" :disabled="!canOperateFundsReconcile || !canWriteoff" @click="openWriteoffDialog">执行核销</ElButton>
           </div>
+          <p v-if="!canOperateFundsReconcile" class="order-boundary-tip">当前角色仅可回看退款核销信息，暂无退款审核与核销按钮权限。</p>
           <p class="order-boundary-tip">首批仅开放单笔退款审核与单笔核销，不开放批量处理与自动补偿任务。</p>
         </template>
       </article>
@@ -139,7 +140,7 @@
       </ElForm>
       <template #footer>
         <ElButton @click="refundRequestDialog.visible = false">取消</ElButton>
-        <ElButton type="primary" :loading="refundRequestDialog.submitting" @click="submitRefundRequest">确认提交</ElButton>
+        <ElButton type="primary" :disabled="!canOperateFundsReconcile" :loading="refundRequestDialog.submitting" @click="submitRefundRequest">确认提交</ElButton>
       </template>
     </ElDialog>
 
@@ -158,7 +159,7 @@
       </ElForm>
       <template #footer>
         <ElButton @click="refundDecisionDialog.visible = false">取消</ElButton>
-        <ElButton type="primary" :loading="refundDecisionDialog.submitting" @click="submitRefundDecision">确认提交</ElButton>
+        <ElButton type="primary" :disabled="!canOperateFundsReconcile" :loading="refundDecisionDialog.submitting" @click="submitRefundDecision">确认提交</ElButton>
       </template>
     </ElDialog>
 
@@ -177,7 +178,7 @@
       </ElForm>
       <template #footer>
         <ElButton @click="writeoffDialog.visible = false">取消</ElButton>
-        <ElButton type="primary" :loading="writeoffDialog.submitting" @click="submitWriteoff">确认提交</ElButton>
+        <ElButton type="primary" :disabled="!canOperateFundsReconcile" :loading="writeoffDialog.submitting" @click="submitWriteoff">确认提交</ElButton>
       </template>
     </ElDialog>
   </div>
@@ -219,7 +220,9 @@ import {
   type ReceiptDocDetailResponse,
   type ReceiptDocListItem,
 } from '@/api/funds'
+import { useAuthStore } from '@/stores/auth'
 import { formatDateTime, formatMoney } from '@/utils/formatters'
+import { canRoleExecuteAction } from '@/utils/permissions'
 
 type FundDocType = 'payment' | 'receipt'
 type FundDocListItem = PaymentDocListItem | ReceiptDocListItem
@@ -283,6 +286,9 @@ const canWriteoff = computed(() => selectedDoc.value?.status === '已确认')
 const filteredDocList = computed(() =>
   docList.value.filter((item) => !refundStatusFilter.value || item.refund_status === refundStatusFilter.value),
 )
+const authStore = useAuthStore()
+const currentRoleCode = computed(() => authStore.session?.roleCode ?? '')
+const canOperateFundsReconcile = computed(() => canRoleExecuteAction(currentRoleCode.value, 'funds.reconcile.operate'))
 
 function resolveDocRowClass(params: { row: FundDocListItem }) {
   return params.row.id === selectedDocId.value ? 'is-selected-order-row' : ''
@@ -349,6 +355,10 @@ async function handleCurrentChange(row: FundDocListItem | null) {
 }
 
 function openRefundRequestDialog() {
+  if (!canOperateFundsReconcile.value) {
+    ElMessage.warning('当前角色无权执行退款审核动作')
+    return
+  }
   if (!selectedDoc.value || !canRequestRefund.value) {
     ElMessage.warning('当前单据状态不允许发起退款审核')
     return
@@ -359,6 +369,10 @@ function openRefundRequestDialog() {
 }
 
 function openRefundDecisionDialog(mode: 'approve' | 'reject') {
+  if (!canOperateFundsReconcile.value) {
+    ElMessage.warning('当前角色无权执行退款审核动作')
+    return
+  }
   if (!selectedDoc.value || !canReviewRefund.value) {
     ElMessage.warning('当前单据退款状态不允许审核处理')
     return
@@ -369,6 +383,10 @@ function openRefundDecisionDialog(mode: 'approve' | 'reject') {
 }
 
 function openWriteoffDialog() {
+  if (!canOperateFundsReconcile.value) {
+    ElMessage.warning('当前角色无权执行核销动作')
+    return
+  }
   if (!selectedDoc.value || !canWriteoff.value) {
     ElMessage.warning('当前单据状态不允许核销')
     return
@@ -379,6 +397,10 @@ function openWriteoffDialog() {
 
 async function submitRefundRequest() {
   if (!selectedDoc.value) {
+    return
+  }
+  if (!canOperateFundsReconcile.value) {
+    ElMessage.warning('当前角色无权执行退款审核动作')
     return
   }
   if (refundRequestDialog.refundAmount <= 0) {
@@ -415,6 +437,10 @@ async function submitRefundDecision() {
   if (!selectedDoc.value) {
     return
   }
+  if (!canOperateFundsReconcile.value) {
+    ElMessage.warning('当前角色无权执行退款审核动作')
+    return
+  }
   const reason = refundDecisionDialog.reason.trim()
   if (!reason) {
     ElMessage.warning('审核说明不能为空')
@@ -441,6 +467,10 @@ async function submitRefundDecision() {
 
 async function submitWriteoff() {
   if (!selectedDoc.value) {
+    return
+  }
+  if (!canOperateFundsReconcile.value) {
+    ElMessage.warning('当前角色无权执行核销动作')
     return
   }
   const comment = writeoffDialog.comment.trim()

@@ -43,7 +43,7 @@
             @change="reloadReport"
           />
           <ElButton type="primary" :loading="loading" @click="reloadReport">刷新报表</ElButton>
-          <ElButton :loading="exporting" @click="handleExport">导出 CSV</ElButton>
+          <ElButton :disabled="!canExportMultiDim" :loading="exporting" @click="handleExport">导出 CSV</ElButton>
         </div>
       </div>
     </section>
@@ -93,6 +93,7 @@
       </ElTable>
 
       <ElEmpty v-if="!loading && !(report?.rows.length)" description="当前筛选条件下暂无多维数据" />
+      <p v-if="!canExportMultiDim" class="order-boundary-tip">当前角色仅可查看多维报表，暂无导出按钮权限。</p>
       <p class="order-boundary-tip">首批仅支持单页筛选与 CSV 导出，不开放多维钻取、口径重算与定时编排任务管理。</p>
     </section>
   </div>
@@ -118,7 +119,9 @@ import {
   type AdminMultiDimGroupBy,
   type AdminMultiDimReportResponse,
 } from '@/api/reports'
+import { useAuthStore } from '@/stores/auth'
 import { formatDateTime, formatMoney } from '@/utils/formatters'
+import { canRoleExecuteAction } from '@/utils/permissions'
 
 const groupByOptions: Array<{ label: string; value: AdminMultiDimGroupBy }> = [
   { label: '合同方向', value: 'contract_direction' },
@@ -157,6 +160,9 @@ const contractDirection = ref<'sales' | 'purchase' | ''>('')
 const docStatus = ref('')
 const refundStatus = ref('')
 const dateRange = ref<[string, string] | null>(null)
+const authStore = useAuthStore()
+const currentRoleCode = computed(() => authStore.session?.roleCode ?? '')
+const canExportMultiDim = computed(() => canRoleExecuteAction(currentRoleCode.value, 'reports.multi_dim.export'))
 
 const groupByLabel = computed(() => groupByOptions.find((item) => item.value === groupBy.value)?.label ?? '多维')
 
@@ -183,6 +189,10 @@ async function reloadReport() {
 }
 
 async function handleExport() {
+  if (!canExportMultiDim.value) {
+    ElMessage.warning('当前角色无权执行多维报表导出动作')
+    return
+  }
   exporting.value = true
   try {
     const fileBlob = await exportAdminMultiDimReportCsv(requestQuery.value)

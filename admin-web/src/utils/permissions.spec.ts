@@ -1,0 +1,24 @@
+import { describe, expect, it } from 'vitest'
+
+import { canRoleExecuteAction } from './permissions'
+
+describe('permissions utils', () => {
+  it('运营仅可执行运营审批动作', () => {
+    expect(canRoleExecuteAction('operations', 'orders.ops.approve')).toBe(true)
+    expect(canRoleExecuteAction('operations', 'orders.finance.approve')).toBe(false)
+    expect(canRoleExecuteAction('operations', 'funds.operate')).toBe(false)
+  })
+
+  it('财务可执行资金与财务审批动作', () => {
+    expect(canRoleExecuteAction('finance', 'orders.finance.approve')).toBe(true)
+    expect(canRoleExecuteAction('finance', 'funds.operate')).toBe(true)
+    expect(canRoleExecuteAction('finance', 'funds.reconcile.operate')).toBe(true)
+    expect(canRoleExecuteAction('finance', 'orders.ops.approve')).toBe(false)
+  })
+
+  it('管理员具备首批全部按钮权限', () => {
+    expect(canRoleExecuteAction('admin', 'orders.ops.approve')).toBe(true)
+    expect(canRoleExecuteAction('admin', 'orders.finance.approve')).toBe(true)
+    expect(canRoleExecuteAction('admin', 'reports.multi_dim.export')).toBe(true)
+  })
+})

@@ -106,20 +106,21 @@
           </div>
 
           <div class="order-action-row">
-            <ElButton type="warning" :disabled="selectedOrder.status !== '待运营审批'" @click="openOpsDialog(true)">
+            <ElButton type="warning" :disabled="!canOpsDecision || selectedOrder.status !== '待运营审批'" @click="openOpsDialog(true)">
               运营通过
             </ElButton>
-            <ElButton :disabled="selectedOrder.status !== '待运营审批'" @click="openOpsDialog(false)">
+            <ElButton :disabled="!canOpsDecision || selectedOrder.status !== '待运营审批'" @click="openOpsDialog(false)">
               运营驳回
             </ElButton>
-            <ElButton type="success" :disabled="selectedOrder.status !== '待财务审批'" @click="openFinanceDialog(true)">
+            <ElButton type="success" :disabled="!canFinanceDecision || selectedOrder.status !== '待财务审批'" @click="openFinanceDialog(true)">
               财务通过
             </ElButton>
-            <ElButton type="danger" :disabled="selectedOrder.status !== '待财务审批'" @click="openFinanceDialog(false)">
+            <ElButton type="danger" :disabled="!canFinanceDecision || selectedOrder.status !== '待财务审批'" @click="openFinanceDialog(false)">
               财务驳回
             </ElButton>
           </div>
 
+          <p v-if="!canOpsDecision && !canFinanceDecision" class="order-boundary-tip">当前角色仅可回看订单，暂无审批按钮权限。</p>
           <p class="order-boundary-tip">首批仅开放单笔审批处理，不开放批量审核、退款核销与异常关闭。</p>
         </template>
       </article>
@@ -140,7 +141,7 @@
       </ElForm>
       <template #footer>
         <ElButton @click="opsDialog.visible = false">取消</ElButton>
-        <ElButton type="primary" :loading="opsDialog.submitting" @click="submitOpsApproval">确认提交</ElButton>
+        <ElButton type="primary" :disabled="!canOpsDecision" :loading="opsDialog.submitting" @click="submitOpsApproval">确认提交</ElButton>
       </template>
     </ElDialog>
 
@@ -180,7 +181,7 @@
       </ElForm>
       <template #footer>
         <ElButton @click="financeDialog.visible = false">取消</ElButton>
-        <ElButton type="primary" :loading="financeDialog.submitting" @click="submitFinanceApproval">确认提交</ElButton>
+        <ElButton type="primary" :disabled="!canFinanceDecision" :loading="financeDialog.submitting" @click="submitFinanceApproval">确认提交</ElButton>
       </template>
     </ElDialog>
   </div>
@@ -202,7 +203,7 @@ import {
   ElTableColumn,
   ElMessage,
 } from 'element-plus'
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 
 import {
   approveSalesOrderByFinance,
@@ -212,7 +213,9 @@ import {
   type SalesOrderDetailResponse,
   type SalesOrderListItem,
 } from '@/api/orders'
+import { useAuthStore } from '@/stores/auth'
 import { formatDateTime, formatMoney, formatQty } from '@/utils/formatters'
+import { canRoleExecuteAction } from '@/utils/permissions'
 
 const statusOptions = [
   { label: '全部状态', value: '' },
@@ -246,6 +249,11 @@ const financeDialog = reactive({
   comment: '',
   submitting: false,
 })
+
+const authStore = useAuthStore()
+const currentRoleCode = computed(() => authStore.session?.roleCode ?? '')
+const canOpsDecision = computed(() => canRoleExecuteAction(currentRoleCode.value, 'orders.ops.approve'))
+const canFinanceDecision = computed(() => canRoleExecuteAction(currentRoleCode.value, 'orders.finance.approve'))
 
 function resolveOrderRowClass(params: { row: SalesOrderListItem }) {
   return params.row.id === selectedOrderId.value ? 'is-selected-order-row' : ''
@@ -295,6 +303,10 @@ function openOpsDialog(result: boolean) {
   if (!selectedOrder.value) {
     return
   }
+  if (!canOpsDecision.value) {
+    ElMessage.warning('当前角色无权执行运营审批动作')
+    return
+  }
   opsDialog.visible = true
   opsDialog.result = result
   opsDialog.comment = ''
@@ -302,6 +314,10 @@ function openOpsDialog(result: boolean) {
 
 function openFinanceDialog(result: boolean) {
   if (!selectedOrder.value) {
+    return
+  }
+  if (!canFinanceDecision.value) {
+    ElMessage.warning('当前角色无权执行财务审批动作')
     return
   }
   financeDialog.visible = true
@@ -314,6 +330,10 @@ function openFinanceDialog(result: boolean) {
 
 async function submitOpsApproval() {
   if (!selectedOrder.value) {
+    return
+  }
+  if (!canOpsDecision.value) {
+    ElMessage.warning('当前角色无权执行运营审批动作')
     return
   }
   const comment = opsDialog.comment.trim()
@@ -339,6 +359,10 @@ async function submitOpsApproval() {
 
 async function submitFinanceApproval() {
   if (!selectedOrder.value) {
+    return
+  }
+  if (!canFinanceDecision.value) {
+    ElMessage.warning('当前角色无权执行财务审批动作')
     return
   }
   const comment = financeDialog.comment.trim()
