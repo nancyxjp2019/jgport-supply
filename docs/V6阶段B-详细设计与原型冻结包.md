@@ -4,7 +4,7 @@
 - 文档状态：`已冻结`
 - 目标：冻结实现口径，形成可开发规格，作为阶段C模块开发唯一输入。
 - 上游输入：
-  - `docs/需求方案.md`（当前规则 `1~41` 与“业务目标/角色权限”基线）
+  - `docs/需求方案.md`（当前规则 `1~43` 与“业务目标/角色权限”基线）
   - `docs/V6阶段A-流程图状态机与UI原型清单.md`
 - 下游输出：阶段C模块任务拆分、接口开发、联调与测试用例。
 
@@ -149,6 +149,8 @@ purchase_payment_net =
 | `/sales-orders/{id}/finance-approve` | `POST` | `result`,`purchase_contract_id`,`actual_receipt_amount`,`actual_pay_amount`,`comment` | 财务通过时必须绑定已生效采购合同；通过后触发采购订单 + 收付款任务 | 采购订单编号 + 收付款待处理任务 |
 | `/supplier/purchase-orders` | `GET` | `status`,`limit` | 仅 `supplier + supplier_company + miniprogram`；仅返回当前供应商公司采购订单 | 采购订单列表 |
 | `/supplier/purchase-orders/{id}` | `GET` | 无 | 仅 `supplier + supplier_company + miniprogram`；仅允许读取本公司采购订单详情 | 采购订单详情 + 发货准备信息 |
+| `/supplier/purchase-orders/{id}/attachments` | `GET` | 无 | 仅 `supplier + supplier_company + miniprogram`；仅允许读取本公司采购订单附件摘要 | 附件列表摘要 |
+| `/supplier/purchase-orders/{id}/attachments` | `POST` | `biz_tag`,`file_path` | 仅 `supplier + supplier_company + miniprogram`；附件标签限首批枚举；路径非空且长度受控 | 上传结果 + 附件摘要 |
 | `/purchase-orders/{id}` | `GET` | 无 | 权限校验 | 采购订单详情 |
 
 ## 5.3 资金单据接口
@@ -215,6 +217,7 @@ purchase_payment_net =
 ## 6.2 关键字段字典冻结
 - 合同：编号、方向、油品、签约数量、单价、系统阈值快照、状态。
 - 订单：来源合同、油品、数量、合同单价、实收实付、状态。
+- 采购订单附件：归属采购订单、业务标签、文件路径、上传人、上传时间。
 - 收付款单：业务类型、金额、凭证要求、免凭证原因、核销状态。
 - 出入库单：来源类型（系统/手工）、实际数量、仓库、阈值校验结果、过账状态。
 - 图谱：来源单据、目标单据、关系类型、触发事件ID。
@@ -224,6 +227,7 @@ purchase_payment_net =
 - `审核通过`：写入审批人与时间并触发下游自动动作。
 - `驳回`：写入驳回原因（仅管理后台支持执行驳回）。
 - `确认收付款`：执行凭证校验与金额校验，更新资金台账。
+- `上传采购订单附件`：执行供应商身份、订单归属、标签与路径校验，写入附件留痕。
 - `生效出入库`：执行超量阈值校验，通过后过账。
 - `手工关闭`：执行五步处理顺序并写入差异记录。
 
