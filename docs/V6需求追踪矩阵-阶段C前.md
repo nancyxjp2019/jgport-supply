@@ -3,7 +3,7 @@
 ## 1. 目的与门槛
 - 目的：验证需求是否被完整理解并可直接进入模块开发。
 - 门槛：
-  - 规则覆盖率 `100%`（规则1~41全部映射）。
+  - 规则覆盖率 `100%`（规则1~48全部映射）。
   - 规则冲突数 `0`。
   - 阻断级未决问题 `0`。
 
@@ -49,7 +49,16 @@
 | 36 | 合同早期状态机（草稿->待审批->生效中；驳回回草稿） | M2 | 合同创建页/审批页 | `/contracts/purchase` `/contracts/sales` `/contracts/{id}/submit` `/contracts/{id}/approve` | `contracts.status` + 合同审批审计 | CT-001 |
 | 37 | 销售订单审批状态机与驳回回退 | M3 | MINI-ORDER-01 / ADM-ORDER-S-01 | `/sales-orders` `/sales-orders/{id}` `/sales-orders/{id}/submit` `/sales-orders/{id}/ops-approve` `/sales-orders/{id}/finance-approve` | `sales_orders.status` + 订单审批审计 | ORD-001 |
 | 38 | 销售订单财务审批必须绑定采购合同 | M3 | ADM-ORDER-S-01 / ADM-ORDER-P-01 | `/sales-orders/{id}/finance-approve` | `purchase_orders.purchase_contract_id` + `sales_order_derivative_tasks` | ORD-002 |
+| 39 | 出库单执行前置状态门禁 | M3+M5 | MINI-WH-OUTBOUND-01 / ADM-EXEC-01 | `/outbound-docs/warehouse-confirm` `/outbound-docs/manual` | `sales_orders.status` + `outbound_docs` | INV-004 |
+| 40 | 合同关闭收口规则 | M4+M5+M6 | ADM-CONTRACT-CLOSE-01 | 自动关闭任务 + `/contracts/{id}/manual-close` | 收付款/出入库状态 + 关闭审计 | CLS-005 |
 | 41 | 仪表盘首版指标口径冻结（执行范围/自然日/30日窗口/v1） | M7 | ADM-DASH-01 / MINI-REPORT-01 | `/dashboard/summary` `/reports/light/overview` | `report_snapshots.version` + 仪表盘/轻报表指标快照 | RPT-006 |
+| 42 | 供应商移动端首批真实业务页边界 | M8 | MINI-SUPPLIER-PO-01 | `/supplier/purchase-orders` `/supplier/purchase-orders/{id}` | 供应商采购订单列表/详情 | MINI-SUP-001 |
+| 43 | 供应商附件回传首批开放边界 | M8 | MINI-SUPPLIER-PO-01 | `/supplier/purchase-orders/{id}/attachments` | `doc_attachments` + 采购订单附件标签 | MINI-SUP-002 |
+| 44 | 供应商发货确认首批开放边界 | M8 | MINI-SUPPLIER-PO-01 | `/supplier/purchase-orders/{id}/confirm-delivery` | 采购订单确认留痕字段 | MINI-SUP-003 |
+| 45 | 供应商付款校验结果回看首批开放边界 | M8 | MINI-SUPPLIER-PO-01 | `/supplier/purchase-orders/{id}` 付款校验结果字段 | 采购订单状态 + `zero_pay_exception_flag` + 说明字段 | MINI-SUP-004 |
+| 46 | M8后台迁移优先级基线 | 项目管理/M8 | - | `M8-16+` 路线冻结与任务包拆分 | 路线文档 + 页面级任务包 | PM-002 |
+| 47 | 运营订单处理台首批开放边界 | M8 | ADM-ORDER-OPS-01 | `/sales-orders` `/sales-orders/{id}` `/sales-orders/{id}/ops-approve` `/sales-orders/{id}/finance-approve` | 销售订单审批字段 + 处理台页面 | ORD-003 |
+| 48 | 财务资金处理台首批开放边界 | M8 | ADM-FUNDS-01 | `/payment-docs/*` `/receipt-docs/*` + 资金处理台任务包 | `payment_docs`,`receipt_docs`,`doc_attachments` | FIN-003 |
 
 ## 3. 验收方式
 - 抽检方式：随机抽取任意10条规则，要求能在“模块/页面/API/数据/测试”5列中完整追溯。

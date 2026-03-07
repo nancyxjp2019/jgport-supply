@@ -168,7 +168,7 @@ purchase_payment_net =
     - 销售方向：`contract_item.qty_signed - contract_item.qty_out_acc`
     - 采购方向：`contract_item.qty_signed - contract_item.qty_in_acc`
 | `/payment-docs/supplement` | `POST` | `contract_id`,`purchase_order_id`,`amount_actual` | 手工补录必须同时绑定合同+采购订单 | `payment_doc_id` |
-| `/receipt-docs/supplement` | `POST` | `contract_id`,`sales_order_id`,`amount_actual` | 手工补录必须绑定合同 | `receipt_doc_id` |
+| `/receipt-docs/supplement` | `POST` | `contract_id`,`sales_order_id`,`amount_actual` | 手工补录必须同时绑定合同+销售订单 | `receipt_doc_id` |
 
 ## 5.4 仓储执行接口
 
