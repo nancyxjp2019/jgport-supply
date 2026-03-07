@@ -449,6 +449,102 @@ body::before {
   width: 100%;
 }
 
+.funds-page {
+  gap: 18px;
+}
+
+.funds-filter-card,
+.funds-list-card,
+.funds-detail-card {
+  padding: 22px;
+}
+
+.funds-filter-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.funds-filter-row h3 {
+  margin: 0 0 8px;
+}
+
+.funds-filter-row p {
+  margin: 0;
+  color: var(--ink-regular);
+}
+
+.funds-filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.funds-filter-select {
+  width: 180px;
+}
+
+.funds-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.funds-list-card .el-table {
+  margin-top: 12px;
+}
+
+.funds-detail-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.funds-detail-grid .detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(31, 95, 91, 0.06);
+}
+
+.funds-detail-grid .detail-row span {
+  color: var(--ink-regular);
+}
+
+.funds-detail-grid .detail-row strong {
+  text-align: right;
+}
+
+.funds-voucher-panel {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(31, 95, 91, 0.06);
+}
+
+.funds-voucher-title {
+  margin: 0 0 8px;
+  color: var(--ink-regular);
+}
+
+.funds-voucher-list {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+}
+
+.funds-action-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
 .signal-card--warning {
   background: linear-gradient(145deg, rgba(196, 122, 44, 0.16), rgba(255, 251, 244, 0.94));
 }
@@ -604,6 +700,10 @@ body::before {
   .order-main-grid {
     grid-template-columns: 1fr;
   }
+
+  .funds-main-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 960px) {
@@ -638,6 +738,10 @@ body::before {
   }
 
   .order-filter-row {
+    flex-direction: column;
+  }
+
+  .funds-filter-row {
     flex-direction: column;
   }
 }

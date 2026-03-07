@@ -54,6 +54,16 @@ const router = createRouter({
             summary: '销售订单列表、详情与运营财务审批首批处理',
           },
         },
+        {
+          path: '/funds',
+          name: 'funds',
+          component: () => import('@/views/funds/FundsView.vue'),
+          meta: {
+            requiresAuth: true,
+            title: '财务资金处理台',
+            summary: '收款单与付款单列表、补录、确认与凭证路径回看',
+          },
+        },
       ],
     },
   ],

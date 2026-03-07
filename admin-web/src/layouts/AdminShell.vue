@@ -4,7 +4,7 @@
       <div class="brand-card">
         <p class="brand-card__eyebrow">运营驾驶舱</p>
         <h1>JGPORT V6</h1>
-        <p>报表口径与页面结构对齐 M7 原型说明，首批已落地经营首页、业务看板与订单处理台。</p>
+        <p>报表口径与页面结构对齐 M7 原型说明，首批已落地经营首页、业务看板、订单处理台与资金处理台。</p>
       </div>
 
       <nav class="shell__nav">
@@ -75,6 +75,11 @@ const navItems = [
     to: '/orders',
     label: '运营订单处理台',
     summary: '销售订单列表、详情与运营财务审批处理',
+  },
+  {
+    to: '/funds',
+    label: '财务资金处理台',
+    summary: '收款单付款单列表、补录确认与凭证路径回看',
   },
 ]
 

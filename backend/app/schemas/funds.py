@@ -20,12 +20,16 @@ class ReceiptDocSupplementRequest(BaseModel):
 
 class PaymentDocConfirmRequest(BaseModel):
     amount_actual: Decimal = Field(ge=0, description="本次确认实付金额")
-    voucher_files: list[str] = Field(default_factory=list, description="付款凭证路径列表")
+    voucher_files: list[str] = Field(
+        default_factory=list, description="付款凭证路径列表"
+    )
 
 
 class ReceiptDocConfirmRequest(BaseModel):
     amount_actual: Decimal = Field(ge=0, description="本次确认实收金额")
-    voucher_files: list[str] = Field(default_factory=list, description="收款凭证路径列表")
+    voucher_files: list[str] = Field(
+        default_factory=list, description="收款凭证路径列表"
+    )
 
 
 class ReceiptDocResponse(BaseModel):
@@ -61,4 +65,48 @@ class PaymentDocResponse(BaseModel):
     confirmed_at: datetime | None = None
     voucher_file_paths: list[str] = Field(default_factory=list)
     created_at: datetime
+    message: str
+
+
+class ReceiptDocListItem(BaseModel):
+    id: int
+    doc_no: str
+    doc_type: str
+    contract_id: int
+    sales_order_id: int | None = None
+    amount_actual: Decimal
+    status: str
+    voucher_required: bool
+    voucher_exempt_reason: str | None = None
+    refund_status: str
+    refund_amount: Decimal
+    confirmed_at: datetime | None = None
+    created_at: datetime
+
+
+class PaymentDocListItem(BaseModel):
+    id: int
+    doc_no: str
+    doc_type: str
+    contract_id: int
+    purchase_order_id: int | None = None
+    amount_actual: Decimal
+    status: str
+    voucher_required: bool
+    voucher_exempt_reason: str | None = None
+    refund_status: str
+    refund_amount: Decimal
+    confirmed_at: datetime | None = None
+    created_at: datetime
+
+
+class ReceiptDocListResponse(BaseModel):
+    items: list[ReceiptDocListItem]
+    total: int
+    message: str
+
+
+class PaymentDocListResponse(BaseModel):
+    items: list[PaymentDocListItem]
+    total: int
     message: str
