@@ -30,6 +30,9 @@ STATUS_POSTED = "已过账"
 STATUS_TERMINATED = "已终止"
 STATUS_CONTRACT_EFFECTIVE = "生效中"
 STATUS_CONTRACT_QTY_DONE = "数量履约完成"
+STATUS_CONTRACT_CLOSED = "已关闭"
+STATUS_CONTRACT_MANUAL_CLOSED = "手工关闭"
+STATUS_CONTRACT_ARCHIVED = "已归档"
 STATUS_SALES_ORDER_DERIVED = "已衍生采购订单"
 STATUS_SALES_ORDER_EXECUTING = "执行中"
 TASK_STATUS_PENDING = "待处理"
@@ -130,10 +133,14 @@ def create_warehouse_outbound_doc(
     _ensure_sales_order_matches_contract(sales_order, contract_id)
     _ensure_sales_order_ready_for_outbound(sales_order)
 
-    idempotency_key = f"warehouse_outbound:{contract_id}:{sales_order_id}:{source_ticket_no.strip()}"
+    idempotency_key = (
+        f"warehouse_outbound:{contract_id}:{sales_order_id}:{source_ticket_no.strip()}"
+    )
     existing_doc = _get_outbound_doc_by_idempotency_key(db, idempotency_key)
     if existing_doc is not None:
-        return InventoryServiceResult(doc_id=existing_doc.id, message="仓库正常流程出库单已存在")
+        return InventoryServiceResult(
+            doc_id=existing_doc.id, message="仓库正常流程出库单已存在"
+        )
 
     outbound_doc = OutboundDoc(
         doc_no=_generate_doc_no("OUT"),
@@ -178,7 +185,9 @@ def create_warehouse_outbound_doc(
         extra_json={"source_ticket_no": outbound_doc.source_ticket_no},
     )
     _commit_or_raise(db, message="创建仓库正常流程出库单失败，请稍后重试")
-    return InventoryServiceResult(doc_id=outbound_doc.id, message="仓库正常流程出库单已生成")
+    return InventoryServiceResult(
+        doc_id=outbound_doc.id, message="仓库正常流程出库单已生成"
+    )
 
 
 def create_manual_outbound_doc(
@@ -202,7 +211,12 @@ def create_manual_outbound_doc(
             status_code=status.HTTP_409_CONFLICT,
             detail="销售订单与油品不匹配，禁止补录出库单",
         )
-    if _manual_outbound_exists(db, contract_id=contract_id, oil_product_id=oil_product_id, manual_ref_no=manual_ref_no.strip()):
+    if _manual_outbound_exists(
+        db,
+        contract_id=contract_id,
+        oil_product_id=oil_product_id,
+        manual_ref_no=manual_ref_no.strip(),
+    ):
         raise InventoryServiceError(
             status_code=status.HTTP_409_CONFLICT,
             detail="手工回执号已存在，禁止重复补录出库单",
@@ -248,10 +262,15 @@ def create_manual_outbound_doc(
         biz_id=f"outbound_doc:{outbound_doc.id}",
         operator_id=operator_id,
         after_json=_build_outbound_snapshot(outbound_doc),
-        extra_json={"manual_ref_no": outbound_doc.manual_ref_no, "reason": reason.strip()},
+        extra_json={
+            "manual_ref_no": outbound_doc.manual_ref_no,
+            "reason": reason.strip(),
+        },
     )
     _commit_or_raise(db, message="补录出库单失败，请稍后重试")
-    return InventoryServiceResult(doc_id=outbound_doc.id, message="手工补录出库单已创建")
+    return InventoryServiceResult(
+        doc_id=outbound_doc.id, message="手工补录出库单已创建"
+    )
 
 
 def submit_inbound_doc(
@@ -264,8 +283,14 @@ def submit_inbound_doc(
 ) -> InventoryServiceResult:
     inbound_doc = _get_inbound_doc_or_raise(db, inbound_doc_id)
     if inbound_doc.status == STATUS_POSTED:
-        return InventoryServiceResult(doc_id=inbound_doc.id, message="入库单已过账，无需重复提交")
-    if inbound_doc.status not in {STATUS_DRAFT, STATUS_PENDING_SUBMIT, STATUS_VALIDATION_FAILED}:
+        return InventoryServiceResult(
+            doc_id=inbound_doc.id, message="入库单已过账，无需重复提交"
+        )
+    if inbound_doc.status not in {
+        STATUS_DRAFT,
+        STATUS_PENDING_SUBMIT,
+        STATUS_VALIDATION_FAILED,
+    }:
         raise InventoryServiceError(
             status_code=status.HTTP_409_CONFLICT,
             detail="当前入库单状态不允许提交",
@@ -293,7 +318,9 @@ def submit_inbound_doc(
             extra_json={"blocked_code": "BIZ-CONTRACT-QTY-DONE-001"},
         )
         _commit_or_raise(db, message="提交入库单失败，请稍后重试")
-        return InventoryServiceResult(doc_id=inbound_doc.id, message="合同已数量履约完成，入库单已终止")
+        return InventoryServiceResult(
+            doc_id=inbound_doc.id, message="合同已数量履约完成，入库单已终止"
+        )
 
     threshold = _get_over_exec_threshold_or_raise(contract)
     projected_qty = normalize_qty(contract_item.qty_in_acc + inbound_doc.actual_qty)
@@ -315,7 +342,9 @@ def submit_inbound_doc(
             },
         )
         _commit_or_raise(db, message="提交入库单失败，请稍后重试")
-        return InventoryServiceResult(doc_id=inbound_doc.id, message="入库数量超过合同上限阈值，已转校验失败")
+        return InventoryServiceResult(
+            doc_id=inbound_doc.id, message="入库数量超过合同上限阈值，已转校验失败"
+        )
 
     before_contract_json = _build_contract_snapshot(contract)
     effect_applied = _apply_qty_effect(
@@ -354,7 +383,9 @@ def submit_inbound_doc(
     )
     _commit_or_raise(db, message="提交入库单失败，请稍后重试")
     if close_result.closed:
-        return InventoryServiceResult(doc_id=inbound_doc.id, message="入库单已过账，合同已自动关闭")
+        return InventoryServiceResult(
+            doc_id=inbound_doc.id, message="入库单已过账，合同已自动关闭"
+        )
     if effect_applied:
         message = "入库单已过账并计入履约数量"
     else:
@@ -372,8 +403,14 @@ def submit_outbound_doc(
 ) -> InventoryServiceResult:
     outbound_doc = _get_outbound_doc_or_raise(db, outbound_doc_id)
     if outbound_doc.status == STATUS_POSTED:
-        return InventoryServiceResult(doc_id=outbound_doc.id, message="出库单已过账，无需重复提交")
-    if outbound_doc.status not in {STATUS_PENDING_SUBMIT, STATUS_VALIDATION_FAILED, STATUS_DRAFT}:
+        return InventoryServiceResult(
+            doc_id=outbound_doc.id, message="出库单已过账，无需重复提交"
+        )
+    if outbound_doc.status not in {
+        STATUS_PENDING_SUBMIT,
+        STATUS_VALIDATION_FAILED,
+        STATUS_DRAFT,
+    }:
         raise InventoryServiceError(
             status_code=status.HTTP_409_CONFLICT,
             detail="当前出库单状态不允许提交",
@@ -401,7 +438,9 @@ def submit_outbound_doc(
             extra_json={"blocked_code": "BIZ-CONTRACT-QTY-DONE-001"},
         )
         _commit_or_raise(db, message="提交出库单失败，请稍后重试")
-        return InventoryServiceResult(doc_id=outbound_doc.id, message="合同已数量履约完成，出库单已终止")
+        return InventoryServiceResult(
+            doc_id=outbound_doc.id, message="合同已数量履约完成，出库单已终止"
+        )
 
     threshold = _get_over_exec_threshold_or_raise(contract)
     projected_qty = normalize_qty(contract_item.qty_out_acc + outbound_doc.actual_qty)
@@ -423,7 +462,9 @@ def submit_outbound_doc(
             },
         )
         _commit_or_raise(db, message="提交出库单失败，请稍后重试")
-        return InventoryServiceResult(doc_id=outbound_doc.id, message="出库数量超过合同上限阈值，已转校验失败")
+        return InventoryServiceResult(
+            doc_id=outbound_doc.id, message="出库数量超过合同上限阈值，已转校验失败"
+        )
 
     before_contract_json = _build_contract_snapshot(contract)
     effect_applied = _apply_qty_effect(
@@ -462,7 +503,9 @@ def submit_outbound_doc(
     )
     _commit_or_raise(db, message="提交出库单失败，请稍后重试")
     if close_result.closed:
-        return InventoryServiceResult(doc_id=outbound_doc.id, message="出库单已过账，合同已自动关闭")
+        return InventoryServiceResult(
+            doc_id=outbound_doc.id, message="出库单已过账，合同已自动关闭"
+        )
     if effect_applied:
         message = "出库单已过账并计入履约数量"
     else:
@@ -484,7 +527,11 @@ def _apply_qty_effect(
     effect_qty: Decimal,
 ) -> bool:
     idempotency_key = f"qty_effect:{doc_type}:{doc_id}:{effect_type}"
-    existing_effect = db.scalar(select(ContractQtyEffect.id).where(ContractQtyEffect.idempotency_key == idempotency_key))
+    existing_effect = db.scalar(
+        select(ContractQtyEffect.id).where(
+            ContractQtyEffect.idempotency_key == idempotency_key
+        )
+    )
     if existing_effect is not None:
         return False
 
@@ -501,7 +548,9 @@ def _apply_qty_effect(
     if effect_type == EFFECT_TYPE_IN:
         contract_item.qty_in_acc = normalize_qty(contract_item.qty_in_acc + effect_qty)
     else:
-        contract_item.qty_out_acc = normalize_qty(contract_item.qty_out_acc + effect_qty)
+        contract_item.qty_out_acc = normalize_qty(
+            contract_item.qty_out_acc + effect_qty
+        )
     return True
 
 
@@ -522,6 +571,15 @@ def _validate_purchase_contract_for_inbound(contract: Contract) -> None:
             status_code=status.HTTP_409_CONFLICT,
             detail="当前合同不是采购合同，禁止生成或提交入库单",
         )
+    if contract.status in {
+        STATUS_CONTRACT_CLOSED,
+        STATUS_CONTRACT_MANUAL_CLOSED,
+        STATUS_CONTRACT_ARCHIVED,
+    }:
+        raise InventoryServiceError(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="合同已关闭，禁止操作入库单",
+        )
     if contract.status not in {STATUS_CONTRACT_EFFECTIVE, STATUS_CONTRACT_QTY_DONE}:
         raise InventoryServiceError(
             status_code=status.HTTP_409_CONFLICT,
@@ -535,6 +593,15 @@ def _validate_sales_contract_for_outbound(contract: Contract) -> None:
             status_code=status.HTTP_409_CONFLICT,
             detail="当前合同不是销售合同，禁止生成或提交出库单",
         )
+    if contract.status in {
+        STATUS_CONTRACT_CLOSED,
+        STATUS_CONTRACT_MANUAL_CLOSED,
+        STATUS_CONTRACT_ARCHIVED,
+    }:
+        raise InventoryServiceError(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="合同已关闭，禁止操作出库单",
+        )
     if contract.status not in {STATUS_CONTRACT_EFFECTIVE, STATUS_CONTRACT_QTY_DONE}:
         raise InventoryServiceError(
             status_code=status.HTTP_409_CONFLICT,
@@ -543,7 +610,11 @@ def _validate_sales_contract_for_outbound(contract: Contract) -> None:
 
 
 def _get_contract_with_items_or_raise(db: Session, contract_id: int) -> Contract:
-    statement = select(Contract).options(selectinload(Contract.items)).where(Contract.id == contract_id)
+    statement = (
+        select(Contract)
+        .options(selectinload(Contract.items))
+        .where(Contract.id == contract_id)
+    )
     contract = db.scalar(statement)
     if contract is None:
         raise InventoryServiceError(
@@ -553,7 +624,9 @@ def _get_contract_with_items_or_raise(db: Session, contract_id: int) -> Contract
     return contract
 
 
-def _get_contract_item_or_raise(contract: Contract, oil_product_id: str) -> ContractItem:
+def _get_contract_item_or_raise(
+    contract: Contract, oil_product_id: str
+) -> ContractItem:
     for item in contract.items:
         if item.oil_product_id == oil_product_id:
             return item
@@ -573,7 +646,9 @@ def _get_sales_order_or_raise(db: Session, sales_order_id: int) -> SalesOrder:
     return sales_order
 
 
-def _ensure_sales_order_matches_contract(sales_order: SalesOrder, contract_id: int) -> None:
+def _ensure_sales_order_matches_contract(
+    sales_order: SalesOrder, contract_id: int
+) -> None:
     if sales_order.sales_contract_id != contract_id:
         raise InventoryServiceError(
             status_code=status.HTTP_409_CONFLICT,
@@ -610,17 +685,25 @@ def _get_outbound_doc_or_raise(db: Session, outbound_doc_id: int) -> OutboundDoc
     return outbound_doc
 
 
-def _get_inbound_doc_by_idempotency_key(db: Session, idempotency_key: str) -> InboundDoc | None:
+def _get_inbound_doc_by_idempotency_key(
+    db: Session, idempotency_key: str
+) -> InboundDoc | None:
     statement = select(InboundDoc).where(InboundDoc.idempotency_key == idempotency_key)
     return db.scalar(statement)
 
 
-def _get_outbound_doc_by_idempotency_key(db: Session, idempotency_key: str) -> OutboundDoc | None:
-    statement = select(OutboundDoc).where(OutboundDoc.idempotency_key == idempotency_key)
+def _get_outbound_doc_by_idempotency_key(
+    db: Session, idempotency_key: str
+) -> OutboundDoc | None:
+    statement = select(OutboundDoc).where(
+        OutboundDoc.idempotency_key == idempotency_key
+    )
     return db.scalar(statement)
 
 
-def _manual_outbound_exists(db: Session, *, contract_id: int, oil_product_id: str, manual_ref_no: str) -> bool:
+def _manual_outbound_exists(
+    db: Session, *, contract_id: int, oil_product_id: str, manual_ref_no: str
+) -> bool:
     statement = select(OutboundDoc.id).where(
         OutboundDoc.contract_id == contract_id,
         OutboundDoc.oil_product_id == oil_product_id,
@@ -698,7 +781,10 @@ def _write_contract_qty_done_audit_if_needed(
     operator_id: str,
     before_json: dict,
 ) -> None:
-    if before_json.get("status") == contract.status or contract.status != STATUS_CONTRACT_QTY_DONE:
+    if (
+        before_json.get("status") == contract.status
+        or contract.status != STATUS_CONTRACT_QTY_DONE
+    ):
         return
     _write_inventory_audit(
         db,
@@ -743,7 +829,9 @@ def _build_inbound_snapshot(inbound_doc: InboundDoc) -> dict:
         "actual_qty": str(inbound_doc.actual_qty),
         "status": inbound_doc.status,
         "submitted_by": inbound_doc.submitted_by,
-        "submitted_at": inbound_doc.submitted_at.isoformat() if inbound_doc.submitted_at else None,
+        "submitted_at": inbound_doc.submitted_at.isoformat()
+        if inbound_doc.submitted_at
+        else None,
     }
 
 
@@ -761,7 +849,9 @@ def _build_outbound_snapshot(outbound_doc: OutboundDoc) -> dict:
         "actual_qty": str(outbound_doc.actual_qty),
         "status": outbound_doc.status,
         "submitted_by": outbound_doc.submitted_by,
-        "submitted_at": outbound_doc.submitted_at.isoformat() if outbound_doc.submitted_at else None,
+        "submitted_at": outbound_doc.submitted_at.isoformat()
+        if outbound_doc.submitted_at
+        else None,
     }
 
 

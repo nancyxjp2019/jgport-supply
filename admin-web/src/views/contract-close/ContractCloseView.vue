@@ -113,11 +113,11 @@
           </div>
 
           <div
-            v-if="selectedContract.manual_close_diff_qty_json && selectedContract.manual_close_diff_qty_json.length"
+            v-if="manualCloseDiffRows.length"
             class="contract-close-diff-panel"
           >
-            <p class="contract-close-diff-title">手工关闭数量差异（{{ selectedContract.manual_close_diff_qty_json.length }}）</p>
-            <ElTable :data="selectedContract.manual_close_diff_qty_json" size="small">
+            <p class="contract-close-diff-title">手工关闭数量差异（{{ manualCloseDiffRows.length }}）</p>
+            <ElTable :data="manualCloseDiffRows" size="small">
               <ElTableColumn prop="oil_product_id" label="油品" min-width="100" />
               <ElTableColumn prop="qty_signed" label="签约数量" min-width="100" />
               <ElTableColumn prop="qty_in_acc" label="累计入库" min-width="100" />
@@ -191,7 +191,17 @@ import {
   type ContractDetailResponse,
   type ContractListItem,
 } from '@/api/contract-close'
+import { useAuthStore } from '@/stores/auth'
+import { canRoleExecuteAction } from '@/utils/permissions'
 import { formatDateTime, formatMoney } from '@/utils/formatters'
+
+type ContractCloseDiffDisplayRow = {
+  oil_product_id: string
+  qty_signed: string
+  qty_in_acc: string
+  qty_out_acc: string
+  qty_gap: string
+}
 
 const directionOptions = [
   { label: '销售合同', value: 'sales' },
@@ -226,7 +236,18 @@ const manualCloseDialog = reactive({
   submitting: false,
 })
 
-const canManualClose = computed(() => selectedContract.value?.status === '数量履约完成')
+const authStore = useAuthStore()
+const currentRoleCode = computed(() => authStore.session?.roleCode ?? '')
+const canManualCloseWrite = computed(() => canRoleExecuteAction(currentRoleCode.value, 'contracts.write'))
+const canManualClose = computed(() => canManualCloseWrite.value && selectedContract.value?.status === '数量履约完成')
+const manualCloseDiffRows = computed<ContractCloseDiffDisplayRow[]>(() => {
+  if (!selectedContract.value?.manual_close_diff_qty_json?.length) {
+    return []
+  }
+  return selectedContract.value.manual_close_diff_qty_json.map((row) =>
+    resolveManualCloseDiffRow(selectedContract.value as ContractDetailResponse, row),
+  )
+})
 
 const detailSeverity = computed(() => {
   if (!selectedContract.value) {
@@ -301,6 +322,31 @@ function resolveDiffAmount(amount: string | null): string {
   return `¥${formatMoney(amount)}`
 }
 
+function resolveManualCloseDiffRow(
+  contract: ContractDetailResponse,
+  row: Record<string, string>,
+): ContractCloseDiffDisplayRow {
+  if ('qty_in_acc' in row || 'qty_out_acc' in row || 'qty_gap' in row) {
+    return {
+      oil_product_id: row.oil_product_id || '--',
+      qty_signed: row.qty_signed || '0.000',
+      qty_in_acc: row.qty_in_acc || '0.000',
+      qty_out_acc: row.qty_out_acc || '0.000',
+      qty_gap: row.qty_gap || row.diff_qty || '0.000',
+    }
+  }
+
+  const normalizedDirection = String(contract.direction || '').toLowerCase()
+  const qtyDone = row.qty_done || '0.000'
+  return {
+    oil_product_id: row.oil_product_id || '--',
+    qty_signed: row.qty_signed || '0.000',
+    qty_in_acc: normalizedDirection === 'purchase' ? qtyDone : '0.000',
+    qty_out_acc: normalizedDirection === 'sales' ? qtyDone : '0.000',
+    qty_gap: row.diff_qty || '0.000',
+  }
+}
+
 async function loadContracts(preferredId?: number) {
   loading.value = true
   errorMessage.value = ''
@@ -355,6 +401,10 @@ function openManualCloseDialog() {
   if (!selectedContract.value) {
     return
   }
+  if (!canManualCloseWrite.value) {
+    ElMessage.warning('当前角色无权执行手工关闭动作')
+    return
+  }
   if (!canManualClose.value) {
     ElMessage.warning('当前合同状态不允许手工关闭')
     return
@@ -366,6 +416,10 @@ function openManualCloseDialog() {
 
 async function submitCurrentContractManualClose() {
   if (!selectedContract.value) {
+    return
+  }
+  if (!canManualCloseWrite.value) {
+    ElMessage.warning('当前角色无权执行手工关闭动作')
     return
   }
   const reason = manualCloseDialog.reason.trim()
