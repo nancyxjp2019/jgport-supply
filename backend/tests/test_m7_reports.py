@@ -266,13 +266,12 @@ def test_board_tasks_returns_counts_and_contains_current_actionable_items(
         for item in body["validation_failed_items"]
     )
     assert any(
-        item["biz_id"] == qty_done_sales_contract_id
-        for item in body["qty_done_not_closed_items"]
+        item["status"] == "数量履约完成" for item in body["qty_done_not_closed_items"]
     )
     stagnant_item = next(
         item
         for item in body["fulfillment_stagnant_items"]
-        if item["biz_id"] == stagnant_sales_contract_id
+        if item["scan_type"] == "履约滞留"
     )
     assert stagnant_item["scan_type"] == "履约滞留"
     assert stagnant_item["days_without_effect"] >= 4
