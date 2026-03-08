@@ -1,4 +1,5 @@
 export type AdminActionCode =
+  | 'org.manage'
   | 'contracts.view'
   | 'contracts.write'
   | 'contracts.approve'
@@ -24,6 +25,7 @@ const ROLE_ACTIONS: Record<string, ReadonlyArray<AdminActionCode>> = {
     'reports.summary.recompute',
   ],
   admin: [
+    'org.manage',
     'contracts.view',
     'contracts.write',
     'contracts.approve',
