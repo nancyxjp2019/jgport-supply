@@ -113,7 +113,9 @@ def create_contract_draft(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="合同创建失败，请稍后重试",
         ) from exc
-    return ContractServiceResult(contract_id=contract.id, message=_draft_message(direction))
+    return ContractServiceResult(
+        contract_id=contract.id, message=_draft_message(direction)
+    )
 
 
 def submit_contract_for_approval(
@@ -148,6 +150,90 @@ def submit_contract_for_approval(
     )
     _commit_or_raise(db, message="合同提交审批失败，请稍后重试")
     return ContractServiceResult(contract_id=contract.id, message="合同已提交审批")
+
+
+def update_contract_draft(
+    db: Session,
+    *,
+    contract_id: int,
+    operator_id: str,
+    contract_no: str,
+    supplier_id: str | None,
+    customer_id: str | None,
+    items: list[ContractItemPayload],
+) -> ContractServiceResult:
+    contract = get_contract_or_raise(db, contract_id)
+    if contract.status != STATUS_DRAFT:
+        raise ContractServiceError(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="当前合同状态不允许修改",
+        )
+
+    normalized_supplier_id = (
+        supplier_id if contract.direction == CONTRACT_DIRECTION_PURCHASE else None
+    )
+    normalized_customer_id = (
+        customer_id if contract.direction == CONTRACT_DIRECTION_SALES else None
+    )
+    if contract.direction == CONTRACT_DIRECTION_PURCHASE and not normalized_supplier_id:
+        raise ContractServiceError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="采购合同必须填写供应商",
+        )
+    if contract.direction == CONTRACT_DIRECTION_SALES and not normalized_customer_id:
+        raise ContractServiceError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="销售合同必须填写客户",
+        )
+    if contract.contract_no != contract_no and _contract_no_exists(db, contract_no):
+        raise ContractServiceError(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="合同编号已存在",
+        )
+
+    before_json = build_contract_snapshot(contract)
+    contract.contract_no = contract_no
+    contract.supplier_id = normalized_supplier_id
+    contract.customer_id = normalized_customer_id
+    contract.updated_by = operator_id
+    contract.items.clear()
+    db.flush()
+    for item in items:
+        contract.items.append(
+            ContractItem(
+                oil_product_id=item.oil_product_id,
+                qty_signed=normalize_qty(item.qty_signed),
+                unit_price=normalize_price(item.unit_price),
+            )
+        )
+    db.flush()
+
+    db.add(
+        BusinessAuditLog(
+            event_code="M2-CONTRACT-UPDATE",
+            biz_type="contract",
+            biz_id=f"contract:{contract.id}",
+            operator_id=operator_id,
+            before_json=before_json,
+            after_json=build_contract_snapshot(contract),
+            extra_json={"direction": contract.direction},
+        )
+    )
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise ContractServiceError(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="合同编号或油品明细存在重复",
+        ) from exc
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise ContractServiceError(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="合同修改失败，请稍后重试",
+        ) from exc
+    return ContractServiceResult(contract_id=contract.id, message="合同草稿已更新")
 
 
 def approve_contract(
@@ -265,8 +351,12 @@ def build_contract_snapshot(contract: Contract) -> dict:
         "status": contract.status,
         "supplier_id": contract.supplier_id,
         "customer_id": contract.customer_id,
-        "threshold_release_snapshot": _stringify_decimal(contract.threshold_release_snapshot),
-        "threshold_over_exec_snapshot": _stringify_decimal(contract.threshold_over_exec_snapshot),
+        "threshold_release_snapshot": _stringify_decimal(
+            contract.threshold_release_snapshot
+        ),
+        "threshold_over_exec_snapshot": _stringify_decimal(
+            contract.threshold_over_exec_snapshot
+        ),
         "items": [build_contract_item_snapshot(item) for item in contract.items],
     }
 
@@ -301,8 +391,12 @@ def build_effective_tasks(contract: Contract) -> list[ContractEffectiveTask]:
                     "contract_no": contract.contract_no,
                     "direction": contract.direction,
                     "target_doc_type": target_doc_type,
-                    "items": [build_contract_item_snapshot(item) for item in contract.items],
-                    "deposit_doc_type": "DEPOSIT" if target_doc_type in {"payment_doc", "receipt_doc"} else None,
+                    "items": [
+                        build_contract_item_snapshot(item) for item in contract.items
+                    ],
+                    "deposit_doc_type": "DEPOSIT"
+                    if target_doc_type in {"payment_doc", "receipt_doc"}
+                    else None,
                 },
             )
         )
@@ -332,4 +426,8 @@ def _stringify_decimal(value: Decimal | None) -> str | None:
 
 
 def _draft_message(direction: str) -> str:
-    return "采购合同草稿已创建" if direction == CONTRACT_DIRECTION_PURCHASE else "销售合同草稿已创建"
+    return (
+        "采购合同草稿已创建"
+        if direction == CONTRACT_DIRECTION_PURCHASE
+        else "销售合同草稿已创建"
+    )

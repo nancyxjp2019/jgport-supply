@@ -4,7 +4,7 @@
       <div class="brand-card">
         <p class="brand-card__eyebrow">运营驾驶舱</p>
         <h1>JGPORT V6</h1>
-        <p>报表口径与页面结构对齐 M7 原型说明，当前已落地经营首页、业务看板、订单处理台、资金处理台、库存执行跟踪台、合同关闭差异台、退款核销台、多维报表台、导出任务中心与汇总重算任务中心。</p>
+        <p>页面结构持续对齐阶段 C 当前冻结口径，当前已落地经营首页、业务看板、合同管理台、订单处理台、资金处理台、库存执行跟踪台、合同关闭差异台、退款核销台、多维报表台、导出任务中心与汇总重算任务中心。</p>
       </div>
 
       <nav class="shell__nav">
@@ -71,6 +71,12 @@ const navItems = computed(() => [
     to: '/board',
     label: '业务看板',
     summary: '聚焦待补录金额、库存阻塞与合同待关闭',
+  },
+  {
+    to: '/contracts',
+    label: '合同管理台',
+    summary: '采购销售合同列表、详情、提审审批与图谱回看',
+    hidden: !canRoleExecuteAction(authStore.session?.roleCode, 'contracts.view'),
   },
   {
     to: '/orders',

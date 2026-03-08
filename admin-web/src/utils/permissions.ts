@@ -1,4 +1,7 @@
 export type AdminActionCode =
+  | 'contracts.view'
+  | 'contracts.write'
+  | 'contracts.approve'
   | 'orders.ops.approve'
   | 'orders.finance.approve'
   | 'funds.operate'
@@ -8,8 +11,11 @@ export type AdminActionCode =
   | 'reports.summary.recompute'
 
 const ROLE_ACTIONS: Record<string, ReadonlyArray<AdminActionCode>> = {
-  operations: ['orders.ops.approve', 'reports.summary.recompute.view'],
+  operations: ['contracts.view', 'orders.ops.approve', 'reports.summary.recompute.view'],
   finance: [
+    'contracts.view',
+    'contracts.write',
+    'contracts.approve',
     'orders.finance.approve',
     'funds.operate',
     'funds.reconcile.operate',
@@ -18,6 +24,9 @@ const ROLE_ACTIONS: Record<string, ReadonlyArray<AdminActionCode>> = {
     'reports.summary.recompute',
   ],
   admin: [
+    'contracts.view',
+    'contracts.write',
+    'contracts.approve',
     'orders.ops.approve',
     'orders.finance.approve',
     'funds.operate',

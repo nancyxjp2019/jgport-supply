@@ -34,6 +34,22 @@ class SalesContractCreateRequest(BaseModel):
         return self
 
 
+class ContractUpdateRequest(BaseModel):
+    contract_no: str = Field(min_length=1, max_length=64, description="合同编号")
+    supplier_id: str | None = Field(
+        default=None, min_length=1, max_length=64, description="供应商ID"
+    )
+    customer_id: str | None = Field(
+        default=None, min_length=1, max_length=64, description="客户ID"
+    )
+    items: list[ContractItemPayload] = Field(min_length=1, description="合同明细")
+
+    @model_validator(mode="after")
+    def validate_items(self) -> "ContractUpdateRequest":
+        _validate_unique_oil_products(self.items)
+        return self
+
+
 class ContractSubmitRequest(BaseModel):
     comment: str = Field(min_length=1, max_length=256, description="提交说明")
 

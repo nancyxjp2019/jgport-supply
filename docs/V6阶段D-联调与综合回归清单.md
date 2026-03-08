@@ -1,22 +1,22 @@
 # V6 阶段D联调与综合回归清单
 
 ## 1. 文档定位
-- 文档状态：`生效`
-- 目标：在 `M8-27` 完成后，冻结阶段 D 的联调范围、环境基线、责任边界、关键链路与回归出口，避免在联调阶段再次插入新功能开发。
+- 文档状态：`规划中`
+- 目标：在阶段 C 收口闭合后，冻结阶段 D 的联调范围、环境基线、责任边界、关键链路与回归出口，避免在联调阶段再次插入新功能开发。
 - 使用边界：本清单用于阶段 D 联调与综合回归，不替代 `docs/需求方案.md`、`docs/V6阶段B-详细设计与原型冻结包.md` 与各模块任务包。
 
 ## 2. 当前阶段判定
-- 当前阶段：`阶段 D - 联调与综合回归（进行中）`
-- 进入条件：`M1 ~ M7` 与 `M8-01 ~ M8-27` 已完成并推送，当前主链已具备“合同 -> 订单 -> 资金 -> 库存 -> 关闭 -> 报表”的跨模块贯通条件。
-- 当前唯一主目标：`D-02 联调与综合回归执行`
-- 当前结论：`D-01 联调与综合回归清单冻结` 已完成，本清单作为阶段 D 当前生效基线继续执行。
+- 当前阶段：`阶段 D - 联调与综合回归（待启动）`
+- 进入条件：`M1 ~ M7`、`M8-01 ~ M8-27` 已完成并推送，且 `M8-28 合同管理台首批补齐` 已完成并通过门禁；同时已完成阶段 C 冻结范围闭合复核、联调范围与真实交付范围一致、降级事项已写入阶段 E 或后续治理池。
+- 当前唯一主目标：`待阶段 C 收口完成后重新激活`
+- 当前结论：本清单当前仅作为阶段 D 草案，不作为已启动执行基线。
 
 ## 3. 联调范围冻结
 
 | 范围 | 本轮纳入 | 说明 |
 |---|---|---|
 | 后端主链接口 | 是 | 覆盖权限、订单、资金、库存、合同关闭、报表、重算与审计 |
-| 管理后台 | 是 | 覆盖登录、仪表盘、业务看板、订单、资金、库存、合同关闭、退款核销、多维报表、导出任务、汇总重算 |
+| 管理后台 | 是 | 覆盖登录、仪表盘、业务看板、合同管理台、订单、资金、库存、合同关闭、退款核销、多维报表、导出任务、汇总重算 |
 | 小程序 | 是 | 覆盖本地联调/微信登录、轻量报表、消息、待办、供应商采购单相关首批能力 |
 | 数据与审计 | 是 | 覆盖业务审计日志、报表快照、导出任务、重算任务、扫描留痕 |
 | 新业务规则开发 | 否 | 阶段 D 不新增业务规则，不再扩展页面或接口范围 |
@@ -37,7 +37,7 @@
 
 | 链路ID | 链路名称 | 上游输入 | 关键验证点 | 主要页面/接口 |
 |---|---|---|---|---|
-| D-CHAIN-01 | 销售订单审批主链 | 销售合同生效、客户下单 | 订单创建/提交、运营审批、财务审批、销售转采购成功，权限阻断正确 | `OrdersView`、订单相关接口 |
+| D-CHAIN-01 | 合同到订单审批主链 | 合同管理台创建/提审/审批，销售合同生效、客户下单 | 合同创建、提交审批、审批驳回回退后修改再提审、审批生效、订单创建/提交、运营审批、财务审批、销售转采购成功，权限阻断正确 | `ContractsView`、`OrdersView`、合同/订单相关接口 |
 | D-CHAIN-02 | 收付款处理主链 | 审批后单据生成 | 待补录、确认、凭证路径、退款申请/审核/驳回、核销状态一致 | `FundsView`、`FundsReconcileView` |
 | D-CHAIN-03 | 仓储执行主链 | 采购/销售单据已可执行 | 入库、出库、校验失败、仓库身份边界、数量履约累计一致 | `InventoryView` |
 | D-CHAIN-04 | 合同关闭主链 | 数量履约完成且资金条件满足 | 自动关闭、手工关闭、差异展示、关闭后阻断一致 | `ContractCloseView` |
@@ -65,7 +65,7 @@
 |---|---|
 | 工具与权限 | `admin-web/src/utils/auth.spec.ts`、`admin-web/src/utils/permissions.spec.ts`、`admin-web/src/utils/report-drill.spec.ts` |
 | mock 与报表演示链 | `admin-web/src/mock/*.spec.ts`、`admin-web/src/stores/report.spec.ts` |
-| 页面关键交互 | `admin-web/src/views/funds/FundsView.spec.ts`、`admin-web/src/views/funds-reconcile/FundsReconcileView.spec.ts`、`admin-web/src/views/reports-multi-dim/ReportsMultiDimView.spec.ts`、`admin-web/src/views/report-recompute-tasks/ReportRecomputeTasksView.spec.ts` |
+| 页面关键交互 | `admin-web/src/views/contracts/ContractsView.spec.ts`、`admin-web/src/views/funds/FundsView.spec.ts`、`admin-web/src/views/funds-reconcile/FundsReconcileView.spec.ts`、`admin-web/src/views/reports-multi-dim/ReportsMultiDimView.spec.ts`、`admin-web/src/views/report-recompute-tasks/ReportRecomputeTasksView.spec.ts` |
 | 构建门禁 | `pnpm test`、`pnpm build` |
 
 ### 6.3 手工联调回归

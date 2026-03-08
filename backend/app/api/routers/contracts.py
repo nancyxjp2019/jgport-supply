@@ -16,6 +16,7 @@ from app.schemas.contract import (
     ContractListResponse,
     ContractResponse,
     ContractSubmitRequest,
+    ContractUpdateRequest,
     PurchaseContractCreateRequest,
     SalesContractCreateRequest,
 )
@@ -31,6 +32,7 @@ from app.services.contract_service import (
     create_contract_draft,
     get_contract_or_raise,
     submit_contract_for_approval,
+    update_contract_draft,
 )
 
 router = APIRouter(prefix="/contracts", tags=["contracts"])
@@ -104,6 +106,29 @@ def submit_contract(
             contract_id=contract_id,
             operator_id=actor.user_id,
             comment=payload.comment,
+        )
+        contract = get_contract_or_raise(db, result.contract_id)
+    except ContractServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    return _to_contract_response(contract, message=result.message)
+
+
+@router.put("/{contract_id}", response_model=ContractResponse)
+def update_contract(
+    contract_id: int,
+    payload: ContractUpdateRequest,
+    actor: AuthenticatedActor = Depends(contract_write_dependency),
+    db: Session = Depends(get_db),
+) -> ContractResponse:
+    try:
+        result = update_contract_draft(
+            db,
+            contract_id=contract_id,
+            operator_id=actor.user_id,
+            contract_no=payload.contract_no,
+            supplier_id=payload.supplier_id,
+            customer_id=payload.customer_id,
+            items=payload.items,
         )
         contract = get_contract_or_raise(db, result.contract_id)
     except ContractServiceError as exc:

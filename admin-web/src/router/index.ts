@@ -45,6 +45,16 @@ const router = createRouter({
           },
         },
         {
+          path: '/contracts',
+          name: 'contracts',
+          component: () => import('@/views/contracts/ContractsView.vue'),
+          meta: {
+            requiresAuth: true,
+            title: '合同管理台',
+            summary: '采购/销售合同列表、详情、提审、审批与图谱摘要回看',
+          },
+        },
+        {
           path: '/orders',
           name: 'orders',
           component: () => import('@/views/orders/OrdersView.vue'),
