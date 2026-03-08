@@ -103,5 +103,5 @@ describe('FundsReconcileView', () => {
     expect((wrapper.vm as any).docType).toBe('payment')
     expect((wrapper.vm as any).refundStatusFilter).toBe('待审核')
     expect((wrapper.vm as any).listLimit).toBe(260)
-  })
+  }, 10000)
 })

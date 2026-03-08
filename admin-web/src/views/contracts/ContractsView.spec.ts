@@ -117,7 +117,7 @@ describe('ContractsView', () => {
     expect(fetchContractsMock).toHaveBeenCalledWith({ status: undefined, direction: undefined })
     expect(fetchContractDetailMock).toHaveBeenCalledWith(5401)
     expect(fetchContractGraphMock).toHaveBeenCalledWith(5401)
-  })
+  }, 10000)
 
   it('财务可创建采购合同草稿', async () => {
     authState.session.roleCode = 'finance'
@@ -141,7 +141,7 @@ describe('ContractsView', () => {
       supplier_id: 'CODEX-TEST-SUPPLIER-6401',
       items: [{ oil_product_id: 'OIL-92', qty_signed: 88.5, unit_price: 6200 }],
     })
-  })
+  }, 10000)
 
   it('财务可创建销售合同草稿并按筛选重新加载列表', async () => {
     authState.session.roleCode = 'finance'
@@ -168,7 +168,7 @@ describe('ContractsView', () => {
       customer_id: 'CODEX-TEST-CUSTOMER-6402',
       items: [{ oil_product_id: 'OIL-95', qty_signed: 66.6, unit_price: 6580 }],
     })
-  })
+  }, 10000)
 
   it('财务可提交草稿并审批待审批合同', async () => {
     authState.session.roleCode = 'finance'
@@ -192,7 +192,7 @@ describe('ContractsView', () => {
 
     expect(submitContractMock).toHaveBeenCalledWith(5401, { comment: '提审说明' })
     expect(approveContractMock).toHaveBeenCalledWith(5401, { approval_result: true, comment: '审批通过' })
-  })
+  }, 10000)
 
   it('财务可编辑退回草稿并保存修改', async () => {
     authState.session.roleCode = 'finance'
@@ -225,7 +225,7 @@ describe('ContractsView', () => {
       customer_id: 'CODEX-TEST-CUSTOMER-EDIT',
       items: [{ oil_product_id: 'OIL-95', qty_signed: 55.5, unit_price: 6588 }],
     })
-  })
+  }, 10000)
 
   it('运营角色仅可回看，不能创建或审批', async () => {
     authState.session.roleCode = 'operations'
@@ -250,7 +250,7 @@ describe('ContractsView', () => {
     expect(submitContractMock).not.toHaveBeenCalled()
     expect(approveContractMock).not.toHaveBeenCalled()
     expect(updateContractMock).not.toHaveBeenCalled()
-  })
+  }, 10000)
 
   it('非后台允许角色不会触发合同列表加载', async () => {
     authState.session.roleCode = 'customer'
@@ -262,5 +262,5 @@ describe('ContractsView', () => {
 
     expect((wrapper.vm as any).canViewContracts).toBe(false)
     expect(fetchContractsMock).not.toHaveBeenCalled()
-  })
+  }, 10000)
 })

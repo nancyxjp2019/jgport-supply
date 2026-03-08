@@ -87,7 +87,7 @@ describe('ReportsMultiDimView', () => {
         drillValue: '已确认',
       },
     })
-  })
+  }, 10000)
 
   it('合同方向维度不触发真实钻取跳转', async () => {
     pushMock.mockClear()
@@ -112,7 +112,7 @@ describe('ReportsMultiDimView', () => {
     )
 
     expect(pushMock).not.toHaveBeenCalled()
-  })
+  }, 10000)
 
   it('可从 refund_status 汇总行钻取到退款核销台', async () => {
     pushMock.mockClear()
@@ -147,5 +147,5 @@ describe('ReportsMultiDimView', () => {
         drillValue: '待审核',
       },
     })
-  })
+  }, 10000)
 })

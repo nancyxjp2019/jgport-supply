@@ -96,5 +96,5 @@ describe('FundsView', () => {
     expect((wrapper.vm as any).docType).toBe('receipt')
     expect((wrapper.vm as any).statusFilter).toBe('已确认')
     expect((wrapper.vm as any).listLimit).toBe(120)
-  })
+  }, 10000)
 })

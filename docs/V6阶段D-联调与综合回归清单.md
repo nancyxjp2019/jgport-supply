@@ -10,7 +10,7 @@
 - 进入条件：`M1 ~ M7`、`M8-01 ~ M8-28` 已完成并推送，且已完成阶段 C 冻结范围闭合复核、联调范围与真实交付范围一致、降级事项已写入阶段 E 或后续治理池。
 - 当前唯一主目标：`D-01 联调与综合回归执行`
 - 当前结论：阶段 C 冻结范围闭合复核已通过，本清单自本轮起作为阶段 D 执行基线。
-- 当前自动化基线：已完成首轮自动化回归与稳定性复核，后端 `127 passed`、管理后台 `pnpm test` 连续 `3` 次均为 `55 passed`、`pnpm build` 通过；详见 `docs/history/stage-d/V6阶段D-D01联调执行记录-2026-03-08.md`。
+- 当前自动化基线：已完成首轮自动化回归、稳定性复核与 `D-CHAIN-01` 定向回归，后端全量 `127 passed`、`D-CHAIN-01` 定向后端回归 `25 passed`、管理后台 `pnpm test` 最新连续 `2` 次均为 `61 passed`、`pnpm build` 通过；详见 `docs/history/stage-d/V6阶段D-D01联调执行记录-2026-03-08.md`。
 
 ## 3. 联调范围冻结
 
@@ -52,6 +52,7 @@
 | 回归项 | 对应测试 |
 |---|---|
 | 权限、阈值、审计基线 | `backend/tests/test_m1_access.py`、`backend/tests/test_m1_thresholds.py`、`backend/tests/test_m1_audit.py` |
+| `D-CHAIN-01` 合同到订单审批主链 | `backend/tests/test_d01_contract_order_chain.py` |
 | 合同主链 | `backend/tests/test_m2_contracts.py` |
 | 订单主链 | `backend/tests/test_m3_orders.py` |
 | 资金主链 | `backend/tests/test_m4_funds.py` |
@@ -66,7 +67,7 @@
 |---|---|
 | 工具与权限 | `admin-web/src/utils/auth.spec.ts`、`admin-web/src/utils/permissions.spec.ts`、`admin-web/src/utils/report-drill.spec.ts` |
 | mock 与报表演示链 | `admin-web/src/mock/*.spec.ts`、`admin-web/src/stores/report.spec.ts` |
-| 页面关键交互 | `admin-web/src/views/contracts/ContractsView.spec.ts`、`admin-web/src/views/funds/FundsView.spec.ts`、`admin-web/src/views/funds-reconcile/FundsReconcileView.spec.ts`、`admin-web/src/views/reports-multi-dim/ReportsMultiDimView.spec.ts`、`admin-web/src/views/report-recompute-tasks/ReportRecomputeTasksView.spec.ts` |
+| 页面关键交互 | `admin-web/src/views/contracts/ContractsView.spec.ts`、`admin-web/src/views/orders/OrdersView.spec.ts`、`admin-web/src/views/funds/FundsView.spec.ts`、`admin-web/src/views/funds-reconcile/FundsReconcileView.spec.ts`、`admin-web/src/views/reports-multi-dim/ReportsMultiDimView.spec.ts`、`admin-web/src/views/report-recompute-tasks/ReportRecomputeTasksView.spec.ts` |
 | 构建门禁 | `pnpm test`、`pnpm build` |
 
 ### 6.3 手工联调回归

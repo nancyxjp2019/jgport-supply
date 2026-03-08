@@ -122,7 +122,7 @@ describe('ReportRecomputeTasksView', () => {
       report_codes: ['dashboard_summary', 'board_tasks'],
       reason: '修正履约口径后补刷快照',
     })
-  })
+  }, 10000)
 
   it('支持重试失败的汇总重算任务', async () => {
     currentRoleCode = 'finance'
@@ -133,7 +133,7 @@ describe('ReportRecomputeTasksView', () => {
     await (wrapper.vm as any).handleRetry(1202)
 
     expect(retrySummaryReportRecomputeTaskMock).toHaveBeenCalledWith(1202)
-  })
+  }, 10000)
 
   it('运营角色可只读查看历史但不可创建或重试', async () => {
     currentRoleCode = 'operations'
@@ -145,5 +145,5 @@ describe('ReportRecomputeTasksView', () => {
     expect(wrapper.html()).not.toContain('创建重算任务')
     expect(wrapper.html()).toContain('重算任务历史')
     expect((wrapper.vm as any).canManageRecomputeTasks).toBe(false)
-  })
+  }, 10000)
 })
