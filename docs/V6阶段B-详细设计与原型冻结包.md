@@ -3,8 +3,9 @@
 ## 1. 文档定位
 - 文档状态：`已冻结`
 - 目标：冻结实现口径，形成可开发规格，作为阶段C模块开发唯一输入。
+- 说明：本文新增的后台治理页面、接口与字段为目标实现规格，不代表当前仓库代码已经全部落地。
 - 上游输入：
-- `docs/需求方案.md`（当前规则 `1~57` 与“业务目标/角色权限”基线）
+- `docs/需求方案.md`（当前规则 `1~69` 与“业务目标/角色权限”基线）
   - `docs/V6阶段A-流程图状态机与UI原型清单.md`
 - 下游输出：阶段C模块任务拆分、接口开发、联调与测试用例。
 
@@ -87,7 +88,7 @@ purchase_payment_net =
 ## 3.4 状态枚举冻结
 - 合同：`草稿` -> `待审批` -> `生效中` -> `数量履约完成` -> (`已关闭` 或 `手工关闭`) -> `已归档`；补充回退分支：`待审批 -> 草稿（驳回）`。
 - 销售订单：`草稿` -> `待运营审批` -> `待财务审批` -> (`驳回` 或 `已衍生采购订单`) -> `执行中` -> `已完成`。
-- 采购订单：`已创建` -> `待供应商确认` -> `供应商已确认` -> `待付款校验` -> `可继续执行` -> `执行中` -> `已完成`。
+- 采购订单：`已创建` -> `待供应商确认` -> `供应商已确认` -> `执行中` -> `已完成`。
 - 收付款单：首版冻结为 `草稿` -> `已确认` -> `已核销`；异常分支 `待补录金额`、`已终止`。`待审核/驳回` 独立接口不纳入首版。
 - 出入库单：`草稿` -> `待提交` -> `已生效` -> `已过账`；异常分支 `校验失败`、`已终止`。
 - 约束：合同状态进入`数量履约完成`后，新增出入库单一律不得生效。
@@ -157,10 +158,12 @@ purchase_payment_net =
 | `/sales-orders/{id}/finance-approve` | `POST` | `result`,`purchase_contract_id`,`actual_receipt_amount`,`actual_pay_amount`,`comment` | 财务通过时必须绑定已生效采购合同；通过后触发采购订单 + 收付款任务 | 采购订单编号 + 收付款待处理任务 |
 | `/supplier/purchase-orders` | `GET` | `status`,`limit` | 仅 `supplier + supplier_company + miniprogram`；仅返回当前供应商公司采购订单 | 采购订单列表 |
 | `/supplier/purchase-orders/{id}` | `GET` | 无 | 仅 `supplier + supplier_company + miniprogram`；仅允许读取本公司采购订单详情 | 采购订单详情 + 发货准备信息 |
-| `/supplier/purchase-orders/{id}/confirm-delivery` | `POST` | `comment` | 仅 `supplier + supplier_company + miniprogram`；仅允许当前状态在`待供应商确认`时提交 | `status=供应商已确认`,`confirmed_at` |
+| `/supplier/purchase-orders/{id}/confirm-delivery` | `POST` | `comment` | 仅 `supplier + supplier_company + miniprogram`；仅允许当前状态在`待供应商确认`时提交；提交流程前需已完成盖章发货指令单附件留痕 | `status=供应商已确认`,`confirmed_at` |
 | `/supplier/purchase-orders/{id}/attachments` | `GET` | 无 | 仅 `supplier + supplier_company + miniprogram`；仅允许读取本公司采购订单附件摘要 | 附件列表摘要 |
 | `/supplier/purchase-orders/{id}/attachments` | `POST` | `biz_tag`,`file_path` | 仅 `supplier + supplier_company + miniprogram`；附件标签限首批枚举；路径非空且长度受控 | 上传结果 + 附件摘要 |
 | `/purchase-orders/{id}` | `GET` | 无 | 权限校验 | 采购订单详情 |
+
+- 采购订单协同补充口径：供应商提交发货确认成功后，当前采购订单即进入 `供应商已确认`；该节点视为已完成付款确认/付款校验结果固化，付款金额允许为 `0`，之后直接进入仓库执行链，不再新增独立 `待付款校验`、`可继续执行` 交易状态。
 
 ## 5.3 资金单据接口
 
@@ -270,12 +273,16 @@ purchase_payment_net =
 ## 6. 原型冻结包（页面/字段/动作）
 
 ## 6.1 页面冻结清单
-- 管理后台：`ADM-DASH-01`、`ADM-BOARD-01`、`ADM-CONTRACT-*`、`ADM-ORDER-*`、`ADM-PAYMENT-01`、`ADM-RECEIPT-01`、`ADM-INBOUND-01`、`ADM-OUTBOUND-01`、`ADM-TRACE-01`、`ADM-AUDIT-01`、`ADM-CONFIG-01`、`ADM-REPORT-EXPORT-01`。
+- 管理后台：`ADM-DASH-01`、`ADM-BOARD-01`、`ADM-CONTRACT-*`、`ADM-ORDER-*`、`ADM-PAYMENT-01`、`ADM-RECEIPT-01`、`ADM-INBOUND-01`、`ADM-OUTBOUND-01`、`ADM-TRACE-01`、`ADM-AUDIT-01`、`ADM-ORG-01`、`ADM-USER-01`、`ADM-MASTER-01`、`ADM-APPROVAL-TPL-01`、`ADM-CONFIG-01`、`ADM-REPORT-EXPORT-01`。
 - 小程序：`MINI-TODO-01`、`MINI-ORDER-01`、`MINI-EXEC-01`、`MINI-INOUT-01`、`MINI-SUPPLIER-PO-01`、`MINI-REPORT-01`、`MINI-MSG-01`。
 
 ## 6.2 关键字段字典冻结
 - 合同：编号、方向、油品、签约数量、单价、系统阈值快照、状态。
 - 订单：来源合同、油品、数量、合同单价、实收实付、状态。
+- 组织与公司：公司编码、公司类型、启停状态、归属关系。
+- 用户与角色绑定：用户编号、角色、归属公司、管理后台登录权限、小程序登录权限、状态。
+- 主数据：客户、供应商、油品、仓库、库位、计量单位编码与启停状态。
+- 审批模板：模板编码、业务类型、版本、状态、生效时间。
 - 采购订单附件：归属采购订单、业务标签、文件路径、上传人、上传时间。
 - 供应商确认：确认备注、确认人、确认时间、确认前状态。
 - 收付款单：业务类型、金额、凭证要求、免凭证原因、核销状态。
@@ -324,6 +331,6 @@ purchase_payment_net =
 - 阶段C开发前，不再接受跨模块口径改动；变更走版本流程。
 
 ## 9. 阶段C实施入口（不开发）
-1. 按`M1~M8`模块顺序拆解开发任务。
-2. 每个子模块必须先落测试用例清单，再进入编码。
-3. 每迭代完成后执行：自检 -> 联调 -> 回归 -> 文档更新 -> 提交推送。
+1. 当前生产化主线按 `G1 -> G2 -> G3 -> G4 -> G5` 顺序拆解开发任务，不再沿用旧版 `M1~M8` 作为当前实施主线。
+2. 每个子模块必须先落测试用例清单与上下游边界，再进入编码。
+3. 每迭代完成后执行：自检 -> 独立评审 -> 联调/回归 -> 文档更新 -> 提交推送。
