@@ -10,7 +10,7 @@
 - 进入条件：`M1 ~ M7`、`M8-01 ~ M8-28` 已完成并推送，且已完成阶段 C 冻结范围闭合复核、联调范围与真实交付范围一致、降级事项已写入阶段 E 或后续治理池。
 - 当前唯一主目标：`D-01 联调与综合回归执行`
 - 当前结论：阶段 C 冻结范围闭合复核已通过，本清单自本轮起作为阶段 D 执行基线。
-- 当前自动化基线：已完成首轮自动化回归、稳定性复核与 `D-CHAIN-01`、`D-CHAIN-02`、`D-CHAIN-03`、`D-CHAIN-04`、`D-CHAIN-05`、`D-CHAIN-06` 定向回归，后端全量 `137 passed`、`D-CHAIN-01` 定向后端回归 `25 passed`、`D-CHAIN-02` 定向后端回归 `24 passed`、`D-CHAIN-03` 定向后端回归 `15 passed`、`D-CHAIN-04` 定向后端回归 `10 passed`、`D-CHAIN-05` 定向后端回归 `17 passed`、`D-CHAIN-06` 定向后端回归 `30 passed`、管理后台 `pnpm test` 当前为 `82 passed`、`pnpm build` 通过、小程序 `node --test tests/*.test.js` 当前为 `58 passed`；详见 `docs/history/stage-d/V6阶段D-D01联调执行记录-2026-03-08.md`。
+- 当前自动化基线：已完成首轮自动化回归、稳定性复核与 `D-CHAIN-01`、`D-CHAIN-02`、`D-CHAIN-03`、`D-CHAIN-04`、`D-CHAIN-05`、`D-CHAIN-06` 定向回归，后端全量 `137 passed`、`D-CHAIN-01` 定向后端回归 `25 passed`、`D-CHAIN-02` 定向后端回归 `24 passed`、`D-CHAIN-03` 定向后端回归 `15 passed`、`D-CHAIN-04` 定向后端回归 `10 passed`、`D-CHAIN-05` 定向后端回归 `17 passed`、`D-CHAIN-06` 定向后端回归 `30 passed`、管理后台 `pnpm test` 当前为 `86 passed`、`pnpm build` 通过、小程序 `node --test tests/*.test.js` 当前为 `58 passed`；详见 `docs/history/stage-d/V6阶段D-D01联调执行记录-2026-03-08.md`。
 
 ## 3. 联调范围冻结
 
@@ -70,7 +70,7 @@
 
 | 回归项 | 对应测试/构建 |
 |---|---|
-| 工具与权限 | `admin-web/src/utils/auth.spec.ts`、`admin-web/src/utils/permissions.spec.ts`、`admin-web/src/utils/report-drill.spec.ts` |
+| 工具与权限 | `admin-web/src/utils/auth.spec.ts`、`admin-web/src/utils/permissions.spec.ts`、`admin-web/src/utils/report-drill.spec.ts`、`admin-web/src/router/index.spec.ts` |
 | mock 与报表演示链 | `admin-web/src/mock/*.spec.ts`、`admin-web/src/stores/report.spec.ts` |
 | 页面关键交互 | `admin-web/src/views/contracts/ContractsView.spec.ts`、`admin-web/src/views/orders/OrdersView.spec.ts`、`admin-web/src/views/funds/FundsView.spec.ts`、`admin-web/src/views/funds/FundsView.actions.spec.ts`、`admin-web/src/views/funds-reconcile/FundsReconcileView.spec.ts`、`admin-web/src/views/funds-reconcile/FundsReconcileView.actions.spec.ts`、`admin-web/src/views/inventory/InventoryView.spec.ts`、`admin-web/src/views/contract-close/ContractCloseView.spec.ts`、`admin-web/src/views/dashboard/OverviewView.spec.ts`、`admin-web/src/views/board/TasksView.spec.ts`、`admin-web/src/views/reports-multi-dim/ReportsMultiDimView.spec.ts`、`admin-web/src/views/report-export-tasks/ReportExportTasksView.spec.ts`、`admin-web/src/views/report-recompute-tasks/ReportRecomputeTasksView.spec.ts` |
 | 构建门禁 | `pnpm test`、`pnpm build` |

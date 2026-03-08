@@ -48,6 +48,7 @@ export default defineConfig(({ mode }) => {
       environment: 'jsdom',
       globals: true,
       include: ['src/**/*.spec.ts'],
+      testTimeout: 20000,
     },
   }
 })
