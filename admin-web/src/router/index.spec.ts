@@ -8,6 +8,7 @@ import { AUTH_SESSION_STORAGE_KEY, buildDemoSession } from '@/utils/auth'
 const protectedRoutes = [
   { name: 'dashboard', path: '/dashboard', title: '经营仪表盘' },
   { name: 'board', path: '/board', title: '业务看板' },
+  { name: 'org-companies', path: '/org-companies', title: '组织与公司管理' },
   { name: 'contracts', path: '/contracts', title: '合同管理台' },
   { name: 'orders', path: '/orders', title: '运营订单处理台' },
   { name: 'funds', path: '/funds', title: '财务资金处理台' },
@@ -31,7 +32,11 @@ function resetAuthState() {
 
 function restoreDemoSession(roleCode: 'operations' | 'finance' | 'admin') {
   resetAuthState()
-  window.localStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify(buildDemoSession(roleCode)))
+  const authStore = useAuthStore(pinia)
+  const session = buildDemoSession(roleCode)
+  authStore.session = session
+  authStore.ready = true
+  window.localStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify(session))
 }
 
 describe('router', () => {
@@ -81,5 +86,14 @@ describe('router', () => {
 
     await router.push('/contract-close')
     expect(document.title).toBe('JGPort V6 - 合同关闭差异台')
+  })
+
+  it('非管理员访问组织与公司管理会被路由守卫拦回仪表盘', async () => {
+    restoreDemoSession('finance')
+
+    await router.push('/org-companies')
+
+    expect(router.currentRoute.value.path).toBe('/dashboard')
+    expect(document.title).toBe('JGPort V6 - 经营仪表盘')
   })
 })

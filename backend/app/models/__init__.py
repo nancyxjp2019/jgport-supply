@@ -1,5 +1,6 @@
 from app.models.business_audit_log import BusinessAuditLog
 from app.models.business_log import BusinessLog
+from app.models.company_profile import CompanyProfile
 from app.models.contract import Contract
 from app.models.contract_effective_task import ContractEffectiveTask
 from app.models.contract_item import ContractItem
@@ -23,6 +24,7 @@ from app.models.threshold_config_version import ThresholdConfigVersion
 __all__ = [
     "BusinessAuditLog",
     "BusinessLog",
+    "CompanyProfile",
     "Contract",
     "ContractEffectiveTask",
     "ContractItem",

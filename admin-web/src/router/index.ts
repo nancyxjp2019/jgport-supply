@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import AdminShell from '@/layouts/AdminShell.vue'
 import { pinia } from '@/stores'
 import { useAuthStore } from '@/stores/auth'
+import { canRoleExecuteAction, type AdminActionCode } from '@/utils/permissions'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -42,6 +43,17 @@ const router = createRouter({
             requiresAuth: true,
             title: '业务看板',
             summary: '聚焦待补录金额、库存阻塞与合同待关闭',
+          },
+        },
+        {
+          path: '/org-companies',
+          name: 'org-companies',
+          component: () => import('@/views/org-companies/OrgCompaniesView.vue'),
+          meta: {
+            requiresAuth: true,
+            requiredAction: 'org.manage' as AdminActionCode,
+            title: '组织与公司管理',
+            summary: '维护运营商、客户、供应商、仓库公司档案与归属关系',
           },
         },
         {
@@ -158,6 +170,15 @@ router.beforeEach(async (to) => {
       },
     }
   }
+
+  const requiredAction =
+    typeof to.meta.requiredAction === 'string'
+      ? (to.meta.requiredAction as AdminActionCode)
+      : null
+  if (requiredAction && !canRoleExecuteAction(authStore.session?.roleCode, requiredAction)) {
+    return { path: '/dashboard' }
+  }
+
   return true
 })
 

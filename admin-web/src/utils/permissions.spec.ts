@@ -27,6 +27,7 @@ describe('permissions utils', () => {
   })
 
   it('管理员具备首批全部按钮权限', () => {
+    expect(canRoleExecuteAction('admin', 'org.manage')).toBe(true)
     expect(canRoleExecuteAction('admin', 'contracts.view')).toBe(true)
     expect(canRoleExecuteAction('admin', 'contracts.write')).toBe(true)
     expect(canRoleExecuteAction('admin', 'contracts.approve')).toBe(true)
@@ -35,5 +36,10 @@ describe('permissions utils', () => {
     expect(canRoleExecuteAction('admin', 'reports.multi_dim.export')).toBe(true)
     expect(canRoleExecuteAction('admin', 'reports.summary.recompute.view')).toBe(true)
     expect(canRoleExecuteAction('admin', 'reports.summary.recompute')).toBe(true)
+  })
+
+  it('财务与运营都不能维护组织档案', () => {
+    expect(canRoleExecuteAction('finance', 'org.manage')).toBe(false)
+    expect(canRoleExecuteAction('operations', 'org.manage')).toBe(false)
   })
 })
