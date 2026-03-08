@@ -10,7 +10,7 @@
 - 进入条件：`M1 ~ M7`、`M8-01 ~ M8-28` 已完成并推送，且已完成阶段 C 冻结范围闭合复核、联调范围与真实交付范围一致、降级事项已写入阶段 E 或后续治理池。
 - 当前唯一主目标：`D-01 联调与综合回归执行`
 - 当前结论：阶段 C 冻结范围闭合复核已通过，本清单自本轮起作为阶段 D 执行基线。
-- 当前自动化基线：已完成首轮自动化回归、稳定性复核与 `D-CHAIN-01`、`D-CHAIN-02`、`D-CHAIN-03`、`D-CHAIN-04`、`D-CHAIN-05` 定向回归，后端全量 `135 passed`、`D-CHAIN-01` 定向后端回归 `25 passed`、`D-CHAIN-02` 定向后端回归 `24 passed`、`D-CHAIN-03` 定向后端回归 `15 passed`、`D-CHAIN-04` 定向后端回归 `10 passed`、`D-CHAIN-05` 定向后端回归 `17 passed`、管理后台 `pnpm test` 当前为 `82 passed`、`pnpm build` 通过；详见 `docs/history/stage-d/V6阶段D-D01联调执行记录-2026-03-08.md`。
+- 当前自动化基线：已完成首轮自动化回归、稳定性复核与 `D-CHAIN-01`、`D-CHAIN-02`、`D-CHAIN-03`、`D-CHAIN-04`、`D-CHAIN-05`、`D-CHAIN-06` 定向回归，后端全量 `137 passed`、`D-CHAIN-01` 定向后端回归 `25 passed`、`D-CHAIN-02` 定向后端回归 `24 passed`、`D-CHAIN-03` 定向后端回归 `15 passed`、`D-CHAIN-04` 定向后端回归 `10 passed`、`D-CHAIN-05` 定向后端回归 `17 passed`、`D-CHAIN-06` 定向后端回归 `30 passed`、管理后台 `pnpm test` 当前为 `82 passed`、`pnpm build` 通过、小程序 `node --test tests/*.test.js` 当前为 `58 passed`；详见 `docs/history/stage-d/V6阶段D-D01联调执行记录-2026-03-08.md`。
 
 ## 3. 联调范围冻结
 
@@ -57,6 +57,7 @@
 | `D-CHAIN-03` 仓储执行主链 | `backend/tests/test_d01_inventory_chain.py` |
 | `D-CHAIN-04` 合同关闭主链 | `backend/tests/test_d01_contract_close_chain.py` |
 | `D-CHAIN-05` 汇总报表主链 | `backend/tests/test_d01_reports_chain.py` |
+| `D-CHAIN-06` 小程序与身份主链 | `backend/tests/test_d01_mini_identity_chain.py` |
 | 合同主链 | `backend/tests/test_m2_contracts.py` |
 | 订单主链 | `backend/tests/test_m3_orders.py` |
 | 资金主链 | `backend/tests/test_m4_funds.py` |
@@ -74,7 +75,17 @@
 | 页面关键交互 | `admin-web/src/views/contracts/ContractsView.spec.ts`、`admin-web/src/views/orders/OrdersView.spec.ts`、`admin-web/src/views/funds/FundsView.spec.ts`、`admin-web/src/views/funds/FundsView.actions.spec.ts`、`admin-web/src/views/funds-reconcile/FundsReconcileView.spec.ts`、`admin-web/src/views/funds-reconcile/FundsReconcileView.actions.spec.ts`、`admin-web/src/views/inventory/InventoryView.spec.ts`、`admin-web/src/views/contract-close/ContractCloseView.spec.ts`、`admin-web/src/views/dashboard/OverviewView.spec.ts`、`admin-web/src/views/board/TasksView.spec.ts`、`admin-web/src/views/reports-multi-dim/ReportsMultiDimView.spec.ts`、`admin-web/src/views/report-export-tasks/ReportExportTasksView.spec.ts`、`admin-web/src/views/report-recompute-tasks/ReportRecomputeTasksView.spec.ts` |
 | 构建门禁 | `pnpm test`、`pnpm build` |
 
-### 6.3 手工联调回归
+### 6.3 小程序自动化回归
+
+| 回归项 | 对应测试/校验 |
+|---|---|
+| 语法校验 | `node --check app.js config/env.js mocks/order.js utils/api.js utils/format.js utils/light-report.js utils/message.js utils/navigation.js utils/order.js utils/request.js utils/session.js utils/supplier-purchase.js utils/todo.js utils/warehouse-exec.js pages/login/index.js pages/todo/index.js pages/msg/index.js pages/order/index.js pages/report/index.js pages/exec/index.js pages/supplier-purchase/index.js` |
+| 登录与会话 | `miniprogram/tests/session.test.js`、`miniprogram/tests/login-page.test.js` |
+| 待办与消息 | `miniprogram/tests/todo.test.js`、`miniprogram/tests/message.test.js`、`miniprogram/tests/todo-page.test.js`、`miniprogram/tests/message-page.test.js` |
+| 经营快报与权限边界 | `miniprogram/tests/light-report.test.js`、`miniprogram/tests/report-page.test.js` |
+| 页面导航与业务页 | `miniprogram/tests/navigation.test.js`、`miniprogram/tests/order.test.js`、`miniprogram/tests/warehouse-exec.test.js`、`miniprogram/tests/supplier-purchase.test.js`、`miniprogram/tests/supplier-purchase-page.test.js` |
+
+### 6.4 手工联调回归
 
 | 手工项 | 重点确认 |
 |---|---|
